@@ -8,6 +8,8 @@ After changing the policy, re-render the document with `uv run python -m refund_
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 import string
 import textwrap
@@ -26,7 +28,14 @@ OrderStatus = Literal[
     "created", "approved", "invoiced", "processing", "shipped", "delivered", "canceled", "unavailable"
 ]
 
-_FROZEN = ConfigDict(frozen=True, extra="forbid")
+# strict: a wrong type is an error, never converted (by default "30", 30.0 and true would all load as numbers).
+_FROZEN = ConfigDict(frozen=True, extra="forbid", strict=True)
+# TOML arrays arrive as lists; these fields accept them as tuples, and their elements stay strict.
+_ARRAY = {"strict": False}
+
+# Released versions and the content hash each one is frozen at. load_policy refuses a frozen version whose
+# content changed: a changed rule or text needs a new version, so a version always names one policy.
+FROZEN_VERSIONS = {"v1": "4b13ed244bb199f0538df9aba8ed1af53370dd80c7b15802b4253b01e4ebecde"}
 
 
 class Rules(BaseModel):
@@ -34,9 +43,9 @@ class Rules(BaseModel):
 
     model_config = _FROZEN
 
-    eligible_order_statuses: tuple[OrderStatus, ...] = Field(min_length=1)
-    refund_window_days: int = Field(gt=0)
-    proposal_ttl_hours: int = Field(gt=0)
+    eligible_order_statuses: tuple[OrderStatus, ...] = Field(min_length=1, **_ARRAY)
+    refund_window_days: int = Field(gt=0, le=365)
+    proposal_ttl_hours: int = Field(gt=0, le=720)
 
 
 class Section(BaseModel):
@@ -63,7 +72,7 @@ class Policy(BaseModel):
     version: str = Field(pattern=r"^v[0-9]+$")
     currency: str = Field(pattern=r"^[A-Z]{3}$")
     rules: Rules
-    sections: tuple[Section, ...] = Field(min_length=1)
+    sections: tuple[Section, ...] = Field(min_length=1, **_ARRAY)
 
     @model_validator(mode="after")
     def _single_source(self) -> Policy:
@@ -94,6 +103,11 @@ class Policy(BaseModel):
                 values[name] = str(value)
         return values
 
+    def content_hash(self) -> str:
+        """SHA-256 of the policy's content. Comments, wrapping and line endings of the TOML file do not change it."""
+        canonical = json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
     def section(self, section_id: str) -> Section:
         for section in self.sections:
             if section.id == section_id:
@@ -111,7 +125,14 @@ class Policy(BaseModel):
 
 def load_policy(path: Path = POLICY_PATH) -> Policy:
     with path.open("rb") as f:
-        return Policy.model_validate(tomllib.load(f))
+        policy = Policy.model_validate(tomllib.load(f))
+    frozen = FROZEN_VERSIONS.get(policy.version)
+    if frozen is not None and frozen != policy.content_hash():
+        raise ValueError(
+            f"policy {policy.version} is frozen at {frozen} but its content hashes to {policy.content_hash()}; "
+            "a changed policy needs a new version"
+        )
+    return policy
 
 
 def render_markdown(policy: Policy) -> str:

@@ -6,6 +6,7 @@ from refund_agent.policy import REPO_ROOT, load_policy
 from refund_agent.states import (
     CHECKS,
     FINAL,
+    LAB_TRANSITIONS,
     OPEN,
     RENDERED_PATH,
     TRANSITIONS,
@@ -91,7 +92,7 @@ def test_configuration_c_differs_exactly_where_the_plan_says():
         "first_execution",
         "approval_used_once",
         "valid_values",
-        "within_remaining",
+        "units_available",
     }
 
 
@@ -110,3 +111,37 @@ def test_protected_invariants_and_policy_sections_exist():
 def test_rendered_document_is_in_sync():
     actual = RENDERED_PATH.read_text(encoding="utf-8")
     assert actual == render_markdown(), "docs/state-machine.md is stale: run `uv run python -m refund_agent.states`"
+
+
+def test_a_refunded_proposal_is_never_invalidated_or_expired():
+    for t in TRANSITIONS:
+        if t.target in {Status.INVALIDATED, Status.EXPIRED}:
+            assert Status.REFUNDED not in t.sources, t.event
+
+
+def test_execute_checks_ownership_first_and_returns_a_completed_refund_before_any_expiry_check():
+    (execute,) = transitions("execute")
+    order = list(execute.checks)
+    assert order[0] == "actor_owns"
+    after_receipt = order[order.index("first_execution") + 1 :]
+    # Expiry, handoff and the other checks stop new payments only, never the retrieval of a stored receipt.
+    for name in ("agent_in_control", "proposal_current", "status_approved", "customer_confirmed", "staff_approved"):
+        assert name in after_receipt, name
+
+
+def test_configuration_c_adds_exactly_one_transition():
+    (lab,) = LAB_TRANSITIONS
+    (execute,) = transitions("execute")
+    assert (lab.event, lab.target, lab.actor) == ("execute", Status.REFUNDED, Actor.AGENT)
+    assert lab.sources == set(Status) - {Status.REFUNDED}
+    # The same checks as in A, in the same order, minus the ones C does not enforce.
+    assert lab.checks == (
+        "actor_owns",
+        "request_key_consistent",
+        "first_execution",
+        "agent_in_control",
+        "valid_values",
+        "approval_used_once",
+        "units_available",
+    )
+    assert [c for c in execute.checks if c in lab.checks] == list(lab.checks)

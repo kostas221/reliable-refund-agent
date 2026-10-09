@@ -62,9 +62,9 @@ Tests, the evaluator and the authorization table refer to these IDs.
 | ID | Invariant |
 |---|---|
 | INV-1 Ownership | A customer, and the agent in that customer's session, reads and changes only that customer's orders, conversations and proposals. Staff actions require the staff role. |
-| INV-2 Server amounts | The backend computes every amount and quantity. Confirm and approve accept only a proposal ID and a decision; amounts or actors sent by the client or model are never used. |
-| INV-3 Immutable proposal | A proposal binds customer, order, line IDs, quantities, amount, currency, payment reference, policy version, order version and expiry. Any change means a new proposal, confirmation and approval. |
-| INV-4 Limits | Refunded amount and quantity per order line never exceed the eligible paid limit across all proposals. The shared balance is checked in the same transaction as the idempotency key. |
+| INV-2 Server amounts | The backend computes every amount and quantity. Confirm and approve accept only a proposal ID and a decision; the actor comes from the session and the channel (customer screen, staff console, agent tool), and amounts or actors sent by the client or model are never used. |
+| INV-3 Immutable proposal | A proposal binds customer, order, the IDs of the exact units, amount, currency, payment reference, policy version and hash, order version and expiry. Any change means a new proposal, confirmation and approval. |
+| INV-4 Limits | Each unit is refunded at most once, for at most what was paid for it, across all proposals. The database enforces it with a unique constraint, in the same transaction as the idempotency key. |
 | INV-5 Authorization | Every committed refund has one valid confirmation and one valid staff approval for that exact proposal, neither expired, rejected nor superseded. Approval never overrides a hard policy rule. |
 | INV-6 At most once | One approval allows at most one committed operation. A retry returns the same receipt. The same idempotency key with a different payload is a conflict. |
 | INV-7 Atomic commit | Checks, balance, approval use, operation, ledger lines, receipt, audit event and final state commit together or not at all. No transaction stays open while waiting for a model or a person. |

@@ -28,8 +28,8 @@ def test_policy_loads():
 
 def test_texts_take_numbers_from_rules():
     policy = load_policy()
-    assert f"within {policy.rules.refund_window_days} days" in policy.rendered_text("window")
-    assert f"valid for {policy.rules.proposal_ttl_hours} hours" in policy.rendered_text("validity")
+    assert f"no later than {policy.rules.refund_window_days} days" in policy.rendered_text("window")
+    assert f"expires, {policy.rules.proposal_ttl_hours} hours after" in policy.rendered_text("validity")
     assert 'status "delivered"' in policy.rendered_text("eligible-orders")
 
 
@@ -57,7 +57,7 @@ def test_unknown_placeholder_is_rejected():
 
 
 def test_rule_missing_from_every_text_is_rejected():
-    raw = raw_with_text("validity", "for {proposal_ttl_hours} hours", "for a limited time")
+    raw = raw_with_text("validity", "{proposal_ttl_hours} hours", "some time")
     with pytest.raises(ValidationError, match="not stated in any section text"):
         Policy.model_validate(raw)
 
@@ -81,3 +81,34 @@ def test_duplicate_section_id_is_rejected():
     raw["sections"].append(dict(raw["sections"][0]))
     with pytest.raises(ValidationError, match="duplicate section ids"):
         Policy.model_validate(raw)
+
+
+@pytest.mark.parametrize("wrong", ["30", 30.0, True])
+def test_wrong_type_is_rejected_not_converted(wrong):
+    raw = raw_policy()
+    raw["rules"]["refund_window_days"] = wrong
+    with pytest.raises(ValidationError):
+        Policy.model_validate(raw)
+
+
+def test_frozen_version_with_changed_content_does_not_load(tmp_path):
+    text = POLICY_PATH.read_text(encoding="utf-8").replace("is on time.", "is late.")
+    path = tmp_path / "policy.toml"
+    path.write_text(text, encoding="utf-8")
+    with pytest.raises(ValueError, match="frozen"):
+        load_policy(path)
+
+
+def test_changed_content_loads_under_a_new_version(tmp_path):
+    text = POLICY_PATH.read_text(encoding="utf-8").replace("is on time.", "is late.")
+    path = tmp_path / "policy.toml"
+    path.write_text(text.replace('version = "v1"', 'version = "v2"'), encoding="utf-8")
+    assert load_policy(path).version == "v2"
+
+
+def test_hash_ignores_comments_wrapping_and_line_endings(tmp_path):
+    text = POLICY_PATH.read_text(encoding="utf-8")
+    text = "# an extra comment\n" + text.replace("All amounts are in {currency},", "All amounts\n   are in {currency},")
+    path = tmp_path / "policy.toml"
+    path.write_bytes(text.replace("\n", "\r\n").encode("utf-8"))
+    assert load_policy(path).content_hash() == load_policy().content_hash()

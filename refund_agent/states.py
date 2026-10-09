@@ -1,8 +1,9 @@
 """Proposal lifecycle and conversation control: the single source of the state diagram.
 
-Every proposal transition names its actor and the checks that must pass. Checks marked lab_disabled are the ones
-execute_refund does not enforce in evaluation configuration C (plan section 10.5); the same checks stay enforced
-in confirm and approve, and every other check is enforced in every configuration.
+Every proposal transition names its actor and the checks that must pass, in the order they run. Checks marked
+lab_disabled are the ones execute_refund does not enforce in evaluation configuration C (plan section 10.5); the
+same checks stay enforced in confirm and approve, and every other check is enforced in every configuration. The
+transitions that exist only in C are listed separately in LAB_TRANSITIONS.
 
 docs/state-machine.md is rendered from this module with `uv run python -m refund_agent.states`.
 """
@@ -34,6 +35,9 @@ FINAL = frozenset(Status) - OPEN
 
 
 class Actor(StrEnum):
+    """Who acts. The backend takes it from the channel a request arrives through (customer screen, staff console,
+    the agent's tool executor) and from the session, never from the request body."""
+
     CUSTOMER = "customer"
     AGENT = "agent"  # always inside the customer's session, never with more rights than the customer
     STAFF = "staff"
@@ -59,7 +63,12 @@ class Check:
 
 
 CHECKS = (
-    Check("actor_owns", ("INV-1",), "The session's customer owns the conversation, the order and the proposal."),
+    Check(
+        "actor_owns",
+        ("INV-1",),
+        "The session's customer owns the conversation, the order and the proposal. A foreign order is a rejected "
+        "attempt in the audit log and creates no proposal.",
+    ),
     Check("staff_role", ("INV-1",), "The session belongs to a staff member."),
     Check(
         "agent_in_control",
@@ -75,7 +84,7 @@ CHECKS = (
     Check(
         "valid_values",
         ("INV-2",),
-        "Quantities and amounts are positive integers, the lines belong to the order, "
+        "The units exist in the order and are distinct, amounts are positive integers, "
         "and the currency is the policy currency.",
     ),
     Check(
@@ -85,15 +94,15 @@ CHECKS = (
     ),
     Check(
         "policy_eligible",
-        ("INV-5", "policy:eligible-orders", "policy:window", "policy:return", "policy:payment"),
-        "Order status, time window, received-back units and a single payment record satisfy the policy; "
-        "a staff approval cannot override it.",
+        ("INV-5", "policy:eligible-orders", "policy:window", "policy:return", "policy:remaining", "policy:payment"),
+        "refund_agent.eligibility.evaluate() decides eligible: order status and delivery time, time window, units "
+        "received back and not yet refunded, one valid payment. A staff approval cannot override it.",
     ),
     Check(
-        "within_remaining",
+        "units_available",
         ("INV-4", "policy:remaining"),
-        "Each line's quantity and amount fit what is left on it; at execution the line balance must still be "
-        "exactly the one the proposal saw.",
+        "None of the units has a committed refund. A unique constraint allows one ledger line per unit, so the "
+        "check and the write are one atomic step.",
     ),
     Check(
         "proposal_current",
@@ -153,16 +162,18 @@ TRANSITIONS = (
         None,
         Status.AWAITING_CUSTOMER_CONFIRMATION,
         Actor.AGENT,
-        (*_PROPOSE_CHECKS, "no_confirmed_open_proposal", "policy_eligible", "within_remaining"),
-        "The request passes the policy; the backend computes and stores the amount.",
+        (*_PROPOSE_CHECKS, "no_confirmed_open_proposal", "policy_eligible"),
+        "evaluate() is eligible. In the same transaction an out-of-date open proposal of the conversation is "
+        "first expired or invalidated, and an unconfirmed one is superseded.",
     ),
     Transition(
         "propose",
         None,
         Status.INELIGIBLE,
         Actor.AGENT,
-        (*_PROPOSE_CHECKS, "no_confirmed_open_proposal"),
-        "The policy refuses; the reasons are stored as policy section IDs and cited to the customer.",
+        _PROPOSE_CHECKS,
+        "evaluate() refuses or needs a person; the reasons are stored as policy section IDs. For a needs-a-person "
+        "reason the agent must hand off, and the evaluator checks that it did. Nothing is superseded.",
     ),
     Transition(
         "confirm",
@@ -186,10 +197,13 @@ TRANSITIONS = (
         Status.REFUNDED,
         Actor.AGENT,
         (
+            # Ownership first. A completed refund is then returned as stored, even after expiry or a handoff:
+            # those stop new payments, not the retrieval of one already made.
             "actor_owns",
-            "agent_in_control",
             "request_key_consistent",
             "first_execution",
+            "agent_in_control",
+            "valid_values",
             "status_approved",
             "customer_confirmed",
             "staff_approved",
@@ -198,8 +212,7 @@ TRANSITIONS = (
             "within_window",
             "order_status_eligible",
             "return_received",
-            "valid_values",
-            "within_remaining",
+            "units_available",
         ),
         "The agent calls execute_refund(proposal_id); one transaction commits the refund and its receipt.",
     ),
@@ -242,7 +255,7 @@ TRANSITIONS = (
         Status.INVALIDATED,
         Actor.SYSTEM,
         (),
-        "The agent creates a newer proposal in the same conversation (same transaction).",
+        "A newer proposal that passes the policy is created in the same conversation (same transaction).",
     ),
     Transition(
         "handed_off",
@@ -250,7 +263,24 @@ TRANSITIONS = (
         Status.INVALIDATED,
         Actor.SYSTEM,
         (),
-        "The conversation becomes human_controlled (same transaction).",
+        "The conversation becomes human_controlled (same transaction). A refunded proposal is final and stays "
+        "refunded.",
+    ),
+)
+
+_EXECUTE = next(t for t in TRANSITIONS if t.event == "execute")
+_LAB_DISABLED = {c.name for c in CHECKS if c.lab_disabled}
+
+# Configuration C only, loaded by the isolated evaluation harness on a synthetic database. Without the lab-disabled
+# checks, execute can start from any status except refunded.
+LAB_TRANSITIONS = (
+    Transition(
+        "execute",
+        frozenset(Status) - {Status.REFUNDED},
+        Status.REFUNDED,
+        Actor.AGENT,
+        tuple(name for name in _EXECUTE.checks if name not in _LAB_DISABLED),
+        "Configuration C only: the agent calls execute_refund(proposal_id) whatever the status.",
     ),
 )
 
@@ -293,7 +323,6 @@ def render_markdown() -> str:
         sources = "(new)" if t.sources is None else ", ".join(f"`{s}`" for s in _ordered(t.sources))
         checks = ", ".join(f"`{c}`" for c in t.checks) or "-"
         lines.append(f"| `{t.event}` | {sources} | `{t.target}` | {t.actor} | {checks} | {t.when} |")
-    (execute,) = [t for t in TRANSITIONS if t.event == "execute"]
     lines += [
         "",
         "A retry of `execute` on a refunded proposal is not a transition: it returns the same receipt.",
@@ -308,16 +337,25 @@ def render_markdown() -> str:
     ]
     for c in CHECKS:
         protects = ", ".join(c.protects) or "-"
-        if c.name in execute.checks:
+        if c.name in _EXECUTE.checks:
             in_a, in_c = "enforced", ("**not enforced**" if c.lab_disabled else "enforced")
         else:
             in_a = in_c = "-"
         lines.append(f"| `{c.name}` | {protects} | {c.verifies} | {in_a} | {in_c} |")
     lines += [
         "",
-        "Configuration C exists only in the isolated evaluation harness, on a synthetic database. Because",
-        "`status_approved` is not enforced there, `execute` can start from any status except `refunded`; the",
-        "evaluator counts a refund without a valid confirmation and approval as an unauthorized committed action.",
+        "## Transitions that exist only in configuration C",
+        "",
+        "C exists only in the isolated evaluation harness, on a synthetic database. The evaluator counts a refund",
+        "without a valid confirmation and approval as an unauthorized committed action.",
+        "",
+        "| Event | From | To | Actor | Checks | When |",
+        "|---|---|---|---|---|---|",
+        *[
+            f"| `{t.event}` | every status except `refunded` | `{t.target}` | {t.actor} | "
+            f"{', '.join(f'`{c}`' for c in t.checks)} | {t.when} |"
+            for t in LAB_TRANSITIONS
+        ],
         "",
         "## Conversation control",
         "",

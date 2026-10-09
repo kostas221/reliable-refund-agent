@@ -1,9 +1,9 @@
 # Database schema (design for phase 2)
 
-Status: design, not yet a migration. When the first Alembic migration exists, it becomes the source for columns and
-types, and this page keeps only the reasons. Statuses, transitions and the checks of each transition are in
-[state-machine.md](state-machine.md), generated from code. Invariant IDs (INV-n) are those of the
-[product contract](product-contract.md).
+Status: design, not yet a migration. Once the migrations exist, they and their constraints are the source for
+tables, columns and types, and this page keeps only the reasons. Statuses, transitions and the checks of each
+transition are in [state-machine.md](state-machine.md), generated from code; the policy decisions are in
+`refund_agent/eligibility.py`. Invariant IDs (INV-n) are those of the [product contract](product-contract.md).
 
 ## Conventions
 
@@ -13,13 +13,18 @@ types, and this page keeps only the reasons. Statuses, transitions and the check
 - **IDs:** UUIDs for rows the application creates; Olist IDs kept as text for imported data.
 - **Trusted and untrusted text:** columns written by the model or typed by a person end in `_untrusted`. Screens show
   them labelled and as plain text, never as HTML, and they are never part of a content hash.
+- **Two database roles:** the migration owner creates and owns the tables. The runtime role, which the application
+  uses, gets only the privileges stated below. Permission tests run as the runtime role.
+- **Who acts:** the backend takes the actor from the channel and the session, never from a request body. Confirm
+  and cancel are endpoints of the customer screen, approve and reject of the staff console; none of them is an
+  agent tool.
 
 ## Identity and conversations
 
 | Table | Key columns | Constraints and reasons |
 |---|---|---|
 | `users` | `id`, `role` (customer, staff), `email`, `display_name` | Sessions use an established library, not our own authentication. |
-| `conversations` | `id`, `customer_id`, `control` (agent, human_controlled), `created_at` | `control` is read inside every agent write's transaction (INV-8). |
+| `conversations` | `id`, `customer_id`, `control` (agent, human_controlled), `created_at` | Every write about a conversation locks this row first (see below), so a handoff and an agent write are ordered (INV-8). |
 | `messages` | `id`, `conversation_id`, `author` (customer, agent, staff, tool), `content_untrusted`, `created_at` | The staff screen links model summaries back to these messages. |
 
 LangGraph keeps its own checkpoint tables. They hold conversation state for resuming, never authority.
@@ -28,66 +33,82 @@ LangGraph keeps its own checkpoint tables. They hold conversation state for resu
 
 | Table | Key columns | Constraints and reasons |
 |---|---|---|
-| `orders` | `id`, `customer_id`, `status`, `purchased_at`, `delivered_at`, `material_version`, `source` (olist, synthetic) | `material_version` increases whenever status, delivery time, lines, received-back units or payments change. A proposal binds it (INV-3). |
-| `order_lines` | `id`, `order_id`, `product_id`, `product_name`, `quantity`, `unit_price_minor`, `discount_minor`, `paid_minor`, `shipping_minor`, `received_back_quantity`, `source_item_ids` | `CHECK (paid_minor = quantity * unit_price_minor - discount_minor AND paid_minor >= 0)`, `CHECK (received_back_quantity BETWEEN 0 AND quantity)`. Olist stores one row per unit; identical units (same product, seller and price) become one line with a quantity, and the Olist `order_item_id`s stay in `source_item_ids`. |
-| `payments` | `id`, `order_id`, `sequential`, `type`, `amount_minor` | The policy hands orders with more than one payment record to a person. |
+| `orders` | `id`, `customer_id`, `status`, `purchased_at`, `delivered_at` (nullable), `material_version`, `source` (olist, synthetic) | `material_version` increases whenever status, delivery time, units, return records or payments change; a proposal binds it (INV-3). A missing or implausible `delivered_at` sends the case to a person (policy `eligible-orders`). |
+| `order_units` | `id`, `order_id`, `unit_no`, `product_id`, `product_name`, `seller_id`, `price_minor`, `paid_minor`, `shipping_minor`, `received_back_at` (nullable) | **One row per unit**, as Olist stores order items (`order_item_id` is `unit_no`); unique (`order_id`, `unit_no`). `CHECK (0 <= paid_minor AND paid_minor <= price_minor)`. `paid_minor` is fixed once when the order is recorded (a total over identical units is split with `split_paid()`) and never recalculated. `received_back_at` is trusted return data from fixtures or staff, never set from a chat. The screens group identical units by product. |
+| `payments` | `id`, `order_id`, `sequential`, `method`, `installments`, `amount_minor` | Automatic refunds need exactly one payment record with a known method and a positive amount (policy `payment`). Instalments are a column of one record, not separate records; to be confirmed on the real Olist import. |
 
 ## Refund state
 
 | Table | Key columns | Constraints and reasons |
 |---|---|---|
-| `refund_balances` | `order_line_id` (PK), `remaining_quantity`, `remaining_minor` | `CHECK (remaining_quantity >= 0 AND remaining_minor >= 0)`. Starts at the line's `quantity` and `paid_minor`. Only the execute transaction changes it, with a conditional `UPDATE` (INV-4). |
-| `proposals` | `id`, `request_key` (unique), `request_hash`, `conversation_id`, `customer_id`, `order_id`, `payment_id`, `amount_minor`, `currency`, `policy_version`, `order_material_version`, `status`, `status_reason`, `ineligible_reasons`, `created_at`, `expires_at`, `content_hash`, `summary_untrusted` | Partial unique index on `conversation_id` where status is open: at most one open proposal per conversation. The application role may update only `status` and `status_reason` (column privileges), so the bound content cannot change (INV-3). `ineligible_reasons` are policy section IDs. |
-| `proposal_lines` | `proposal_id`, `order_line_id`, `quantity`, `amount_minor`, `expected_remaining_quantity`, `expected_remaining_minor` | PK (`proposal_id`, `order_line_id`), `CHECK (quantity > 0)`. The `expected_*` values are the line balance the quote saw; execution requires them unchanged, so concurrent proposals cannot leave rounding centavos behind. |
-| `customer_confirmations` | `id`, `proposal_id` (unique), `customer_id`, `decision` (confirmed, declined), `content_hash`, `decided_at` | One decision per proposal. `content_hash` must equal the proposal's (INV-5). |
-| `staff_decisions` | `id`, `proposal_id` (unique), `staff_id`, `decision` (approved, rejected), `content_hash`, `decided_at` | One decision per proposal, bound to the exact content (INV-5). |
-| `refund_operations` | `id`, `proposal_id` (unique), `approval_id` (unique, nullable), `idempotency_key` (unique), `request_hash`, `amount_minor`, `currency`, `payment_id`, `receipt_number` (unique), `committed_at` | Unique `approval_id`: one approval allows at most one operation, enforced by the database (INV-6). It is nullable only so that configuration C can run; in A the service requires it and the evaluator checks it. The receipt is these columns: a separate one-to-one table would add nothing. |
-| `ledger_lines` | `id`, `operation_id`, `order_line_id`, `quantity`, `amount_minor`, `currency`, `payment_id` | `CHECK (amount_minor > 0)`. An operation's lines add up to its amount, checked in the transaction and again by the evaluator. |
+| `proposals` | `id`, `request_key` (unique), `request_hash`, `conversation_id`, `customer_id`, `order_id`, `payment_id`, `amount_minor`, `currency`, `policy_version`, `policy_hash`, `order_material_version`, `status`, `status_reason`, `reasons`, `created_at`, `expires_at`, `content_hash`, `created_xact`, `summary_untrusted` | Only valid requests by the order's owner are stored, including the ones the policy refuses (`ineligible`, with `reasons` as policy section IDs); a foreign order or invalid input is a rejected attempt in the audit log, not a proposal. Partial unique index on `conversation_id` where status is one of the open statuses (`awaiting_customer_confirmation`, `awaiting_staff_approval`, `approved`): at most one open proposal per conversation. The runtime role may update only `status` and `status_reason`, so the bound content cannot change (INV-3). |
+| `proposal_units` | `proposal_id`, `order_unit_id`, `amount_minor` | PK (`proposal_id`, `order_unit_id`). The runtime role has `SELECT` and `INSERT` only, and a trigger allows the insert only in the transaction that created the proposal (`created_xact = pg_current_xact_id()`): lines cannot be added, changed or removed later. The proposal's `content_hash` covers them. |
+| `customer_confirmations` | `id`, `proposal_id` (unique), `customer_id`, `decision` (confirmed, declined), `content_hash`, `decided_at` | One decision per proposal, for its exact content (INV-5). |
+| `staff_decisions` | `id`, `proposal_id` (unique), `staff_id`, `decision` (approved, rejected), `content_hash`, `decided_at` | One decision per proposal, for its exact content (INV-5). Also unique (`id`, `proposal_id`, `decision`), the target of the foreign key below. |
+| `refund_operations` | `id`, `proposal_id` (NOT NULL, unique), `approval_id` (nullable, unique), `approval_decision`, `idempotency_key` (unique), `request_hash`, `amount_minor`, `currency`, `payment_id`, `receipt_number` (unique), `receipt`, `committed_at` | Unique `proposal_id`: a proposal is executed at most once, in every configuration, with or without an approval (PostgreSQL allows many NULLs under a unique constraint, so unique `approval_id` alone would not do it). Unique `approval_id`: an approval is used at most once (INV-6). Foreign key (`approval_id`, `proposal_id`, `approval_decision`) to `staff_decisions` (`id`, `proposal_id`, `decision`) with `CHECK (approval_decision = 'approved')`: the database itself proves the approval is an approval of this very proposal. `approval_id` is nullable only so configuration C can run; in A the service requires it and the evaluator checks it. `receipt` is the receipt as returned at commit, returned unchanged on every retry, also after expiry. The runtime role cannot update or delete these rows. |
+| `ledger_lines` | `id`, `operation_id`, `order_unit_id` (unique), `amount_minor`, `currency`, `payment_id` | Unique `order_unit_id`: **a unit can be refunded only once**, enforced by the database in every configuration (INV-4). `CHECK (amount_minor > 0)`; each line's amount equals the unit's `paid_minor`, and an operation's lines add up to its amount (checked in the transaction and again by the evaluator). The runtime role cannot update or delete them. |
 
 ## Audit and handoff
 
 | Table | Key columns | Constraints and reasons |
 |---|---|---|
-| `audit_events` | `id` (bigserial), `at`, `actor_type`, `actor_id`, `conversation_id`, `proposal_id`, `operation_id`, `event`, `outcome` (committed, rejected), `reason`, `details` | The application role has `INSERT` and `SELECT` only (INV-9). A committed effect and its event share one transaction; a rejected attempt is written in a new transaction after the rollback. |
+| `audit_events` | `id` (bigserial), `at`, `actor_type`, `actor_id`, `conversation_id`, `proposal_id`, `operation_id`, `event`, `outcome` (committed, rejected), `reason`, `details` | The runtime role has `INSERT` and `SELECT` only (INV-9). A committed effect and its event share one transaction; a rejected attempt is written in a new transaction after the rollback. |
 | `handoffs` | `id`, `conversation_id`, `origin` (customer, agent, staff), `reason`, `created_at`, `pending_proposal_id`, `prior_actions`, `customer_goal_untrusted`, `confirmed_facts_untrusted`, `decision_needed_untrusted`, `status` (open, taken), `taken_by`, `taken_at` | Created in the same transaction that sets `control = human_controlled` and invalidates the open proposals. `prior_actions` comes from the audit log, so it is trusted. |
 
-## The execute transaction (configuration A)
+## Transactions
 
-1. Begin. Lock rows in one fixed order: conversation, then proposal, then balance rows by ascending
-   `order_line_id`. Every transaction that touches these rows uses the same order, so two of them can never wait
-   for each other forever (deadlock).
-2. If the idempotency key exists: same `request_hash` returns the stored receipt; a different one is a conflict.
-3. If the proposal already has an operation, return its receipt.
-4. Run the checks of the `execute` transition in [state-machine.md](state-machine.md).
-5. For each line, a conditional update in the style of the plan (section 6), with the exact-balance condition:
+Every write that concerns a conversation (propose, confirm, cancel, approve, reject, execute, hand-off) starts by
+locking rows in one fixed order: the conversation, then the proposal. Using the same order everywhere means two
+transactions can never wait for each other forever (deadlock), and it orders a handoff and an agent write: once
+the handoff commits, every later agent write fails `agent_in_control`; if the refund committed first, it stays
+`refunded`. No transaction stays open while waiting for a model or a person (INV-7).
 
-   ```sql
-   UPDATE refund_balances
-   SET remaining_quantity = remaining_quantity - :quantity,
-       remaining_minor = remaining_minor - :amount
-   WHERE order_line_id = :order_line_id
-     AND remaining_quantity = :expected_remaining_quantity
-     AND remaining_minor = :expected_remaining_minor
-     AND :quantity > 0 AND :amount > 0
-     AND remaining_quantity >= :quantity
-     AND remaining_minor >= :amount
-   RETURNING remaining_quantity, remaining_minor;
-   ```
+**Propose.** Lock the conversation. If its open proposal is out of date (clock at or past `expires_at`, or a
+changed order or policy version), close it first as `expired` or `invalidated`, so a stale row never blocks a new
+proposal. Run the checks of `propose`, store the proposal and its units, supersede an unconfirmed open proposal if
+the new one is eligible, write the audit event, commit.
 
-   No row returned means the refund is not allowed: roll back.
-6. Insert the operation with its receipt, the ledger lines and the audit event, and set the status to `refunded`.
-   Commit.
-7. On any failure: roll back, then record the rejected attempt in a new transaction.
+**Execute (configuration A).**
 
-No model call and no wait for a person happens inside this transaction (INV-7). Confirm, approve, cancel and
-hand-off follow the same pattern: lock, check, write the decision, the status and the audit event, commit.
+1. Lock the conversation, then the proposal.
+2. `actor_owns`: the session's customer owns them. Otherwise refuse without revealing anything.
+3. If the idempotency key exists: the same `request_hash` returns the stored receipt; a different one is a conflict.
+4. If the proposal already has an operation, return its stored receipt, whatever the proposal's age.
+5. Run the remaining checks of the `execute` transition, in their listed order.
+6. Insert the operation with its receipt, one ledger line per unit, and the audit event, and set the status to
+   `refunded`. The unique `order_unit_id` makes the check that a unit is still unrefunded and the write one atomic
+   step: if another transaction refunded a unit first, the insert fails and nothing is committed.
+7. Commit. On any failure: roll back, then record the rejected attempt in a new transaction.
 
 ## Expiry and invalidation
 
-Nothing runs in the background. Every action that touches a proposal first compares the clock with `expires_at`,
-and the bound order and policy versions with the current ones. If the proposal is out of date, the same
-transaction moves it to `expired` or `invalidated`, records why, and refuses the action. Screens show the status
-the backend computes on read.
+Nothing runs in the background. Every action that touches a proposal first compares the clock with `expires_at`
+(the action is allowed only strictly before it), and the bound order and policy versions with the current ones. If
+the proposal is out of date, the same transaction moves it to `expired` or `invalidated`, records why, and refuses
+the action. A refunded proposal is final: expiry never hides a completed refund or its receipt.
+
+## Acceptance tests for phase 2
+
+They need a real PostgreSQL. Each states its expected outcome by hand, without reading `refund_agent.states` or
+`refund_agent.eligibility` (enforced by `tests/test_independence.py`).
+
+1. Commit, crash before the response, clock moves 72 hours, retry: the same receipt, one operation, one ledger line
+   per unit.
+2. Retry with another customer's session and the same idempotency key: no receipt, a rejected attempt in the audit.
+3. Handoff and execute race with barriers on separate connections: either `refunded` and nothing to invalidate, or
+   `invalidated` and no operation; never both.
+4. The same execute call on an unconfirmed proposal in A and in C: A refuses with no operation and no ledger
+   lines; C commits them and the evaluator reports an unauthorized committed action.
+5. In C, two executions of one proposal with different idempotency keys and no approval: one operation.
+6. Two proposals, in two conversations, for the same unit, both approved: one refund; the second fails on the
+   unique ledger line.
+7. Two proposals for different units of the same product: both refund.
+8. A new proposal after the open one expired: allowed, and the old one is marked `expired` in the same transaction.
+9. As the runtime role: no update of proposal content, no insert of proposal units after creation, no update or
+   delete of proposal units, operations, ledger lines or audit events.
+10. An approval of proposal X attached to an operation of proposal Y: rejected by the foreign key.
+11. Confirm or cancel sent through the agent's tool executor, or with an actor in the request body: refused.
+12. Propose for a foreign order: no proposal row, a rejected attempt in the audit.
 
 ## Out of this schema
 
