@@ -1,0 +1,130 @@
+# Demo refund policy of the fictional shop. Not Olist's policy and not legal advice.
+#
+# This file is the single controlled source of the policy. The backend reads the rules from it, and
+# docs/refund-policy.md is rendered from it with `uv run python -m refund_agent.policy`.
+#
+# Section texts must not contain digits: every number comes from [rules] through a {placeholder}, so a
+# value cannot be changed in one place and forgotten in another. Loading the policy checks this, checks
+# that every placeholder names a rule, and that every rule appears in some section text.
+# Any change to a rule or a text is a new policy version.
+
+policy_id = "refund-policy"
+version = "v1"
+currency = "BRL"
+
+[rules]
+# Order statuses that can receive a refund (Olist order_status values).
+eligible_order_statuses = ["delivered"]
+# The refund must be requested (the proposal created) within this many days after the recorded delivery time.
+refund_window_days = 30
+# A proposal, with its confirmation and approval, must be paid within this many hours after it is created.
+proposal_ttl_hours = 72
+
+[[sections]]
+id = "scope"
+title = "What this policy covers"
+text = """
+This policy covers refunds for items in orders that the signed-in customer placed with the demo shop.
+All amounts are in {currency}. The shop and this policy are fictional: this is a demonstration, not the
+policy of any real shop and not legal advice.
+"""
+
+[[sections]]
+id = "eligible-orders"
+title = "Which orders qualify"
+text = """
+Only orders with the status {eligible_order_statuses} can receive a refund. An order that has not been
+delivered is not refunded through this process. If the customer reports a delivery that never arrived, a
+staff member takes the case.
+"""
+
+[[sections]]
+id = "window"
+title = "Time limit"
+text = """
+A refund must be requested within {refund_window_days} days after the delivery time recorded on the order.
+The request time is the moment the shop creates the refund proposal. If the proposal was created in time, a
+later confirmation, approval or payment of that same proposal is still on time.
+"""
+
+[[sections]]
+id = "return"
+title = "Items must be returned first"
+text = """
+The shop refunds only units it has received back. The shop's own return records decide this, not a
+statement by the customer or by the assistant. If the units have not arrived, the shop does not pay a refund
+for them and the assistant explains why. If the customer says the units were already sent, a staff member
+checks.
+"""
+
+[[sections]]
+id = "amount"
+title = "Refund amount"
+text = """
+The refund for a unit is what the customer paid for it: its price minus any discount already allocated to
+that order line. Shipping charges are not part of it. When only some units of a line are refunded, amounts
+are rounded down, so refunds for a line never add up to more than was paid for it; the rounding remainder
+is refunded with the last unit of the line.
+"""
+
+[[sections]]
+id = "remaining"
+title = "Earlier refunds count"
+text = """
+Earlier refunds reduce what is left. For each order line, the shop refunds at most the units that were paid
+for and received back, and at most the amount paid, minus everything already refunded on that line. A
+request for more than what is left is not paid; the assistant can offer what remains.
+"""
+
+[[sections]]
+id = "shipping"
+title = "Shipping charges"
+text = """
+Shipping charges are never refunded automatically. If the customer asks for shipping to be refunded, a
+staff member takes the case.
+"""
+
+[[sections]]
+id = "payment"
+title = "Where the money goes"
+text = """
+A refund is paid only to the payment record that paid for the order. It cannot be sent to another person,
+account or card. Orders paid with more than one payment record are handled by a staff member.
+"""
+
+[[sections]]
+id = "approval"
+title = "Confirmation and approval"
+text = """
+Every refund needs two separate decisions: the customer confirms the exact proposal (items, quantities and
+amount) with the button on the proposal card, and a staff member approves it. Changing anything in a
+proposal needs a new proposal, a new confirmation and a new approval. A staff member cannot approve a refund
+that this policy does not allow.
+"""
+
+[[sections]]
+id = "validity"
+title = "How long a proposal is valid"
+text = """
+A proposal is valid for {proposal_ttl_hours} hours after it is created. If it has not been paid by then, it
+expires together with its confirmation and approval, and a new proposal is needed. A proposal also stops
+being valid if the order or this policy changes before it is paid.
+"""
+
+[[sections]]
+id = "payout"
+title = "When the money is paid"
+text = """
+The shop pays a refund only when all of these hold: the order qualifies, the request was on time, the units
+were received back, the amount fits what is left, the customer confirmed, a staff member approved, and the
+proposal is still valid. The refund is complete only when the customer has a receipt; until then nothing is
+reported as refunded.
+"""
+
+[[sections]]
+id = "exceptions"
+title = "Exceptions and talking to a person"
+text = """
+Anything this policy does not cover, and any request for an exception, goes to a staff member. The customer
+can ask for a person at any time.
+"""
