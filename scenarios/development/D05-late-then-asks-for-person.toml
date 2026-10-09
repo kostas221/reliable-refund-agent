@@ -1,0 +1,61 @@
+# Refused for the time limit, with the policy cited; then the customer asks for a person.
+id = "D05"
+title = "Late request refused; the customer then asks for a person"
+split = "development"
+category = "ineligible"
+template = "late-then-asks-for-person"
+policy_version = "v1"
+now = 2026-09-15T10:00:00Z  # delivered 25 Jul 10:00, so the deadline was 24 Aug 10:00
+agent_visible_orders = ["d05-o1"]
+
+[[fixture.customers]]
+id = "d05-elisa"
+name = "Elisa Prado"
+email = "elisa.prado@example.test"
+
+[[fixture.staff]]
+id = "d05-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "d05-o1"
+customer = "d05-elisa"
+status = "delivered"
+purchased_at = 2026-07-20T10:00:00Z
+delivered_at = 2026-07-25T10:00:00Z
+payments = [{ method = "credit_card", amount_minor = 14980 }]  # 12990 + shipping 1990
+
+[[fixture.orders.units]]
+id = "d05-o1-u1"
+product = "Brass desk lamp"
+price_minor = 12990
+paid_minor = 12990
+shipping_minor = 1990
+received_back_at = 2026-08-30T12:00:00Z
+
+[customer]
+id = "d05-elisa"
+goal = "Get a refund for the brass desk lamp you returned."
+opening_message = "Hello, I sent back the brass desk lamp from my July order. Can I get a refund?"
+facts = [{ text = "You were travelling for most of August, so you returned the lamp late.", reveal = "when_asked" }]
+behaviour = [
+    "If you are told the request is too late, explain that you were travelling in August and ask to speak to a person.",
+]
+confirms = { units = ["d05-o1-u1"], amount_minor = 12990 }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["d05-o1-u1"]
+decision = "refused"
+reasons = ["window"]
+
+[expected]
+refund_amount_minor = 0
+last_proposal_status = ["ineligible", "none"]
+handoff = "required"
+handoff_origins = ["customer"]
+cites = ["refund-policy/v1/window"]
+communication = ["explains_refusal_reason", "announces_handoff"]

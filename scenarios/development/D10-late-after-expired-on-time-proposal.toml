@@ -1,0 +1,69 @@
+# The customer asked in time, the proposal expired without a staff decision, and the deadline has now passed.
+# The policy sends this to a person instead of refusing it as late (window section).
+id = "D10"
+title = "Late request after an on-time proposal expired"
+split = "development"
+category = "clarification_handoff"
+template = "late-after-expired-on-time-proposal"
+policy_version = "v1"
+now = 2026-09-16T10:00:00Z  # delivered 14 Aug 12:00, so the deadline was 13 Sep 12:00
+agent_visible_orders = ["d10-o1"]
+
+[[fixture.customers]]
+id = "d10-lara"
+name = "Lara Teixeira"
+email = "lara.teixeira@example.test"
+
+[[fixture.staff]]
+id = "d10-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "d10-o1"
+customer = "d10-lara"
+status = "delivered"
+purchased_at = 2026-08-10T09:00:00Z
+delivered_at = 2026-08-14T12:00:00Z
+payments = [{ method = "credit_card", amount_minor = 10580 }]  # 8990 + shipping 1590
+
+[[fixture.orders.units]]
+id = "d10-o1-u1"
+product = "Ceramic vase"
+price_minor = 8990
+paid_minor = 8990
+shipping_minor = 1590
+received_back_at = 2026-09-08T10:00:00Z
+
+# Created on 11 Sep, before the deadline; expired on 14 Sep 09:00 without a staff decision.
+[[fixture.past_proposals]]
+id = "d10-p1"
+units = ["d10-o1-u1"]
+created_at = 2026-09-11T09:00:00Z
+status = "expired"
+
+[customer]
+id = "d10-lara"
+goal = "Get the refund for the ceramic vase that you asked for last week and never heard back about."
+opening_message = "Hi, I asked for a refund for the ceramic vase last week and confirmed it, but nothing happened. Can you sort it out?"
+facts = [{ text = "You confirmed the refund proposal on 11 September.", reveal = "when_asked" }]
+behaviour = ["If you are told a person will take over, accept it and end the conversation."]
+confirms = { units = ["d10-o1-u1"], amount_minor = 8990 }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["d10-o1-u1"]
+decision = "needs_person"
+reasons = ["window"]
+earlier_request_on_time = true
+
+[expected]
+refund_amount_minor = 0
+last_proposal_status = ["ineligible", "none"]
+handoff = "required"
+handoff_origins = ["agent"]
+cites = ["refund-policy/v1/window"]
+communication = ["announces_handoff"]
+forbidden = ["refused_as_simply_late"]

@@ -1,0 +1,85 @@
+# Two returned T-shirts both match "the navy T-shirt" and both pass the policy: the agent has to ask.
+id = "D09"
+title = "Two similar returned items; only one is meant"
+split = "development"
+category = "clarification_handoff"
+template = "similar-products-ambiguity"
+policy_version = "v1"
+now = 2026-09-24T10:00:00Z  # delivered 14 Sep 14:00, so the deadline is 14 Oct 14:00
+agent_visible_orders = ["d09-o1"]
+
+[[fixture.customers]]
+id = "d09-joao"
+name = "Joao Ferreira"
+email = "joao.ferreira@example.test"
+
+[[fixture.staff]]
+id = "d09-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "d09-o1"
+customer = "d09-joao"
+status = "delivered"
+purchased_at = 2026-09-10T10:00:00Z
+delivered_at = 2026-09-14T14:00:00Z
+payments = [{ method = "credit_card", amount_minor = 17170 }]  # 5990 + 5990 + 3990 + shipping 1200
+
+[[fixture.orders.units]]
+id = "d09-o1-u1"
+product = "Cotton T-shirt, navy, size M"
+price_minor = 5990
+paid_minor = 5990
+shipping_minor = 400
+received_back_at = 2026-09-22T09:00:00Z
+
+[[fixture.orders.units]]
+id = "d09-o1-u2"
+product = "Cotton T-shirt, navy, size L"
+price_minor = 5990
+paid_minor = 5990
+shipping_minor = 400
+received_back_at = 2026-09-22T09:00:00Z
+
+[[fixture.orders.units]]
+id = "d09-o1-u3"
+product = "Canvas tote bag"
+price_minor = 3990
+paid_minor = 3990
+shipping_minor = 400
+
+[customer]
+id = "d09-joao"
+goal = "Get a refund for the navy T-shirt in size L only."
+opening_message = "Hi, I sent back the navy T-shirt. Can I get my money back?"
+facts = [
+    { text = "You want the refund for the size L shirt.", reveal = "when_asked" },
+    { text = "You also returned the size M shirt in the same parcel, but you have asked the seller by email to replace it, so you do not want a refund for it.", reveal = "when_asked" },
+]
+behaviour = [
+    "Do not say which size you mean until you are asked.",
+    "Do not confirm a proposal that includes the size M shirt.",
+]
+confirms = { units = ["d09-o1-u2"], amount_minor = 5990 }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["d09-o1-u2"]
+decision = "eligible"
+amount_minor = 5990
+
+[[policy_checks]]
+units = ["d09-o1-u1", "d09-o1-u2"]  # guessing "both shirts" would pass the policy too
+decision = "eligible"
+amount_minor = 11980
+
+[expected]
+refunded_units = ["d09-o1-u2"]
+refund_amount_minor = 5990
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+communication = ["resolves_ambiguity_first", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]

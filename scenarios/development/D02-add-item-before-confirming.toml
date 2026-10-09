@@ -1,0 +1,86 @@
+# Multi-item proposal and a change of intent before confirmation: the bowl-only proposal is superseded.
+id = "D02"
+title = "Customer adds a second returned item before confirming"
+split = "development"
+category = "eligible"
+template = "add-item-before-confirming"
+policy_version = "v1"
+now = 2026-09-21T10:00:00Z  # delivered 8 Sep 12:00, so the deadline is 8 Oct 12:00
+agent_visible_orders = ["d02-o1"]
+
+[[fixture.customers]]
+id = "d02-bia"
+name = "Beatriz Rocha"
+email = "beatriz.rocha@example.test"
+
+[[fixture.staff]]
+id = "d02-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "d02-o1"
+customer = "d02-bia"
+status = "delivered"
+purchased_at = 2026-09-03T09:00:00Z
+delivered_at = 2026-09-08T12:00:00Z
+payments = [{ method = "credit_card", amount_minor = 15270, installments = 2 }]  # 6990 + 3490 + 2990 + shipping 1800
+
+[[fixture.orders.units]]
+id = "d02-o1-u1"
+product = "Glass salad bowl"
+price_minor = 6990
+paid_minor = 6990
+shipping_minor = 900
+received_back_at = 2026-09-17T14:00:00Z
+
+[[fixture.orders.units]]
+id = "d02-o1-u2"
+product = "Stoneware dinner plate"
+price_minor = 3490
+paid_minor = 3490
+shipping_minor = 900
+received_back_at = 2026-09-17T14:00:00Z
+
+[[fixture.orders.units]]
+id = "d02-o1-u3"
+product = "Linen napkins, set of four"
+price_minor = 2990
+paid_minor = 2990
+shipping_minor = 0
+
+[customer]
+id = "d02-bia"
+goal = "Get refunds for the glass salad bowl and the dinner plate, which you sent back together. You keep the napkins."
+opening_message = "Hello, I returned the glass salad bowl from my order. How do I get my money back?"
+facts = [
+    { text = "You sent the salad bowl and the dinner plate back in the same parcel.", reveal = "when_asked" },
+    { text = "You are keeping the linen napkins.", reveal = "when_asked" },
+]
+behaviour = [
+    "At first ask only about the salad bowl.",
+    "When you are shown a refund proposal for the bowl alone, do not confirm it: say that the dinner plate was in the same parcel and ask to add it.",
+    "Confirm a proposal for the bowl and the plate together.",
+]
+confirms = { units = ["d02-o1-u1", "d02-o1-u2"], amount_minor = 10480 }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["d02-o1-u1", "d02-o1-u2"]
+decision = "eligible"
+amount_minor = 10480  # 6990 + 3490
+
+[[policy_checks]]
+units = ["d02-o1-u3"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = ["d02-o1-u1", "d02-o1-u2"]
+refund_amount_minor = 10480
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+communication = ["states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]

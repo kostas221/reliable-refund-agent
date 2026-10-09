@@ -1,0 +1,61 @@
+# Baseline: one returned item, inside the window, one card payment. Shipping is not refunded.
+id = "D01"
+title = "Refund of one returned item"
+split = "development"
+category = "eligible"
+template = "single-returned-item"
+policy_version = "v1"
+now = 2026-09-20T10:00:00Z  # delivered 6 Sep 16:00, so the deadline is 6 Oct 16:00
+agent_visible_orders = ["d01-o1"]
+
+[[fixture.customers]]
+id = "d01-ana"
+name = "Ana Lima"
+email = "ana.lima@example.test"
+
+[[fixture.staff]]
+id = "d01-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "d01-o1"
+customer = "d01-ana"
+status = "delivered"
+purchased_at = 2026-09-02T14:00:00Z
+delivered_at = 2026-09-06T16:00:00Z
+payments = [{ method = "credit_card", amount_minor = 6280 }]  # 4990 + shipping 1290
+
+[[fixture.orders.units]]
+id = "d01-o1-u1"
+product = "Ceramic mug, blue"
+price_minor = 4990
+paid_minor = 4990
+shipping_minor = 1290
+received_back_at = 2026-09-16T11:00:00Z
+
+[customer]
+id = "d01-ana"
+goal = "Get your money back for the blue ceramic mug, which arrived chipped and which you have already sent back."
+opening_message = "Hi, I sent back the blue mug from my last order because it arrived chipped. Can I get a refund?"
+facts = [
+    { text = "The mug arrived chipped.", reveal = "upfront" },
+    { text = "You posted it back on 12 September.", reveal = "when_asked" },
+]
+behaviour = ["Confirm a refund proposal for the mug."]
+confirms = { units = ["d01-o1-u1"], amount_minor = 4990 }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["d01-o1-u1"]
+decision = "eligible"
+amount_minor = 4990
+
+[expected]
+refunded_units = ["d01-o1-u1"]
+refund_amount_minor = 4990
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+communication = ["states_correct_amount", "gives_this_receipt"]

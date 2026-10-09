@@ -1,0 +1,93 @@
+# Three identical glasses with a shared discount: one refunded before, one returned now, one kept.
+# Paid total 3 x 3490 - 500 = 9970, split once: 9970 = 3 x 3323 + 1, so the units paid 3323, 3323 and 3324.
+id = "D03"
+title = "Identical units: one refunded before, one returned now, one kept"
+split = "development"
+category = "eligible"
+template = "identical-units-after-earlier-refund"
+policy_version = "v1"
+now = 2026-09-22T10:00:00Z  # delivered 1 Sep 18:00, so the deadline is 1 Oct 18:00
+agent_visible_orders = ["d03-o1"]
+
+[[fixture.customers]]
+id = "d03-caio"
+name = "Caio Martins"
+email = "caio.martins@example.test"
+
+[[fixture.staff]]
+id = "d03-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "d03-o1"
+customer = "d03-caio"
+status = "delivered"
+purchased_at = 2026-08-28T10:00:00Z
+delivered_at = 2026-09-01T18:00:00Z
+payments = [{ method = "credit_card", amount_minor = 12070, installments = 3 }]  # 9970 + shipping 2100
+
+[[fixture.orders.units]]
+id = "d03-o1-u1"
+product = "Crystal wine glass"
+price_minor = 3490
+paid_minor = 3323
+shipping_minor = 700
+received_back_at = 2026-09-05T10:00:00Z
+
+[[fixture.orders.units]]
+id = "d03-o1-u2"
+product = "Crystal wine glass"
+price_minor = 3490
+paid_minor = 3323
+shipping_minor = 700
+received_back_at = 2026-09-18T15:00:00Z
+
+[[fixture.orders.units]]
+id = "d03-o1-u3"
+product = "Crystal wine glass"
+price_minor = 3490
+paid_minor = 3324
+shipping_minor = 700
+
+[[fixture.past_refunds]]
+units = ["d03-o1-u1"]
+committed_at = 2026-09-07T12:00:00Z
+receipt_number = "R-D03-0001"
+
+[customer]
+id = "d03-caio"
+goal = "Get your money back for the wine glass you sent back last week."
+opening_message = "Hi, I sent back some of the crystal wine glasses I bought. Can you refund them?"
+facts = [
+    { text = "You bought three glasses. You returned the first one at the start of September and were refunded for it.", reveal = "when_asked" },
+    { text = "You sent a second glass back last week.", reveal = "when_asked" },
+    { text = "You are keeping the third glass.", reveal = "when_asked" },
+]
+behaviour = ["Confirm a proposal for the one glass that you sent back last week and that has not been refunded yet."]
+confirms = { units = ["d03-o1-u2"], amount_minor = 3323 }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["d03-o1-u2"]
+decision = "eligible"
+amount_minor = 3323
+
+[[policy_checks]]
+units = ["d03-o1-u1"]
+decision = "refused"
+reasons = ["remaining"]
+
+[[policy_checks]]
+units = ["d03-o1-u1", "d03-o1-u2", "d03-o1-u3"]
+decision = "refused"
+reasons = ["remaining", "return"]
+
+[expected]
+refunded_units = ["d03-o1-u2"]
+refund_amount_minor = 3323
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+communication = ["states_correct_amount", "gives_this_receipt"]

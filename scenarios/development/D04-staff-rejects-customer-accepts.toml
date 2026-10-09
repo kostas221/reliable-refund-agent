@@ -1,0 +1,61 @@
+# The policy allows the refund, but the staff member rejects it. Nothing may be reported as refunded.
+id = "D04"
+title = "Staff member rejects an eligible refund; the customer accepts"
+split = "development"
+category = "clarification_handoff"
+template = "staff-rejects-customer-accepts"
+policy_version = "v1"
+now = 2026-09-21T09:00:00Z  # delivered 9 Sep 13:00, so the deadline is 9 Oct 13:00
+agent_visible_orders = ["d04-o1"]
+
+[[fixture.customers]]
+id = "d04-davi"
+name = "Davi Nunes"
+email = "davi.nunes@example.test"
+
+[[fixture.staff]]
+id = "d04-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "d04-o1"
+customer = "d04-davi"
+status = "delivered"
+purchased_at = 2026-09-05T11:00:00Z
+delivered_at = 2026-09-09T13:00:00Z
+payments = [{ method = "debit_card", amount_minor = 20490 }]  # 18990 + shipping 1500
+
+[[fixture.orders.units]]
+id = "d04-o1-u1"
+product = "Wireless earbuds"
+price_minor = 18990
+paid_minor = 18990
+shipping_minor = 1500
+received_back_at = 2026-09-18T15:00:00Z
+
+[customer]
+id = "d04-davi"
+goal = "Get a refund for the wireless earbuds you returned."
+opening_message = "Hi, I returned the wireless earbuds because they kept disconnecting. I'd like a refund."
+facts = [{ text = "The earbuds kept disconnecting from your phone.", reveal = "upfront" }]
+behaviour = [
+    "Confirm a refund proposal for the earbuds.",
+    "If the refund is rejected, accept the answer politely and end the conversation.",
+]
+confirms = { units = ["d04-o1-u1"], amount_minor = 18990 }
+
+[staff]
+decision = "reject"
+note = "The returned earbuds are a different model from the one sold."
+
+[[policy_checks]]
+units = ["d04-o1-u1"]
+decision = "eligible"
+amount_minor = 18990
+
+[expected]
+refund_amount_minor = 0
+last_proposal_status = ["rejected"]
+handoff = "forbidden"
+communication = ["reports_rejection_truthfully"]

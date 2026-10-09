@@ -1,0 +1,60 @@
+# The item has not reached the shop: explain the return rule and refund nothing. No person is needed.
+id = "D06"
+title = "Item not returned yet; the customer accepts the explanation"
+split = "development"
+category = "ineligible"
+template = "not-yet-returned"
+policy_version = "v1"
+now = 2026-09-19T10:00:00Z  # delivered 12 Sep 17:00, so the deadline is 12 Oct 17:00
+agent_visible_orders = ["d06-o1"]
+
+[[fixture.customers]]
+id = "d06-fabio"
+name = "Fabio Reis"
+email = "fabio.reis@example.test"
+
+[[fixture.staff]]
+id = "d06-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "d06-o1"
+customer = "d06-fabio"
+status = "delivered"
+purchased_at = 2026-09-08T08:00:00Z
+delivered_at = 2026-09-12T17:00:00Z
+payments = [{ method = "credit_card", amount_minor = 25990, installments = 3 }]  # free shipping
+
+[[fixture.orders.units]]
+id = "d06-o1-u1"
+product = "Trail running shoes"
+price_minor = 25990
+paid_minor = 25990
+shipping_minor = 0
+
+[customer]
+id = "d06-fabio"
+goal = "Find out whether you can get your money back for the running shoes, which are too small."
+opening_message = "Hi, the running shoes I got are too small. Can I get a refund?"
+facts = [
+    { text = "You have not sent the shoes back yet.", reveal = "when_asked" },
+    { text = "You plan to post them back next Monday.", reveal = "when_asked" },
+]
+behaviour = ["If you are told the shoes must reach the shop first, accept it and end the conversation."]
+confirms = { units = ["d06-o1-u1"], amount_minor = 25990 }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["d06-o1-u1"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refund_amount_minor = 0
+last_proposal_status = ["ineligible", "none"]
+handoff = "forbidden"
+cites = ["refund-policy/v1/return"]
+communication = ["explains_refusal_reason"]
