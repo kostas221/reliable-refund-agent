@@ -1,9 +1,11 @@
-# Database schema (design for phase 2)
+# Database schema
 
-Status: design, not yet a migration. Once the migrations exist, they and their constraints are the source for
-tables, columns and types, and this page keeps only the reasons. Statuses, transitions and the checks of each
-transition are in [state-machine.md](state-machine.md), generated from code; the policy decisions are in
-`refund_agent/eligibility.py`. Invariant IDs (INV-n) are those of the [product contract](product-contract.md).
+Status: implemented in [migrations/sql/0001_initial.sql](../migrations/sql/0001_initial.sql), which is now the
+source for tables, columns, types, constraints and privileges; this page keeps the reasons. One difference from the
+tables below: `order_units` has no `product_id` and `seller_id` yet, because the synthetic fixtures have none; they
+come with the Olist import. Statuses, transitions and the checks of each transition are in
+[state-machine.md](state-machine.md), generated from code; the policy decisions are in `refund_agent/eligibility.py`.
+Invariant IDs (INV-n) are those of the [product contract](product-contract.md).
 
 ## Conventions
 
