@@ -1,6 +1,6 @@
 """Races on a real PostgreSQL, with separate connections (plan section 13, failure cases 1 and 2; acceptance 6 and 7).
 
-The failpoint refunds.before_commit holds transactions after all their checks have passed and before they write,
+The failpoint refunds.failpoint holds transactions after all their checks have passed and before they write,
 so the database, not the order in which Python happened to run, has to keep a unit from being refunded twice.
 Expected values are written by hand.
 """
@@ -11,37 +11,10 @@ import tomllib
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import text
-
 from refund_agent import refunds
 from refund_agent.fixtures import seed
-from refund_agent.policy import load_policy
-from refund_agent.refunds import Actor, Refused, confirm, decide, execute, open_conversation, propose
-from refund_agent.scenarios import SPLIT_DIRS, Scenario, load_split
-
-POLICY = load_policy()
-DEVELOPMENT = {s.id: s for s in load_split("development")}
-
-
-def approved(app, customer: str, staff: str, order: str, units: list[str], key: str, now: datetime) -> str:
-    """A proposal in a new conversation of `customer`, confirmed and approved."""
-    conversation = open_conversation(app, Actor("customer", customer), now)
-    proposal = propose(app, Actor("agent", customer), conversation, order, units, key, now, POLICY)
-    confirm(app, Actor("customer", customer), proposal.id, "confirmed", now, POLICY)
-    decide(app, Actor("staff", staff), proposal.id, "approved", now, POLICY)
-    return proposal.id
-
-
-def attempt(app, customer: str, proposal_id: str, key: str, now: datetime):
-    try:
-        return "receipt", execute(app, Actor("agent", customer), proposal_id, key, now, POLICY)
-    except Refused as refused:
-        return "refused", refused.check
-
-
-def rows(app, sql):
-    with app.connect() as conn:
-        return [tuple(row) for row in conn.execute(text(sql))]
+from refund_agent.scenarios import SPLIT_DIRS, Scenario
+from tests.acceptance.flows import DEVELOPMENT, POLICY, approved, attempt, rows
 
 
 def run_together(calls):
@@ -59,7 +32,7 @@ def test_two_proposals_for_the_same_unit_refund_it_once(db, monkeypatch):
 
     # Both transactions pass every check before either writes.
     both_checked = threading.Barrier(2, timeout=10)
-    monkeypatch.setattr(refunds, "before_commit", lambda proposal_id: both_checked.wait())
+    monkeypatch.setattr(refunds, "failpoint", lambda point, key: both_checked.wait())
     outcomes = run_together([lambda p=p: attempt(app, "d01-ana", p, f"execute-{p}", now) for p in (first, second)])
 
     assert sorted(kind for kind, _ in outcomes) == ["receipt", "refused"]
@@ -78,11 +51,11 @@ def test_two_connections_executing_one_approval_commit_one_refund(db, monkeypatc
     # The first transaction stays open after its checks; the second arrives while it is open, with another key.
     first_inside = threading.Event()
 
-    def hold(proposal_id):
+    def hold(point, key):
         first_inside.set()
         time.sleep(0.5)
 
-    monkeypatch.setattr(refunds, "before_commit", hold)
+    monkeypatch.setattr(refunds, "failpoint", hold)
 
     def second():
         first_inside.wait(10)
@@ -109,7 +82,7 @@ def test_different_units_of_the_same_product_both_refund(db, monkeypatch):
     third_glass = approved(app, "d03-caio", "d03-rui", "d03-o1", ["d03-o1-u3"], "propose-u3", now)
 
     both_checked = threading.Barrier(2, timeout=10)
-    monkeypatch.setattr(refunds, "before_commit", lambda proposal_id: both_checked.wait())
+    monkeypatch.setattr(refunds, "failpoint", lambda point, key: both_checked.wait())
     later = now + timedelta(minutes=1)
     outcomes = run_together(
         [lambda p=p: attempt(app, "d03-caio", p, f"execute-{p}", later) for p in (second_glass, third_glass)]

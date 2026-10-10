@@ -47,6 +47,17 @@ class Refused(Exception):
         self.detail = detail
 
 
+# Test-only failpoint (plan section 14): called with a point name ("execute", "hand_off") and an ID inside a
+# transaction, after its checks have passed and before it writes, so race tests can hold transactions there. None
+# in normal operation, and no request can set it.
+failpoint: Callable[[str, str], None] | None = None
+
+
+def _reach(point: str, key: str) -> None:
+    if failpoint is not None:
+        failpoint(point, key)
+
+
 @dataclass(frozen=True)
 class ProposalResult:
     id: str
@@ -605,6 +616,202 @@ def decide(
     return new_status
 
 
+def cancel(engine: Engine, actor: Actor, proposal_id: str, now: datetime, policy: Policy) -> str:
+    """The customer cancels an open proposal, before or after confirming, as long as it is not refunded.
+
+    A proposal that has already expired or become invalid is closed with that status instead: either way no money
+    moves, which is what the customer asked for.
+    """
+    try:
+        with engine.begin() as conn:
+            _, proposal = _lock_proposal(conn, proposal_id)
+            if actor.kind != "customer" or proposal is None or proposal["customer_id"] != actor.user_id:
+                raise Refused("actor_owns")
+            if proposal["status"] not in OPEN_STATUSES:
+                raise Refused("invalid_transition", f"the proposal is {proposal['status']}")
+            change = _out_of_date(conn, proposal, now, policy)
+            if change:
+                _close(conn, proposal, change, now)
+                return change[0].value
+            _set_status(conn, proposal_id, Status.CANCELLED, "cancelled_by_customer")
+            _audit(
+                conn,
+                at=now,
+                actor_type="customer",
+                actor_id=actor.user_id,
+                event="cancel",
+                outcome="committed",
+                conversation_id=proposal["conversation_id"],
+                proposal_id=proposal_id,
+            )
+            return Status.CANCELLED.value
+    except Refused as refusal:
+        _record_rejection(engine, now, actor, "cancel", refusal, proposal_id=proposal_id)
+        raise
+
+
+# Handoff
+
+
+def hand_off(
+    engine: Engine,
+    actor: Actor,
+    conversation_id: str,
+    reason: str,
+    now: datetime,
+    *,
+    origin: Literal["customer", "agent"] | None = None,
+    customer_goal_untrusted: str = "",
+    confirmed_facts_untrusted: str = "",
+    decision_needed_untrusted: str = "",
+) -> str:
+    """A person takes over: the conversation becomes human_controlled and its open proposal is invalidated.
+
+    The customer's button records origin "customer"; a staff member's takeover records "staff" and the case as
+    taken by them. The agent's tool records "agent", or "customer" when the customer asked in the chat; that is the
+    agent's claim, and the audit keeps the agent as the actor. A second request returns the existing handoff.
+    """
+    if not reason:
+        raise ValueError("a handoff needs a reason")
+    try:
+        with engine.begin() as conn:
+            conversation = _lock_conversation(conn, conversation_id)
+            if conversation is None:
+                raise Refused("actor_owns")
+            if actor.kind == "staff":
+                user = _one(conn, "SELECT role FROM users WHERE id = :id", id=actor.user_id)
+                if user is None or user["role"] != "staff":
+                    raise Refused("staff_role")
+                recorded_origin = "staff"
+            elif conversation["customer_id"] != actor.user_id:
+                raise Refused("actor_owns")
+            elif actor.kind == "customer":
+                recorded_origin = "customer"
+            else:
+                recorded_origin = origin or "agent"
+                if recorded_origin not in ("agent", "customer"):
+                    raise Refused("valid_values", "the agent reports origin 'agent' or 'customer'")
+
+            if conversation["control"] == "human_controlled":
+                existing = _one(
+                    conn,
+                    "SELECT id FROM handoffs WHERE conversation_id = :id ORDER BY created_at DESC LIMIT 1",
+                    id=conversation_id,
+                )
+                return existing["id"]
+
+            _reach("hand_off", conversation_id)
+            # Prior actions come from the audit log, so the staff member can trust them. They are read before this
+            # transaction adds its own events.
+            prior = [
+                {
+                    "at": row["at"].isoformat(),
+                    "event": row["event"],
+                    "proposal_id": row["proposal_id"],
+                    "operation_id": row["operation_id"],
+                }
+                for row in _all(
+                    conn,
+                    "SELECT at, event, proposal_id, operation_id FROM audit_events WHERE "
+                    "conversation_id = :id AND outcome = 'committed' ORDER BY id",
+                    id=conversation_id,
+                )
+            ]
+            conn.execute(
+                text("UPDATE conversations SET control = 'human_controlled' WHERE id = :id"), {"id": conversation_id}
+            )
+            open_proposal = _one(
+                conn,
+                "SELECT * FROM proposals WHERE conversation_id = :id AND status = ANY(:open) FOR UPDATE",
+                id=conversation_id,
+                open=OPEN_STATUSES,
+            )
+            if open_proposal is not None:
+                _set_status(conn, open_proposal["id"], Status.INVALIDATED, "handed_off")
+                _audit(
+                    conn,
+                    at=now,
+                    actor_type="system",
+                    actor_id=None,
+                    event="handed_off",
+                    outcome="committed",
+                    conversation_id=conversation_id,
+                    proposal_id=open_proposal["id"],
+                )
+            handoff_id = _new_id("hand")
+            taken = actor.kind == "staff"
+            conn.execute(
+                text(
+                    "INSERT INTO handoffs (id, conversation_id, origin, reason, created_at, pending_proposal_id, "
+                    "prior_actions, customer_goal_untrusted, confirmed_facts_untrusted, decision_needed_untrusted, "
+                    "status, taken_by, taken_at) VALUES (:id, :conversation, :origin, :reason, :now, :pending, "
+                    "CAST(:prior AS jsonb), :goal, :facts, :decision, :status, :taken_by, :taken_at)"
+                ),
+                {
+                    "id": handoff_id,
+                    "conversation": conversation_id,
+                    "origin": recorded_origin,
+                    "reason": reason,
+                    "now": now,
+                    "pending": open_proposal["id"] if open_proposal is not None else None,
+                    "prior": json.dumps(prior),
+                    "goal": customer_goal_untrusted,
+                    "facts": confirmed_facts_untrusted,
+                    "decision": decision_needed_untrusted,
+                    "status": "taken" if taken else "open",
+                    "taken_by": actor.user_id if taken else None,
+                    "taken_at": now if taken else None,
+                },
+            )
+            _audit(
+                conn,
+                at=now,
+                actor_type=actor.kind,
+                actor_id=actor.user_id,
+                event="hand_off",
+                outcome="committed",
+                conversation_id=conversation_id,
+                details={"handoff_id": handoff_id, "origin": recorded_origin, "reason": reason},
+            )
+            return handoff_id
+    except Refused as refusal:
+        _record_rejection(engine, now, actor, "hand_off", refusal, conversation_id=conversation_id)
+        raise
+
+
+def take_handoff(engine: Engine, actor: Actor, handoff_id: str, now: datetime) -> None:
+    """A staff member takes an open handoff in the console."""
+    try:
+        with engine.begin() as conn:
+            found = _one(conn, "SELECT conversation_id FROM handoffs WHERE id = :id", id=handoff_id)
+            user = _one(conn, "SELECT role FROM users WHERE id = :id", id=actor.user_id)
+            if actor.kind != "staff" or user is None or user["role"] != "staff":
+                raise Refused("staff_role")
+            if found is None:
+                raise Refused("invalid_transition", "no such handoff")
+            _lock_conversation(conn, found["conversation_id"])
+            handoff = _one(conn, "SELECT status FROM handoffs WHERE id = :id FOR UPDATE", id=handoff_id)
+            if handoff["status"] != "open":
+                raise Refused("invalid_transition", "the handoff is already taken")
+            conn.execute(
+                text("UPDATE handoffs SET status = 'taken', taken_by = :staff, taken_at = :now WHERE id = :id"),
+                {"staff": actor.user_id, "now": now, "id": handoff_id},
+            )
+            _audit(
+                conn,
+                at=now,
+                actor_type="staff",
+                actor_id=actor.user_id,
+                event="take_handoff",
+                outcome="committed",
+                conversation_id=found["conversation_id"],
+                details={"handoff_id": handoff_id},
+            )
+    except Refused as refusal:
+        _record_rejection(engine, now, actor, "take_handoff", refusal)
+        raise
+
+
 # Execute
 
 
@@ -772,11 +979,6 @@ EXECUTE_CHECKS: dict[str, Callable[[_Execution], dict | None]] = {
     "units_available": _check_units_available,
 }
 _EXECUTE = {"A": next(t for t in TRANSITIONS if t.event == "execute"), "C": LAB_TRANSITIONS[0]}
-
-# Test-only failpoint (plan section 14): called inside the execute transaction after every check has passed and
-# before anything is written, so race tests can hold two transactions at that point. None in normal operation, and
-# no request can set it.
-before_commit: Callable[[str], None] | None = None
 _CONSTRAINT_CHECKS = {
     "ledger_lines_order_unit_id_key": "units_available",
     "refund_operations_idempotency_key_key": "request_key_consistent",
@@ -884,8 +1086,7 @@ def execute(
                     stored = EXECUTE_CHECKS[name](x)
                     if stored is not None:
                         return stored
-                if before_commit is not None:
-                    before_commit(proposal_id)
+                _reach("execute", proposal_id)
                 return _commit_refund(x)
         except IntegrityError as error:
             constraint = getattr(getattr(error.orig, "diag", None), "constraint_name", None)
