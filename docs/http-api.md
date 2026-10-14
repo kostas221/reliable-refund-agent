@@ -34,15 +34,17 @@ The backend takes the actor from the session and from the door, never from a req
 | `POST /api/proposals/{id}/confirmation` | customer who owns it | `decision`: confirmed or declined | The confirm button of the proposal card |
 | `POST /api/proposals/{id}/cancellation` | customer who owns it | - | Cancel before execution |
 | `POST /api/conversations/{id}/handoff` | customer who owns it | - | "Talk to a person": the conversation becomes human_controlled |
+| `POST /api/conversations/{id}/messages` | customer who owns it | `text`, 1 to 2000 characters | The chat: the agent answers. 409 while it still answers an earlier message, 503 if the model fails (the message is kept). After a handoff the message is recorded for the person and the model is not asked. |
 | `GET /api/staff/queue` | staff | - | Proposals awaiting approval and open handoffs |
 | `GET /api/staff/proposals/{id}`, `GET /api/staff/conversations/{id}` | staff | - | One proposal or conversation |
-| `POST /api/staff/proposals/{id}/decision` | staff | `decision`: approved or rejected | Approve or reject; the policy still applies |
+| `POST /api/staff/proposals/{id}/decision` | staff | `decision`: approved or rejected | Approve or reject; the policy still applies. After the answer is sent, the agent is told, and pays (if approved) or tells the customer |
 | `POST /api/staff/handoffs/{id}/take`, `POST /api/staff/conversations/{id}/takeover` | staff | - | Take a handoff, or take over a conversation |
 | `GET /api/health` | anyone | - | The database answers |
 
 **What is missing on purpose:** no door proposes or executes a refund. Those are tools of the agent, which runs
-inside the backend in the customer's session (phase 3). So configuration C, which only `refunds.execute()` knows,
-cannot be chosen over HTTP; `tests/test_api_surface.py` checks this.
+inside the backend in the customer's session; the chat door only passes the customer's text on. The agent is built
+once when the server starts, and `create_app` refuses one in any configuration but A, so configuration C cannot be
+chosen or reached over HTTP; `tests/test_api_surface.py` checks both.
 
 ## What the answers promise
 
@@ -71,3 +73,9 @@ cannot change users or sessions beyond signing out.
 - No rate limit on sign-in attempts and no account lockout: the demo runs on one machine with fictional users.
 - Reading a page is not recorded in the audit log; refused actions are, by the domain services.
 - Over plain HTTP the session cookie cannot be Secure; the local demo is the only place that does this.
+- One run at a time per conversation is enforced inside one server process. Several server processes would need a
+  lock in the database instead; v1 runs one.
+- The agent's answer to a staff decision arrives a moment after the decision; the proposal card shows the stored
+  state at once, and the screens refresh by polling (plan section 8).
+- In the local demo the agent is the scripted model of mock mode: it plays a careful agent for Ana's mug, whatever is
+  typed.

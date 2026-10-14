@@ -100,7 +100,7 @@ where configuration C pays.
 |---|---|
 | Now (phase 1) | Every file loads under the strict schema; references, clock and fixture arithmetic are checked; each `policy_checks` entry is compared with `refund_agent.eligibility`; the simulator view and the test actor's rule are tested. |
 | Phase 2 (done) | Fixtures are seeded into PostgreSQL and the evaluator is written. The evaluator is tested before it judges anything: an empty conversation on an unchanged database fails every scenario; a known correct outcome passes; deliberately wrong outcomes fail (a wrong unit, a wrong amount, a refund without approval, the receipt of another refund, a correct last proposal after an earlier wrong refund). The loader only proves that a scenario declares a requirement; these tests prove the evaluator enforces it. |
-| Phase 3 | Whole conversations in mock mode, then the live pilot on the development set only. |
+| Phase 3 | Whole conversations in mock mode (done: `uv run python -m refund_agent.evaluation.mock` runs all ten with a scripted agent and customer, and `tests/acceptance/test_mock_runs.py` requires no machine failure in any), then the live pilot on the development set only. |
 
 ## Held-out plan
 

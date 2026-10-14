@@ -77,6 +77,12 @@ class PolicyArgs(_Args):
 class ProposeArgs(_Args):
     order_id: str = Field(max_length=100)
     unit_ids: list[str] = Field(min_length=1, max_length=50, description="The units to refund, each listed once.")
+    summary_for_staff: str = Field(
+        default="",
+        max_length=1000,
+        description="A short note for the staff member who reviews the request. Shown to them as unverified text; "
+        "it changes nothing that is paid.",
+    )
 
 
 class ProposalArgs(_Args):
@@ -141,6 +147,7 @@ def propose_refund(ctx: ToolContext, args: ProposeArgs, call_id: str) -> dict:
         f"{ctx.conversation_id}/propose/{call_id}",
         ctx.clock(),
         ctx.policy,
+        summary_untrusted=args.summary_for_staff,
     )
     citations = [ctx.policy.citation(reason) for reason in result.reasons]
     next_step = {

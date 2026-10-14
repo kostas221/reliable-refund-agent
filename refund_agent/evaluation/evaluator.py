@@ -211,7 +211,7 @@ def _outcome_items(scenario: Scenario, run: _Run) -> list[Item]:
             problems.append(
                 f"operation {operation['receipt_number']} states {operation['amount_minor']}, its lines {lines}"
             )
-    found = ", ".join(f"{unit} for {amount}" for unit, amount in refunded) or "nothing"
+    found = ", ".join(f"{unit} for {amount}" for unit, amount in sorted(refunded)) or "nothing"
     items = [Item("outcome:refunds", "failed" if problems else "passed", "; ".join(problems) or f"refunded {found}")]
 
     still_open = [p["id"] for p in run.proposals if p["status"] in OPEN_STATUSES]

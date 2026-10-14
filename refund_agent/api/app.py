@@ -6,7 +6,9 @@ only the sign-in fields or a decision; any other field, such as an amount, an ac
 request invalid. Every change needs the session's CSRF token in the X-CSRF-Token header.
 
 There is no door that proposes or executes a refund: those are tools of the agent, which runs inside the backend in
-the customer's session (phase 3). So configuration C, which only refunds.execute() knows, cannot be chosen over HTTP.
+the customer's session. The chat door only hands the customer's text to the agent, and a staff decision wakes the
+agent with a notice, after the answer is sent. The agent is built once when the server starts, and create_app refuses
+one in any configuration but A, so configuration C cannot be chosen or reached over HTTP.
 
 A refusal by a domain service becomes an HTTP error that names the check. Anything that belongs to another customer
 is "not found", so its existence is not revealed.
@@ -14,16 +16,19 @@ is "not found", so its existence is not revealed.
 
 # No `from __future__ import annotations` here: FastAPI reads the parameter types of the routes, and the session
 # dependencies are defined inside create_app, where string annotations could not be resolved.
+import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Engine, text
 
 from refund_agent import reads
+from refund_agent.agent.graph import Agent, AgentBusy, AgentLoopError
+from refund_agent.agent.model import ModelError
 from refund_agent.api import auth
 from refund_agent.policy import Policy
 from refund_agent.refunds import Actor, Refused, cancel, confirm, decide, hand_off, open_conversation, take_handoff
@@ -47,6 +52,10 @@ class ConfirmationBody(_Body):
     decision: Literal["confirmed", "declined"]
 
 
+class MessageBody(_Body):
+    text: str = Field(min_length=1, max_length=2000)
+
+
 class DecisionBody(_Body):
     decision: Literal["approved", "rejected"]
 
@@ -66,9 +75,14 @@ def create_app(
     *,
     wall_clock: Clock = _real_time,
     secure_cookies: bool = True,
+    agent: Agent | None = None,
 ) -> FastAPI:
     """engine: the refund_app role. clock: the business time given to the services. wall_clock: real time, for
-    sessions. secure_cookies: False only for a local demo over plain HTTP."""
+    sessions. secure_cookies: False only for a local demo over plain HTTP. agent: the agent behind the chat door,
+    always in configuration A; without one the chat door answers 503."""
+    if agent is not None and agent.configuration != "A":
+        raise ValueError("the lab configuration is never served over HTTP (plan section 10.5)")
+    log = logging.getLogger("refund_agent.api")
     app = FastAPI(
         title="Reliable Refund Agent",
         version="0.0.1",
@@ -185,6 +199,26 @@ def create_app(
         reason = "the customer asked for a person"
         return {"handoff_id": hand_off(engine, customer(user), conversation_id, reason, clock())}
 
+    @app.post("/api/conversations/{conversation_id}/messages")
+    def talk_to_the_agent(conversation_id: str, body: MessageBody, user: Changing) -> dict:
+        actor = customer(user)
+        with engine.connect() as conn:
+            owner = conn.execute(
+                text("SELECT customer_id FROM conversations WHERE id = :id"), {"id": conversation_id}
+            ).scalar()
+        if owner != actor.user_id:
+            raise _not_found()
+        if agent is None:
+            raise HTTPException(503, "the agent is not running")
+        try:
+            added = agent.receive(conversation_id, body.text)
+        except AgentBusy as busy:
+            raise HTTPException(409, "the agent is still answering the previous message") from busy
+        except (ModelError, AgentLoopError) as failure:
+            log.warning("the agent could not answer in %s: %s", conversation_id, failure)
+            raise HTTPException(503, "the agent could not answer; please try again") from failure
+        return {"answers": [m["text"] for m in added if m["role"] == "agent" and m.get("text")]}
+
     # The staff console's doors
 
     @app.get("/api/staff/queue")
@@ -213,9 +247,22 @@ def create_app(
         return found
 
     @app.post("/api/staff/proposals/{proposal_id}/decision")
-    def decide_proposal(proposal_id: str, body: DecisionBody, user: Changing) -> dict:
+    def decide_proposal(proposal_id: str, body: DecisionBody, user: Changing, background: BackgroundTasks) -> dict:
         status = decide(engine, staff(user), proposal_id, body.decision, clock(), policy)
+        if agent is not None and status in ("approved", "rejected"):
+            with engine.connect() as conn:
+                conversation = conn.execute(
+                    text("SELECT conversation_id FROM proposals WHERE id = :id"), {"id": proposal_id}
+                ).scalar_one()
+            background.add_task(wake, conversation, f"Request {proposal_id} was {status} by a staff member.")
         return {"proposal_id": proposal_id, "status": status}
+
+    def wake(conversation_id: str, event: str) -> None:
+        """After the staff answer is sent. The decision is already stored, whatever happens here."""
+        try:
+            agent.notify(conversation_id, event)
+        except Exception:
+            log.exception("the agent could not be woken in %s; the customer's next message continues", conversation_id)
 
     @app.post("/api/staff/handoffs/{handoff_id}/take")
     def take(handoff_id: str, user: Changing) -> dict:

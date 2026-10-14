@@ -8,8 +8,13 @@ from __future__ import annotations
 
 import os
 
+import psycopg
 from alembic import command
 from alembic.config import Config
+from langgraph.checkpoint.postgres import PostgresSaver
+from psycopg.conninfo import make_conninfo
+from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool
 from sqlalchemy import Engine, create_engine, text
 
 from refund_agent.policy import REPO_ROOT
@@ -58,3 +63,39 @@ def migrate(database: str) -> None:
     config.set_main_option("script_location", str(REPO_ROOT / "migrations"))
     config.set_main_option("sqlalchemy.url", url("owner", database))
     command.upgrade(config, "head")
+    # LangGraph's checkpoint tables, in the graph schema of migration 0003; its setup is versioned and repeatable.
+    with checkpoint_connection("owner", database) as conn:
+        PostgresSaver(conn).setup()
+
+
+def checkpoint_connection(role: str, database: str) -> psycopg.Connection:
+    """A connection for LangGraph's PostgresSaver: autocommit and dict rows, as it requires, in the graph schema."""
+    user, password = ROLES[role]
+    return psycopg.Connection.connect(
+        host=HOST,
+        port=PORT,
+        user=user,
+        password=password,
+        dbname=database,
+        options="-c search_path=graph -c timezone=UTC",
+        connect_timeout=3,
+        autocommit=True,
+        prepare_threshold=0,
+        row_factory=dict_row,
+    )
+
+
+def checkpoint_pool(role: str, database: str, max_size: int = 10) -> ConnectionPool:
+    """Checkpoint connections for a server that answers many conversations at once; same settings as above."""
+    user, password = ROLES[role]
+    conninfo = make_conninfo(
+        host=HOST,
+        port=PORT,
+        user=user,
+        password=password,
+        dbname=database,
+        options="-c search_path=graph -c timezone=UTC",
+        connect_timeout=3,
+    )
+    kwargs = {"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row}
+    return ConnectionPool(conninfo, max_size=max_size, kwargs=kwargs, open=True)
