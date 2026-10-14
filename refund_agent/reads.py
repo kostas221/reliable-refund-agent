@@ -1,4 +1,4 @@
-"""What the screens read (plan section 8): orders, the proposal card, a conversation, and the staff queue.
+"""What the screens and the agent read (plan section 8): orders, the proposal card, a conversation, the staff queue.
 
 Reads never change anything. A proposal that is still open in the database but whose validity has passed is shown
 as expired (display_status), because the stored status changes only when the next action touches it. Text written
