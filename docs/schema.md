@@ -1,10 +1,11 @@
 # Database schema
 
-Status: implemented in [migrations/sql/0001_initial.sql](../migrations/sql/0001_initial.sql), which is now the
-source for tables, columns, types, constraints and privileges; this page keeps the reasons. One difference from the
-tables below: `order_units` has no `product_id` and `seller_id` yet, because the synthetic fixtures have none; they
-come with the Olist import. Statuses, transitions and the checks of each transition are in
-[state-machine.md](state-machine.md), generated from code; the policy decisions are in `refund_agent/eligibility.py`.
+Status: implemented in [migrations/sql/0001_initial.sql](../migrations/sql/0001_initial.sql) and
+[0002_sign_in.sql](../migrations/sql/0002_sign_in.sql), which are now the source for tables, columns, types,
+constraints and privileges; this page keeps the reasons. One difference from the tables below: `order_units` has
+no `product_id` and `seller_id` yet, because the synthetic fixtures have none; they come with the Olist import.
+Statuses, transitions and the checks of each transition are in [state-machine.md](state-machine.md), generated from
+code; the policy decisions are in `refund_agent/eligibility.py`.
 Invariant IDs (INV-n) are those of the [product contract](product-contract.md).
 
 ## Conventions
@@ -25,7 +26,8 @@ Invariant IDs (INV-n) are those of the [product contract](product-contract.md).
 
 | Table | Key columns | Constraints and reasons |
 |---|---|---|
-| `users` | `id`, `role` (customer, staff), `email`, `display_name` | Sessions use an established library, not our own authentication. |
+| `users` | `id`, `role` (customer, staff), `email`, `display_name`, `password_hash` | The password is checked with argon2 (argon2-cffi); only its hash is stored, and NULL means the user cannot sign in. The runtime role reads users but cannot change them. |
+| `sessions` | `id` (SHA-256 of the cookie's random token), `user_id`, `csrf_token`, `created_at`, `expires_at`, `revoked_at` | In the database, so a session survives a restart and a sign-out ends it. Reading the table does not let anyone sign in. The runtime role may only add sessions and set `revoked_at`. Details in [http-api.md](http-api.md). |
 | `conversations` | `id`, `customer_id`, `control` (agent, human_controlled), `created_at` | Every write about a conversation locks this row first (see below), so a handoff and an agent write are ordered (INV-8). |
 | `messages` | `id`, `conversation_id`, `author` (customer, agent, staff, tool), `content_untrusted`, `created_at` | The staff screen links model summaries back to these messages. |
 

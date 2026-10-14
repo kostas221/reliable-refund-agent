@@ -50,6 +50,12 @@ def test_every_development_fixture_loads_under_all_constraints(db, scenario_id):
             "'d03-o1', 0, 'BRL', 'v1', 'h', 1, 'cancelled', now(), now(), 'h', pg_current_xact_id())",
             "permission denied",
         ),
+        # Sign-in: the application checks passwords and records sessions, but cannot change who someone is.
+        ("UPDATE users SET password_hash = 'x'", "permission denied"),
+        ("UPDATE users SET role = 'staff'", "permission denied"),
+        ("UPDATE sessions SET user_id = 'd03-rui'", "permission denied"),
+        ("UPDATE sessions SET expires_at = now() + interval '1 year'", "permission denied"),
+        ("DELETE FROM sessions", "permission denied"),
     ],
 )
 def test_application_role_is_refused(db, statement, error):
