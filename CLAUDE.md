@@ -47,9 +47,9 @@ logged with its date at the end of `docs/plan.md`. No new planning rounds.
 
 ## Now
 
-Phase 3 (§15) is done: mock mode and three development pilots; the agent runs GPT-6 Luna with reasoning `none`,
-chosen by the pre-written rule (`docs/pilot/results.md`, which also lists what stays open). Next: phase 4, the
-customer and staff screens. Commit once per phase.
+Phase 4 (§15) is done: the customer screen and the staff console in `frontend/` (`docs/screens.md`); the agent runs
+GPT-6 Luna with reasoning `none` (`docs/pilot/results.md`, which also lists what stays open). Next: phase 5, failure,
+property and browser tests, and the evaluator's order within one agent turn. Commit once per phase.
 
 ## Environment
 

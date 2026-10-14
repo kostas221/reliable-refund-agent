@@ -1,4 +1,5 @@
-"""What the screens and the agent read (plan section 8): orders, the proposal card, a conversation, the staff queue.
+"""What the screens and the agent read (plan section 8): orders with their requests, the proposal card, a conversation,
+the staff queue and a conversation's history.
 
 Reads never change anything. A proposal that is still open in the database but whose validity has passed is shown
 as expired (display_status), because the stored status changes only when the next action touches it. Text written
@@ -13,7 +14,12 @@ from typing import Any
 
 from sqlalchemy import Connection, RowMapping, text
 
+from refund_agent.policy import Policy
+
 OPEN_STATUSES = ("awaiting_customer_confirmation", "awaiting_staff_approval", "approved")
+# What the history may show of an audit event's details: values the backend set, never free text (a handoff's
+# reason can be the model's words, and is shown apart, as untrusted).
+HISTORY_DETAILS = ("status", "reasons", "decision", "handoff_id", "origin")
 
 
 def _rows(conn: Connection, sql: str, **params: Any) -> list[RowMapping]:
@@ -24,8 +30,9 @@ def _one(conn: Connection, sql: str, **params: Any) -> RowMapping | None:
     return conn.execute(text(sql), params).mappings().first()
 
 
-def orders(conn: Connection, customer_id: str, currency: str) -> list[dict]:
-    """The customer's orders with their units, so the customer can pick the item to refund."""
+def orders(conn: Connection, customer_id: str, currency: str, now: datetime) -> list[dict]:
+    """The customer's orders with their units, so the customer can pick the item to refund, and the requests already
+    made for each order, so the customer and the agent see the same history."""
     result = []
     for order in _rows(
         conn,
@@ -56,9 +63,64 @@ def orders(conn: Connection, customer_id: str, currency: str) -> list[dict]:
                     }
                     for u in units
                 ],
+                "requests": _requests(conn, customer_id, order["id"], now),
             }
         )
     return result
+
+
+def _requests(conn: Connection, customer_id: str, order_id: str, now: datetime) -> list[dict]:
+    """Every proposal for this order, oldest first: what was asked, what became of it, and the receipt if paid. No
+    amount for a request the policy refused, as when it was proposed: there is nothing to promise."""
+    result = []
+    for proposal in _rows(
+        conn,
+        "SELECT * FROM proposals WHERE customer_id = :c AND order_id = :o ORDER BY created_at, created_xact",
+        c=customer_id,
+        o=order_id,
+    ):
+        units = conn.execute(
+            text("SELECT order_unit_id FROM proposal_units WHERE proposal_id = :p ORDER BY order_unit_id"),
+            {"p": proposal["id"]},
+        ).scalars()
+        operation = _one(conn, "SELECT receipt FROM refund_operations WHERE proposal_id = :p", p=proposal["id"])
+        result.append(
+            {
+                "proposal_id": proposal["id"],
+                "status": _display_status(proposal, now),
+                "amount_minor": None if proposal["status"] == "ineligible" else proposal["amount_minor"],
+                "unit_ids": list(units),
+                "created_at": proposal["created_at"],
+                "receipt_number": operation["receipt"]["receipt_number"] if operation else None,
+            }
+        )
+    return result
+
+
+def conversations(conn: Connection, customer_id: str) -> list[dict]:
+    """The customer's conversations, the latest activity first, so a screen finds them again after a refresh."""
+    return [
+        dict(row)
+        for row in _rows(
+            conn,
+            "SELECT c.id AS conversation_id, c.control, c.created_at, max(m.created_at) AS last_message_at "
+            "FROM conversations c LEFT JOIN messages m ON m.conversation_id = c.id WHERE c.customer_id = :c "
+            "GROUP BY c.id ORDER BY coalesce(max(m.created_at), c.created_at) DESC, c.id",
+            c=customer_id,
+        )
+    ]
+
+
+def _citations(proposal: RowMapping, policy: Policy) -> list[dict]:
+    """The policy sections behind a refusal or a handoff, with the ID a citation of each carries (INV-10)."""
+    same_version = proposal["policy_version"] == policy.version
+    return [
+        {
+            "citation": f"{policy.policy_id}/{proposal['policy_version']}/{reason}",
+            "title": policy.section(reason).title if same_version else None,
+        }
+        for reason in proposal["reasons"]
+    ]
 
 
 def _display_status(proposal: RowMapping, now: datetime) -> str:
@@ -67,8 +129,9 @@ def _display_status(proposal: RowMapping, now: datetime) -> str:
     return proposal["status"]
 
 
-def proposal_card(conn: Connection, proposal: RowMapping, now: datetime) -> dict:
-    """The fields the backend computed and stored; the receipt only once a refund is committed."""
+def proposal_card(conn: Connection, proposal: RowMapping, now: datetime, policy: Policy) -> dict:
+    """The fields the backend computed and stored, the citations of the sections behind a refusal or a handoff, and
+    the receipt only once a refund is committed."""
     units = _rows(
         conn,
         "SELECT pu.order_unit_id, u.product_name, pu.amount_minor FROM proposal_units pu "
@@ -84,6 +147,7 @@ def proposal_card(conn: Connection, proposal: RowMapping, now: datetime) -> dict
         "display_status": _display_status(proposal, now),
         "status_reason": proposal["status_reason"],
         "policy_reasons": list(proposal["reasons"]),
+        "policy_citations": _citations(proposal, policy),
         "policy_version": proposal["policy_version"],
         "amount_minor": proposal["amount_minor"],
         "currency": proposal["currency"],
@@ -97,7 +161,7 @@ def proposal_card(conn: Connection, proposal: RowMapping, now: datetime) -> dict
     }
 
 
-def conversation(conn: Connection, conversation_id: str, now: datetime) -> dict | None:
+def conversation(conn: Connection, conversation_id: str, now: datetime, policy: Policy) -> dict | None:
     found = _one(conn, "SELECT * FROM conversations WHERE id = :c", c=conversation_id)
     if found is None:
         return None
@@ -116,7 +180,7 @@ def conversation(conn: Connection, conversation_id: str, now: datetime) -> dict 
         "conversation_id": found["id"],
         "customer_id": found["customer_id"],
         "control": found["control"],
-        "proposals": [proposal_card(conn, p, now) for p in proposals],
+        "proposals": [proposal_card(conn, p, now, policy) for p in proposals],
         "handoffs": [dict(h) for h in handoffs],
         "messages": [
             {"author": m["author"], "content_untrusted": m["content_untrusted"], "at": m["created_at"]}
@@ -125,7 +189,7 @@ def conversation(conn: Connection, conversation_id: str, now: datetime) -> dict 
     }
 
 
-def staff_proposal(conn: Connection, proposal: RowMapping, now: datetime) -> dict:
+def staff_proposal(conn: Connection, proposal: RowMapping, now: datetime, policy: Policy) -> dict:
     """The approval screen: the backend's fields apart from text nobody verified (plan section 7)."""
     customer = _one(conn, "SELECT id, display_name, email FROM users WHERE id = :u", u=proposal["customer_id"])
     order = _one(conn, "SELECT seller_message_untrusted FROM orders WHERE id = :o", o=proposal["order_id"])
@@ -134,7 +198,7 @@ def staff_proposal(conn: Connection, proposal: RowMapping, now: datetime) -> dic
     )
     return {
         "trusted": {
-            **proposal_card(conn, proposal, now),
+            **proposal_card(conn, proposal, now, policy),
             "customer": dict(customer),
             "customer_confirmed_at": confirmation["decided_at"] if confirmation else None,
         },
@@ -145,7 +209,7 @@ def staff_proposal(conn: Connection, proposal: RowMapping, now: datetime) -> dic
     }
 
 
-def staff_queue(conn: Connection, now: datetime) -> dict:
+def staff_queue(conn: Connection, now: datetime, policy: Policy) -> dict:
     waiting = _rows(
         conn, "SELECT * FROM proposals WHERE status = 'awaiting_staff_approval' ORDER BY created_at, created_xact"
     )
@@ -155,7 +219,7 @@ def staff_queue(conn: Connection, now: datetime) -> dict:
         "WHERE h.status = 'open' ORDER BY h.created_at",
     )
     return {
-        "awaiting_approval": [staff_proposal(conn, p, now) for p in waiting],
+        "awaiting_approval": [staff_proposal(conn, p, now, policy) for p in waiting],
         "open_handoffs": [
             {
                 "trusted": {
@@ -177,3 +241,22 @@ def staff_queue(conn: Connection, now: datetime) -> dict:
             for h in handoffs
         ],
     }
+
+
+def history(conn: Connection, conversation_id: str) -> list[dict]:
+    """The audit log of a conversation and its proposals, oldest first, for the staff screen: who did what, and
+    whether it was committed or refused, and why. Only the backend's own values of each event's details."""
+    events = _rows(
+        conn,
+        "SELECT at, actor_type, actor_id, event, outcome, reason, proposal_id, operation_id, details FROM audit_events "
+        "WHERE conversation_id = :c OR proposal_id IN (SELECT id FROM proposals WHERE conversation_id = :c) "
+        "ORDER BY at, id",
+        c=conversation_id,
+    )
+    return [
+        {
+            **{key: event[key] for key in event.keys() if key != "details"},
+            "details": {key: value for key, value in (event["details"] or {}).items() if key in HISTORY_DETAILS},
+        }
+        for event in events
+    ]

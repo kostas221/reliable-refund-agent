@@ -162,6 +162,9 @@ evidence that `none` is better.
 - D09 proposing before asking, `none` with version 2 (2 of 3): watched in the run before the held-out set is frozen;
   if it comes back, the version 2 line is tested by taking it out again.
 - No tool shows a customer's earlier requests (D10): to be added to what the agent can read when the customer's
-  screen shows the same requests, in phase 4.
+  screen shows the same requests, in phase 4. **Done on 2026-10-14:** `list_my_orders` and `get_my_order` now list
+  each order's requests with their state and receipt, the same list as the customer's screen
+  (`refund_agent/reads.py`, tested with D10 in `tests/acceptance/test_agent_tools.py`). The agent's tool results
+  therefore differ from the pilot's; the run before the held-out set is frozen covers it.
 - The evaluator's order of events within one agent turn: to be fixed before the final evaluation, so that
   `resolves_ambiguity_first` does not rely on another item to catch a proposal made before asking.

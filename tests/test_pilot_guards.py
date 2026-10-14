@@ -3,7 +3,7 @@ the predictions are committed, a key is present, the prices were checked and the
 """
 
 import json
-from datetime import date, timedelta
+from datetime import date
 
 import openai
 import pytest
@@ -49,19 +49,29 @@ def test_a_paid_run_needs_a_key(committed_predictions, monkeypatch, capsys):
     assert "no OPENAI_API_KEY" in capsys.readouterr().out
 
 
+class On14October(date):
+    """The pilot's "today", fixed: dates worked out when the tests are collected went stale in a run that crossed
+    midnight, and a date one day ahead became today."""
+
+    @classmethod
+    def today(cls):
+        return cls(2026, 10, 14)
+
+
 @pytest.mark.parametrize(
     ("options", "reason"),
     [
         ([], "--prices-checked"),
-        (["--prices-checked", (date.today() + timedelta(days=1)).isoformat()], "--prices-checked"),
-        (["--prices-checked", date.today().isoformat(), "--budget-usd", "6"], "at most the pilot's limit"),
-        (["--prices-checked", date.today().isoformat(), "--budget-usd", "0"], "above 0"),
+        (["--prices-checked", "2026-10-15"], "--prices-checked"),  # tomorrow
+        (["--prices-checked", "2026-10-14", "--budget-usd", "6"], "at most the pilot's limit"),
+        (["--prices-checked", "2026-10-14", "--budget-usd", "0"], "above 0"),
     ],
 )
 def test_a_paid_run_needs_checked_prices_and_a_budget_within_the_limit(
     committed_predictions, monkeypatch, capsys, options, reason
 ):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test-not-a-real-key")
+    monkeypatch.setattr(pilot, "date", On14October)
     assert pilot.main(options) == 1
     assert reason in capsys.readouterr().out
 

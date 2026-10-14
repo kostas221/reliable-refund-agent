@@ -55,6 +55,23 @@ def test_text_from_the_seller_comes_marked_as_untrusted(db):
     assert [(u["unit_id"], u["paid_minor"]) for u in order["units"]] == [("d08-o1-u1", 15990)]
 
 
+def test_the_agent_sees_the_customers_earlier_requests(db):
+    # D10: the customer says she confirmed a request before. The order shows it, expired, never paid.
+    ctx = agent_for(db, "D10")
+    (order,) = call(ctx, "list_my_orders")["orders"]
+    assert order["requests"] == [
+        {
+            "proposal_id": "d10-p1",
+            "status": "expired",
+            "amount_minor": 8990,
+            "unit_ids": ["d10-o1-u1"],
+            "created_at": "2026-09-11T09:00:00+00:00",
+            "receipt_number": None,
+        }
+    ]
+    assert call(ctx, "get_my_order", order_id="d10-o1")["order"]["requests"] == order["requests"]
+
+
 def test_another_customers_request_is_not_found(db):
     ctx = agent_for(db, "D07")
     _, hugos = proposed(ctx.engine, "d07-hugo", "d07-o2", ["d07-o2-u1"], "propose-hugo", ctx.clock())

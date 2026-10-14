@@ -105,7 +105,12 @@ def _plain(value: Any) -> Any:
 def _order(ctx: ToolContext, order_id: str) -> dict | None:
     with ctx.engine.connect() as conn:
         mine = next(
-            (o for o in reads.orders(conn, ctx.customer_id, ctx.policy.currency) if o["order_id"] == order_id), None
+            (
+                o
+                for o in reads.orders(conn, ctx.customer_id, ctx.policy.currency, ctx.clock())
+                if o["order_id"] == order_id
+            ),
+            None,
         )
         if mine is None:
             return None
@@ -119,7 +124,7 @@ def _order(ctx: ToolContext, order_id: str) -> dict | None:
 
 def list_my_orders(ctx: ToolContext, args: NoArgs, call_id: str) -> dict:
     with ctx.engine.connect() as conn:
-        return {"orders": reads.orders(conn, ctx.customer_id, ctx.policy.currency)}
+        return {"orders": reads.orders(conn, ctx.customer_id, ctx.policy.currency, ctx.clock())}
 
 
 def get_my_order(ctx: ToolContext, args: OrderArgs, call_id: str) -> dict:
@@ -174,7 +179,7 @@ def get_request_status(ctx: ToolContext, args: ProposalArgs, call_id: str) -> di
         )
         if proposal is None or proposal["customer_id"] != ctx.customer_id:
             raise Refused("actor_owns")
-        return {"request": reads.proposal_card(conn, proposal, ctx.clock())}
+        return {"request": reads.proposal_card(conn, proposal, ctx.clock(), ctx.policy)}
 
 
 def execute_refund(ctx: ToolContext, args: ProposalArgs, call_id: str) -> dict:
@@ -218,13 +223,14 @@ TOOLS = {
     for tool in (
         Tool(
             "list_my_orders",
-            "The signed-in customer's orders, with each unit and whether it can be refunded.",
+            "The signed-in customer's orders, with each unit, whether it can be refunded, and the refund "
+            "requests already made for each order.",
             NoArgs,
             list_my_orders,
         ),
         Tool(
             "get_my_order",
-            "One of the customer's orders, with its units and any seller message.",
+            "One of the customer's orders, with its units, its refund requests and any seller message.",
             OrderArgs,
             get_my_order,
         ),

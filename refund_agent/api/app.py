@@ -171,7 +171,13 @@ def create_app(
     def my_orders(user: Reading) -> list[dict]:
         actor = customer(user)
         with engine.connect() as conn:
-            return reads.orders(conn, actor.user_id, policy.currency)
+            return reads.orders(conn, actor.user_id, policy.currency, clock())
+
+    @app.get("/api/conversations")
+    def my_conversations(user: Reading) -> list[dict]:
+        actor = customer(user)
+        with engine.connect() as conn:
+            return reads.conversations(conn, actor.user_id)
 
     @app.post("/api/conversations", status_code=201)
     def start_conversation(user: Changing) -> dict:
@@ -181,7 +187,7 @@ def create_app(
     def my_conversation(conversation_id: str, user: Reading) -> dict:
         actor = customer(user)
         with engine.connect() as conn:
-            found = reads.conversation(conn, conversation_id, clock())
+            found = reads.conversation(conn, conversation_id, clock(), policy)
         if found is None or found["customer_id"] != actor.user_id:
             raise _not_found()
         return found
@@ -226,7 +232,7 @@ def create_app(
     def queue(user: Reading) -> dict:
         staff(user)
         with engine.connect() as conn:
-            return reads.staff_queue(conn, clock())
+            return reads.staff_queue(conn, clock(), policy)
 
     @app.get("/api/staff/proposals/{proposal_id}")
     def staff_proposal(proposal_id: str, user: Reading) -> dict:
@@ -236,16 +242,16 @@ def create_app(
             found = proposal.first()
             if found is None:
                 raise _not_found()
-            return reads.staff_proposal(conn, found, clock())
+            return reads.staff_proposal(conn, found, clock(), policy)
 
     @app.get("/api/staff/conversations/{conversation_id}")
     def staff_conversation(conversation_id: str, user: Reading) -> dict:
         staff(user)
         with engine.connect() as conn:
-            found = reads.conversation(conn, conversation_id, clock())
-        if found is None:
-            raise _not_found()
-        return found
+            found = reads.conversation(conn, conversation_id, clock(), policy)
+            if found is None:
+                raise _not_found()
+            return {**found, "history": reads.history(conn, conversation_id)}
 
     @app.post("/api/staff/proposals/{proposal_id}/decision")
     def decide_proposal(proposal_id: str, body: DecisionBody, user: Changing, background: BackgroundTasks) -> dict:
