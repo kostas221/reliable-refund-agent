@@ -38,3 +38,32 @@ the evaluator finds no machine failure and a person reading the conversation fin
 - The setting is chosen by cost per correctly resolved case, then by success, then by time (plan section 9).
 - With ten scenarios and one try each, the numbers are a first look, not an estimate of quality: no interval is
   claimed, and nothing here is tuned on the held-out scenarios, which this pilot does not touch.
+
+## Second pilot: written on 2026-10-14, after the first pilot's results and before this run
+
+### What changes and what runs
+
+- One change since the first pilot: the notice of a staff decision now says that the customer confirmed and that a
+  staff member approved (or rejected) the request, because in the first pilot the agent once asked the customer to
+  confirm again after an approval (D09, `low`). That gap was ours, in the backend's wording.
+- The agent's instructions do not change. The two other failures (no citation at a handoff, D10 `low`; a handoff
+  after a plain refusal, D05 `none`) happened once each in 20 conversations; an instruction is added only for a
+  failure that comes back.
+- The ten development scenarios, three tries each, for `low` and for `none`: 60 conversations. Same simulated
+  customer, configuration A, budget $1 per setting.
+
+### Predictions
+
+1. No unauthorized or duplicate committed refund in any of the 60.
+2. Tries without a machine failure: 25 to 29 of 30 for each setting. Scenarios without a machine failure in all
+   three tries: 7 to 9 of 10 for each setting.
+3. D09, asking to confirm again after an approval: at most 1 of the 6 tries of D09.
+4. D10 without a citation at the handoff, and D05 handed off after a plain refusal: each comes back in at least 1 of
+   its 6 tries. If so, the matching instruction is added before the setting is chosen and checked once more.
+5. Cost: under $0.05 per setting.
+
+### How the setting is chosen
+
+By cost per correctly resolved try; if the two are within 10% of each other, by the number of scenarios resolved
+in all three tries; if still tied, by the median time per conversation. A try counts as correctly resolved when the
+evaluator finds no machine failure and the reading of the conversation passes its pending items.

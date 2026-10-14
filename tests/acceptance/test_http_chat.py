@@ -8,6 +8,7 @@ import pytest
 from langgraph.checkpoint.postgres import PostgresSaver
 
 from refund_agent import db as database
+from refund_agent.agent import notices
 from refund_agent.agent.graph import Agent
 from refund_agent.agent.model import Call, Say, ScriptedModel
 from refund_agent.api.app import create_app
@@ -79,6 +80,10 @@ def test_the_customer_talks_to_the_agent_and_an_approval_wakes_it(shop):
     assert after["proposals"][0]["status"] == "refunded"
     assert said(s, conversation)[-1] == ("agent", f"Your refund of R$ 49,90 is done: receipt {receipt}.")
     assert rows(s.engine, "SELECT count(*) FROM refund_operations") == [(1,)]
+    # The notice says that the customer confirmed as well, so the agent knows nothing else is awaited (pilot, D09).
+    told = [m["text"] for m in s.agent.messages(conversation) if m["role"] == "event"]
+    assert told == [notices.staff_decision(card["proposal_id"], "approved")]
+    assert "customer confirmed" in told[0] and "ready to be paid" in told[0]
 
 
 def test_a_rejection_wakes_the_agent_too(shop):

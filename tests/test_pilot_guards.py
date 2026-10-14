@@ -86,3 +86,14 @@ def test_the_manifest_fingerprints_the_files_that_decide_a_run():
     ):
         assert path in hashes
     assert manifest.fingerprint(hashes) == manifest.fingerprint(dict(reversed(list(hashes.items()))))
+
+
+def test_tries_per_scenario_scale_the_worst_case_and_stay_within_bounds(capsys):
+    assert pilot.main(["--dry-run"]) == 0
+    one = capsys.readouterr().out
+    assert pilot.main(["--dry-run", "--repeats", "3"]) == 0
+    three = capsys.readouterr().out
+    cost = lambda text: float(text.split("about $")[1].split(" ")[0])  # noqa: E731
+    assert "x 3 tries" in three and cost(three) == pytest.approx(3 * cost(one), rel=0.02)
+    with pytest.raises(SystemExit):
+        pilot.parse_args(["--repeats", "9"])

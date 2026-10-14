@@ -45,18 +45,11 @@ logged with its date at the end of `docs/plan.md`. No new planning rounds.
   pass^3 = share of scenarios that succeed in all three tries; paired bootstrap per task for A/B and A/C;
   quality targets written after the pilot and before the final test.
 
-## Now: phase 1 (no API calls)
+## Now
 
-Deliverables (§15, phase 1, about 18 hours):
-1. `docs/product-contract.md`, 1-2 pages in English: user, flow, v1 limits, invariants, completion criteria,
-   out of scope.
-2. The demo refund policy (§4), with one controlled source for its numeric rules.
-3. Schema and state diagram (proposal, confirmation, approval, refund operation, ledger lines, receipt, audit,
-   handoff / `human_controlled`).
-4. 10 executable development scenarios (fixture, clock, customer goal and private facts, agent-visible data,
-   staff decision, acceptable final state, required communication, forbidden events) and the held-out plan.
-
-First technical milestone after phase 1: one correct refund transaction without any LLM (§17).
+Phase 3 (§15): mock mode and the first live pilot are done; next is a second development pilot with three tries per
+scenario and setting, then the choice between reasoning `low` and `none`. Where things stand: `docs/pilot/results.md`
+(pilot results and decisions), `docs/failure-cases.md` (what each test proves). Commit once per phase.
 
 ## Environment
 

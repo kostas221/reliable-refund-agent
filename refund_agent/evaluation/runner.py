@@ -23,6 +23,7 @@ from datetime import datetime, timedelta
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from sqlalchemy import Engine, text
 
+from refund_agent.agent import notices
 from refund_agent.agent.graph import Agent, AgentLoopError
 from refund_agent.agent.model import ModelAdapter, ModelError
 from refund_agent.evaluation.customers import Customer, SimulatorError
@@ -127,6 +128,6 @@ def _people_act(scenario: Scenario, app: Engine, agent: Agent, conversation: str
     for proposal, _, _ in _proposals(app, conversation, "awaiting_staff_approval"):
         decide(app, staff, proposal, decision, clock.tick(), policy)
         clock.tick()
-        agent.notify(conversation, f"Request {proposal} was {decision} by a staff member.")
+        agent.notify(conversation, notices.staff_decision(proposal, decision))
         return True
     return False

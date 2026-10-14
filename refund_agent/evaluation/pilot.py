@@ -63,6 +63,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--prices-checked", type=date.fromisoformat, help="the date the prices were checked, YYYY-MM-DD"
     )
     parser.add_argument("--scenarios", default="", help="comma-separated IDs; all development scenarios by default")
+    parser.add_argument("--repeats", type=int, default=1, choices=range(1, 6), help="tries per scenario, each fresh")
     return parser.parse_args(argv)
 
 
@@ -102,16 +103,18 @@ def dry_run(args: argparse.Namespace, scenarios: dict) -> None:
     print(f"Wrote {_shown(out)}/first-agent-request.json and first-simulator-request.json; nothing sent.")
     print(f"Agent request: {len(json.dumps(first_agent))} characters, {len(first_agent['tools'])} tools.")
     print(
-        f"Worst case for {len(scenarios)} scenarios with {args.model}: about ${per_scenario * len(scenarios):.2f} "
+        f"Worst case for {len(scenarios)} scenarios x {args.repeats} tries with {args.model}: about "
+        f"${per_scenario * len(scenarios) * args.repeats:.2f} "
         f"(at most {AGENT_REQUESTS} agent and {SIMULATOR_REQUESTS} simulator requests each, every one at its "
         "maximum output). Real runs cost far less; the budget stops the run either way."
     )
 
 
-def _save(folder: Path, result: RunResult, spent: dict) -> None:
+def _save(folder: Path, result: RunResult, attempt: int, spent: dict) -> None:
     folder.mkdir(parents=True, exist_ok=True)
     record = {
         "scenario": result.scenario,
+        "try": attempt,
         "configuration": result.configuration,
         "result": result.verdict.result,
         "items": [asdict(item) for item in result.verdict.items],
@@ -138,7 +141,7 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
         "agent_reasoning": args.reasoning,
         "simulator_reasoning": args.simulator_reasoning,
         "configuration": "A",
-        "repeats": 1,
+        "repeats": args.repeats,
         "scenarios": sorted(scenarios),
         "prices_usd_per_1m": PRICES[args.model],
         "prices_checked": args.prices_checked.isoformat(),
@@ -151,10 +154,14 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
     (out / "manifest.json").write_text(json.dumps(manifest.build(identity), indent=2), encoding="utf-8", newline="\n")
     database.create_database(TEMPLATE)
     database.migrate(TEMPLATE)
-    print(f"Pilot {_shown(out)}: {args.model}, reasoning {args.reasoning}, budget ${args.budget_usd:.2f}")
+    print(
+        f"Pilot {_shown(out)}: {args.model}, reasoning {args.reasoning}, {args.repeats} tries per scenario, "
+        f"budget ${args.budget_usd:.2f}"
+    )
+    clean: dict[str, int] = {}  # tries without a machine failure or an error, per scenario
     try:
-        for scenario_id in sorted(scenarios):
-            scenario, folder = scenarios[scenario_id], out / scenario_id
+        for scenario_id, attempt in [(s, t) for s in sorted(scenarios) for t in range(1, args.repeats + 1)]:
+            scenario, folder = scenarios[scenario_id], out / scenario_id / f"try{attempt}"
             before = dict(budget.by_role)
             agent = OpenAIResponses(args.model, args.reasoning, role="agent", budget=budget)
             simulator = OpenAIResponses(args.model, args.simulator_reasoning, role="simulator", budget=budget)
@@ -172,18 +179,21 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
                         policy=policy,
                     )
             except BudgetExceeded as stop:
-                print(f"{scenario_id}  STOPPED by the budget before a request: {stop}. Later scenarios not run.")
+                print(
+                    f"{scenario_id} try {attempt}  STOPPED by the budget before a request: {stop}. Nothing later ran."
+                )
                 return 2
             finally:
                 owner.dispose()
                 app.dispose()
                 database.drop_database(RUN)
             spent = {role: budget.by_role.get(role, 0.0) - before.get(role, 0.0) for role in budget.by_role}
-            _save(folder, result, spent)
+            _save(folder, result, attempt, spent)
             failed = result.verdict.names("failed")
             errors = [e for e in (result.system_error, result.simulator_error) if e]
+            clean[scenario_id] = clean.get(scenario_id, 0) + (not failed and not errors)
             print(
-                f"{scenario_id}  {'FAILED: ' + ', '.join(failed) if failed else 'no machine failure'}"
+                f"{scenario_id} try {attempt}  {'FAILED: ' + ', '.join(failed) if failed else 'no machine failure'}"
                 f"{'; ERROR: ' + '; '.join(errors) if errors else ''}  (${sum(spent.values()):.4f})"
             )
     finally:
@@ -192,6 +202,12 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
             f"Spent about ${budget.spent_usd:.4f} in {budget.requests} requests "
             f"({', '.join(f'{r} ${u:.4f}' for r, u in budget.by_role.items())}); check the provider's usage page."
         )
+    every = [s for s, n in clean.items() if n == args.repeats]
+    print(
+        f"Without a machine failure in every try: {len(every)} of {len(clean)} scenarios ("
+        + ", ".join(f"{s} {n}/{args.repeats}" for s, n in sorted(clean.items()))
+        + "). Machine items only, before anyone reads the conversations."
+    )
     print("Every verdict is unknown until a person reads the conversations (plan section 9).")
     return 0
 

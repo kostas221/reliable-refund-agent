@@ -27,6 +27,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Engine, text
 
 from refund_agent import reads
+from refund_agent.agent import notices
 from refund_agent.agent.graph import Agent, AgentBusy, AgentLoopError
 from refund_agent.agent.model import ModelError
 from refund_agent.api import auth
@@ -254,7 +255,7 @@ def create_app(
                 conversation = conn.execute(
                     text("SELECT conversation_id FROM proposals WHERE id = :id"), {"id": proposal_id}
                 ).scalar_one()
-            background.add_task(wake, conversation, f"Request {proposal_id} was {status} by a staff member.")
+            background.add_task(wake, conversation, notices.staff_decision(proposal_id, status))
         return {"proposal_id": proposal_id, "status": status}
 
     def wake(conversation_id: str, event: str) -> None:
