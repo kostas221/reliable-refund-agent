@@ -27,7 +27,8 @@ from typing import Any, Literal, Protocol
 from refund_agent.policy import REPO_ROOT
 from refund_agent.scenarios import format_brl
 
-INSTRUCTIONS_PATH = REPO_ROOT / "prompts" / "agent-v1.md"
+# Version 2 widens when to cite (docs/pilot/results.md, second pilot); version 1 stays for the runs made with it.
+INSTRUCTIONS_PATH = REPO_ROOT / "prompts" / "agent-v2.md"
 
 
 @dataclass(frozen=True)

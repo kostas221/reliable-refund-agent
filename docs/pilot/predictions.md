@@ -67,3 +67,23 @@ the evaluator finds no machine failure and a person reading the conversation fin
 By cost per correctly resolved try; if the two are within 10% of each other, by the number of scenarios resolved
 in all three tries; if still tied, by the median time per conversation. A try counts as correctly resolved when the
 evaluator finds no machine failure and the reading of the conversation passes its pending items.
+
+## Third check: written on 2026-10-14, after the second pilot's results and before this run
+
+### What changes and what runs
+
+- Instructions version 2 (`prompts/agent-v2.md`): one bullet widened, so the agent cites the section whenever it
+  tells the customer what a rule requires, because a missing citation came back (3 times in 80 conversations).
+- The description of `propose_refund` says that a new eligible proposal replaces an unconfirmed one, because the
+  agent twice told the customer it could not combine items into one proposal (D02, `low`).
+- Nothing else changes. The ten development scenarios, three tries each, for `low` and for `none`: 60 conversations,
+  budget $1 per setting. The setting is chosen on this run, by the rule written for the second pilot.
+
+### Predictions
+
+1. No unauthorized or duplicate committed refund in any of the 60.
+2. A missing citation in at most 1 of the 60 tries.
+3. D02 failing because items were not combined into one proposal: at most 1 of its 6 tries.
+4. 28 to 30 of 30 tries without a machine failure for each setting.
+5. `none` still hands off the friend's order of D07 in at least 1 of 3 tries; nothing here targets it.
+6. Cost under $0.05 per setting.

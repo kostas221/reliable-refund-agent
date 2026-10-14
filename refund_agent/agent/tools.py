@@ -237,7 +237,8 @@ TOOLS = {
         Tool(
             "propose_refund",
             "Ask the backend for a refund proposal for these units. The backend decides the "
-            "amount and whether the policy allows it.",
+            "amount and whether the policy allows it. A new eligible proposal replaces one the customer has not "
+            "confirmed yet, so to add or remove items, propose again with all of them.",
             ProposeArgs,
             propose_refund,
         ),
