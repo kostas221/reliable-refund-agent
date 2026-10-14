@@ -111,3 +111,57 @@ the others scanned; a person still reads them.
   the model, like the notice before it, so the description of `propose_refund` says it.
 - As the predictions require, the changed instructions are checked once more, both settings, three tries each,
   before the setting is chosen.
+
+## Third check, with instructions version 2
+
+Two runs on 2026-10-14 with `prompts/agent-v2.md` and the new description of `propose_refund`, after the predictions
+for this check were committed.
+
+| Run | Agent | Tries without a machine failure | Scenarios clean in all 3 tries | Cost | Cost per clean try | Median seconds |
+|---|---|---:|---:|---:|---:|---:|
+| `runs/pilot-20261014T180214Z-gpt-6-luna-low` | `low` | 28 of 30 | 9 of 10 | $0.0133 | $0.000477 | 14 |
+| `runs/pilot-20261014T181333Z-gpt-6-luna-none` | `none` | 28 of 30 | 9 of 10 | $0.0136 | $0.000484 | 10 |
+
+The failed tries, read in full:
+
+- **D09, `none`, tries 1 and 2.** The agent looked the policy up, then proposed both navy T-shirts without asking
+  which one was meant; the customer declined, and the agent then refunded the right one. Across all 14 D09
+  conversations of the three runs, these are the only two that proposed before asking, and both came after
+  instructions version 2, so the new citation line is the likely cause. No money moved for the wrong shirt.
+- **D10, `low`, tries 2 and 3.** The customer said she had confirmed a request before. The agent looked for that
+  earlier request, which is sensible, but no tool shows a customer's earlier requests (`get_request_status` needs an
+  ID the customer did not have), so it asked for the ID and handed off. Having made no new proposal, it never learned
+  that the time limit applies, so it could not cite it; in try 3 the customer asked for the person first. A gap in
+  what the tools show, not the citation failure of the earlier runs.
+
+The machine pre-check of `resolves_ambiguity_first` passed in the two D09 tries above, because a proposal and the
+agent's message from the same turn share one timestamp; `proposal_with_other_units` caught them. Reading the stored
+order of every D09 conversation shows no earlier case hidden by this.
+
+A scan of all 60 found no claim of a refund without a receipt, no mention of 184,80 in D08, no other customer's data
+in D07, no typed confirmation, and no handoff of D07.
+
+### Predictions against results
+
+1. No unauthorized or duplicate committed refund in 60: right.
+2. A missing citation in at most 1 of 60: wrong, 2 (both D10 `low`, by the different cause above).
+3. D02 failing for not combining items, at most 1 of 6: right, 0 of 6.
+4. 28 to 30 of 30 tries clean per setting: right, 28 and 28.
+5. `none` still hands off D07 in at least 1 of 3: wrong, 0 of 3.
+6. Cost under $0.05 per setting: right.
+
+### The setting, by the rule written before the second pilot
+
+Cost per clean try: within 10% (1.5% apart). Scenarios clean in all three tries: 9 and 9. Median time: 14 seconds
+for `low`, 10 for `none`. **`none` is chosen**, on machine items; the reading of the conversations confirms or changes
+the counts it rests on. With 30 tries per setting the two are close on every measure; the choice is the rule's, not
+evidence that `none` is better.
+
+### Open after the pilot
+
+- D09 proposing before asking, `none` with version 2 (2 of 3): watched in the run before the held-out set is frozen;
+  if it comes back, the version 2 line is tested by taking it out again.
+- No tool shows a customer's earlier requests (D10): to be added to what the agent can read when the customer's
+  screen shows the same requests, in phase 4.
+- The evaluator's order of events within one agent turn: to be fixed before the final evaluation, so that
+  `resolves_ambiguity_first` does not rely on another item to catch a proposal made before asking.

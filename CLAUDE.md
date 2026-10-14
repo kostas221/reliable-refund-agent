@@ -47,9 +47,9 @@ logged with its date at the end of `docs/plan.md`. No new planning rounds.
 
 ## Now
 
-Phase 3 (§15): mock mode and the first live pilot are done; next is a second development pilot with three tries per
-scenario and setting, then the choice between reasoning `low` and `none`. Where things stand: `docs/pilot/results.md`
-(pilot results and decisions), `docs/failure-cases.md` (what each test proves). Commit once per phase.
+Phase 3 (§15) is done: mock mode and three development pilots; the agent runs GPT-6 Luna with reasoning `none`,
+chosen by the pre-written rule (`docs/pilot/results.md`, which also lists what stays open). Next: phase 4, the
+customer and staff screens. Commit once per phase.
 
 ## Environment
 
