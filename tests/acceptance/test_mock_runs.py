@@ -9,6 +9,7 @@ from langgraph.checkpoint.postgres import PostgresSaver
 
 from refund_agent import db as database
 from refund_agent.agent.model import ScriptedModel
+from refund_agent.evaluation.customers import ScriptedCustomer
 from refund_agent.evaluation.mock_scripts import CARELESS_D01, MOCK, MockRun
 from refund_agent.evaluation.runner import run_scenario
 from tests.acceptance.flows import DEVELOPMENT, POLICY, rows
@@ -23,7 +24,7 @@ def play(db):
         connections.append(database.checkpoint_connection("app", app.url.database))
         return run_scenario(
             DEVELOPMENT[scenario_id],
-            mock.customer,
+            ScriptedCustomer(DEVELOPMENT[scenario_id], mock.customer),
             ScriptedModel(mock.agent),
             owner=db("owner"),
             app=app,

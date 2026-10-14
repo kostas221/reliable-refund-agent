@@ -14,6 +14,7 @@ from langgraph.checkpoint.postgres import PostgresSaver
 
 from refund_agent import db as database
 from refund_agent.agent.model import ScriptedModel
+from refund_agent.evaluation.customers import ScriptedCustomer
 from refund_agent.evaluation.mock_scripts import CARELESS_D01, MOCK
 from refund_agent.evaluation.runner import RunResult, run_scenario
 from refund_agent.policy import load_policy
@@ -73,7 +74,7 @@ def main() -> None:
                 with database.checkpoint_connection("app", RUN) as connection:
                     result = run_scenario(
                         scenarios[scenario_id],
-                        mock.customer,
+                        ScriptedCustomer(scenarios[scenario_id], mock.customer),
                         ScriptedModel(mock.agent),
                         owner=owner,
                         app=app,

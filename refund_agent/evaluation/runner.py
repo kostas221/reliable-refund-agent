@@ -3,19 +3,20 @@
 The agent answers through the conversation graph, with any model adapter: the scripted one in mock mode, a real one
 in a paid run. Around it the runner plays the people, by the scenario's own rules:
 
-- the customer says the opening message, then one line after each answer of the agent, until the lines run out;
+- the customer (a script in mock mode, a model in a live run: refund_agent/evaluation/customers.py) says the opening
+  message, then one line after each answer of the agent, until it has nothing more to say;
 - the customer's confirm button (the test actor) is pressed only on a proposal with exactly the units and amount the
   scenario's customer confirms, and every other proposal waiting for the customer is declined;
 - the scripted staff member applies the scenario's decision to every proposal that reaches the queue, and the agent
   is told, as the staff console does.
 
 The business clock moves one minute per step, so the order of events is plain. A model error or a loop is a failure
-of the system: it is kept in the result, and the evaluator still judges what the database holds (plan section 11).
+of the system, and a failure of the simulated customer is the evaluation's: each is kept in the result, apart, and
+the evaluator still judges what the database holds (plan section 11).
 """
 
 from __future__ import annotations
 
-from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -24,6 +25,7 @@ from sqlalchemy import Engine, text
 
 from refund_agent.agent.graph import Agent, AgentLoopError
 from refund_agent.agent.model import ModelAdapter, ModelError
+from refund_agent.evaluation.customers import Customer, SimulatorError
 from refund_agent.evaluation.evaluator import Verdict, capture_baseline, evaluate
 from refund_agent.fixtures import seed
 from refund_agent.policy import Policy
@@ -50,12 +52,13 @@ class RunResult:
     verdict: Verdict
     messages: list[dict]
     model_requests: int
-    system_error: str | None  # a model error or a loop: a failure of the system, never hidden
+    system_error: str | None  # the agent's model error or loop: a failure of the system, never hidden
+    simulator_error: str | None = None  # the simulated customer failed: the run is not a valid test of the agent
 
 
 def run_scenario(
     scenario: Scenario,
-    customer_lines: tuple[str, ...],
+    customer: Customer,
     model: ModelAdapter,
     *,
     owner: Engine,
@@ -70,26 +73,32 @@ def run_scenario(
     baseline = capture_baseline(app)
     clock = Clock(scenario.now)
     agent = Agent(app, policy, model, checkpointer, clock, configuration=configuration)
-    customer = Actor("customer", scenario.customer.id)
-    conversation = open_conversation(app, customer, clock())
-    lines = deque(customer_lines)
-    error = None
+    conversation = open_conversation(app, Actor("customer", scenario.customer.id), clock())
+    error = simulator_error = None
     try:
         clock.tick()
-        agent.receive(conversation, scenario.customer.opening_message)
+        agent.receive(conversation, customer.opening())
         for _ in range(max_rounds):
             if _people_act(scenario, app, agent, conversation, clock, policy):
                 continue
-            if not lines:
+            line = customer.next_line(_transcript(agent.messages(conversation)))
+            if line is None:
                 break
             clock.tick()
-            agent.receive(conversation, lines.popleft())
+            agent.receive(conversation, line)
     except (ModelError, AgentLoopError) as failure:
         error = f"{type(failure).__name__}: {failure}"
+    except SimulatorError as failure:
+        simulator_error = str(failure)
     usage = agent.usage(conversation)
+    verdict = evaluate(scenario, app, baseline)
     return RunResult(
-        scenario.id, configuration, evaluate(scenario, app, baseline), agent.messages(conversation), len(usage), error
+        scenario.id, configuration, verdict, agent.messages(conversation), len(usage), error, simulator_error
     )
+
+
+def _transcript(messages: list[dict]) -> list[tuple[str, str]]:
+    return [(m["role"], m["text"]) for m in messages if m["role"] in ("customer", "agent") and m.get("text")]
 
 
 def _proposals(app: Engine, conversation: str, status: str) -> list[tuple[str, list[str], int]]:
