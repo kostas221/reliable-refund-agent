@@ -13,7 +13,16 @@ import pytest
 from refund_agent import refunds
 from refund_agent.fixtures import seed
 from refund_agent.refunds import Actor, cancel, confirm, decide, execute, hand_off, propose, take_handoff
-from tests.acceptance.flows import DEVELOPMENT, POLICY, approved, attempt, proposed, refused_check, rows
+from tests.acceptance.flows import (
+    DEVELOPMENT,
+    POLICY,
+    approved,
+    attempt,
+    hold_at,
+    proposed,
+    refused_check,
+    rows,
+)
 
 D01 = DEVELOPMENT["D01"]
 NOW = D01.now
@@ -138,17 +147,6 @@ def test_nobody_hands_off_another_customers_conversation(db):
 
 
 # Handoff and execution at the same time (acceptance 3, failure case 11)
-
-
-def hold_at(point: str, inside: threading.Event, release: threading.Event):
-    """A failpoint that keeps the transaction reaching `point` open until `release` is set."""
-
-    def failpoint(reached: str, key: str) -> None:
-        if reached == point:
-            inside.set()
-            assert release.wait(10)
-
-    return failpoint
 
 
 def test_refund_first_then_handoff_the_refund_stays(app, monkeypatch):

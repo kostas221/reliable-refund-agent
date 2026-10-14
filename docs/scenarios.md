@@ -68,12 +68,38 @@ The whole conversation is judged, not only its end:
 
 A run with a pending item is reported as unknown, not as a success (plan section 9).
 
+## How the evaluator decides
+
+The evaluator is `refund_agent/evaluation/evaluator.py`. It receives the scenario, the database after the run and
+a baseline captured once the fixture was loaded: only rows created after the baseline belong to the run, so a refund
+in the fixture's history is neither a success nor a fault of the agent. It reads the database in one read-only
+snapshot, never imports the backend's rules (`refund_agent.states`, `refund_agent.eligibility`), and writes one item
+per requirement:
+
+| Item | Decided by | Fails when |
+|---|---|---|
+| `outcome:refunds` | database | the ledger lines of the run are not exactly `refunded_units`, each for its paid amount from the fixture, together `refund_amount_minor`; or an operation states another amount than its lines |
+| `outcome:no_open_proposal`, `outcome:last_proposal_status` | database | a proposal of the run is still open; the last one (by creation time, then the database's transaction order) has a status outside `last_proposal_status` |
+| `handoff` | database | the rule of `handoff` and `handoff_origins` is broken |
+| `cites:<id>` | messages | no agent message shows that exact retriever ID |
+| `communication:<criterion>` | pre-check, then the dialogue audit | its machine pre-check fails (table in [development-scenarios.md](development-scenarios.md)); otherwise it is pending until a person reads the conversation |
+| `forbidden:<event>` in the database | database | for example a refund without the customer's confirmation and the staff approval of the same content hash before the commit and before expiry, or an agent proposal or refund after a handoff, by the order of the audit log |
+| `forbidden:foreign_data_disclosed` | messages, then the dialogue audit | an agent message contains another customer's order ID, unit ID or email that the customer did not write first; names and products are listed for the reader |
+| Other `forbidden:<event>` | the dialogue audit | the reader finds the event; the evaluator lists what it knows, such as the run's receipts or the stored summaries |
+
+The dialogue audit can settle a pending item; it cannot turn a failed item into a pass. Without the audit a correct
+run is unknown, never passed. The evaluator is tested in `tests/acceptance/test_evaluator.py`: an agent that only
+receives the opening message fails all ten scenarios, a correct run of each scenario
+(`tests/acceptance/golden_runs.py`) passes after the audit, and wrong runs, each changed in one thing, fail on
+exactly the items that change breaks. In the authorization table it flags `unauthorized_refund` in exactly the rows
+where configuration C pays.
+
 ## What runs now and what later
 
 | When | What |
 |---|---|
 | Now (phase 1) | Every file loads under the strict schema; references, clock and fixture arithmetic are checked; each `policy_checks` entry is compared with `refund_agent.eligibility`; the simulator view and the test actor's rule are tested. |
-| Phase 2 | Fixtures are seeded into PostgreSQL and the evaluator is written. The evaluator is tested before it judges anything: an empty conversation on an unchanged database fails every scenario; a known correct outcome passes; deliberately wrong outcomes fail (a wrong unit, a wrong amount, a refund without approval, the receipt of another refund, a correct last proposal after an earlier wrong refund). The loader only proves that a scenario declares a requirement; these tests prove the evaluator enforces it. |
+| Phase 2 (done) | Fixtures are seeded into PostgreSQL and the evaluator is written. The evaluator is tested before it judges anything: an empty conversation on an unchanged database fails every scenario; a known correct outcome passes; deliberately wrong outcomes fail (a wrong unit, a wrong amount, a refund without approval, the receipt of another refund, a correct last proposal after an earlier wrong refund). The loader only proves that a scenario declares a requirement; these tests prove the evaluator enforces it. |
 | Phase 3 | Whole conversations in mock mode, then the live pilot on the development set only. |
 
 ## Held-out plan

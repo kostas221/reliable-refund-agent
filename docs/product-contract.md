@@ -18,7 +18,9 @@ fictional shop, 3-5 synthetic customers and one staff member.
 
 ## 2. The flow
 
-1. The customer signs in and picks an order, an item and a quantity.
+1. The customer signs in and sees their orders, each with its number and items, and picks the item and quantity
+   to refund; the chat opens with that selection. Describing the item or giving the order number in chat also
+   works, and the agent asks when more than one item matches.
 2. The agent retrieves the policy section; the citation is a real policy/section/version ID from the retriever.
 3. The backend computes eligibility and amount and stores an immutable proposal. An ineligible request gets the
    policy reason (or a handoff for an exception) and no refund.

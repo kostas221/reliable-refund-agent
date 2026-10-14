@@ -47,9 +47,9 @@ class Refused(Exception):
         self.detail = detail
 
 
-# Test-only failpoint (plan section 14): called with a point name ("execute", "hand_off") and an ID inside a
-# transaction, after its checks have passed and before it writes, so race tests can hold transactions there. None
-# in normal operation, and no request can set it.
+# Test-only failpoint (plan section 14): called with a point name and an ID inside a transaction, so tests can hold,
+# break or crash it there. "execute" and "hand_off" come after the checks and before any write; "ledger" comes
+# after a refund operation is written and before its ledger lines. None in normal operation; no request can set it.
 failpoint: Callable[[str, str], None] | None = None
 
 
@@ -1024,6 +1024,7 @@ def _commit_refund(x: _Execution) -> dict:
             "now": x.now,
         },
     )
+    _reach("ledger", p["id"])  # between the operation and its ledger lines (plan section 13, failure case 7)
     for unit in x.units:
         x.conn.execute(
             text(

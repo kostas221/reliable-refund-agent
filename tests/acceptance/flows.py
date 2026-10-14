@@ -1,5 +1,6 @@
 """Shared steps for the acceptance tests. They drive the services; expected values stay in the tests, by hand."""
 
+import threading
 from datetime import datetime
 
 from sqlalchemy import text
@@ -45,3 +46,14 @@ def refused_check(call) -> str:
 def rows(app, sql: str) -> list[tuple]:
     with app.connect() as conn:
         return [tuple(row) for row in conn.execute(text(sql))]
+
+
+def hold_at(point: str, inside: threading.Event, release: threading.Event):
+    """A failpoint that keeps the transaction reaching `point` open until `release` is set."""
+
+    def failpoint(reached: str, key: str) -> None:
+        if reached == point:
+            inside.set()
+            assert release.wait(10)
+
+    return failpoint
