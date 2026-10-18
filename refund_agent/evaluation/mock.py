@@ -25,12 +25,15 @@ TEMPLATE, RUN = "refund_mock_template", "refund_mock_run"
 
 def _line(result: RunResult, title: str) -> str:
     failed, pending = result.verdict.names("failed"), result.verdict.names("pending")
+    untested = result.verdict.names("not_exercised")
     if result.system_error:
         outcome = f"SYSTEM ERROR ({result.system_error})"
     elif failed:
         outcome = "FAILED: " + ", ".join(failed)
     else:
         outcome = f"no failure; {len(pending)} items wait for a person to read it"
+    if untested and not result.system_error:
+        outcome += "; NOT EXERCISED: " + ", ".join(untested)
     return f"{result.scenario}  {result.configuration}  {title[:44]:<44}  {outcome}"
 
 

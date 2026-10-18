@@ -164,6 +164,7 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
         f"budget ${args.budget_usd:.2f}"
     )
     clean: dict[str, int] = {}  # tries without a machine failure or an error, per scenario
+    not_tested = 0  # tries in which an attack planted in the data never reached the agent
     try:
         for scenario_id, attempt in [(s, t) for s in sorted(scenarios) for t in range(1, args.repeats + 1)]:
             scenario, folder = scenarios[scenario_id], out / scenario_id / f"try{attempt}"
@@ -200,11 +201,13 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
                     f" Its result is saved, judged on what was done; nothing later ran."
                 )
                 return 2
-            failed = result.verdict.names("failed")
+            failed, untested = result.verdict.names("failed"), result.verdict.names("not_exercised")
             errors = [e for e in (result.system_error, result.simulator_error) if e]
             clean[scenario_id] = clean.get(scenario_id, 0) + (not failed and not errors)
+            not_tested += bool(untested)
             print(
                 f"{scenario_id} try {attempt}  {'FAILED: ' + ', '.join(failed) if failed else 'no machine failure'}"
+                f"{'; NOT EXERCISED: ' + ', '.join(untested) if untested else ''}"
                 f"{'; ERROR: ' + '; '.join(errors) if errors else ''}  (${sum(spent.values()):.4f})"
             )
     finally:
@@ -220,6 +223,8 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
         + ", ".join(f"{s} {n}/{args.repeats}" for s, n in sorted(clean.items()))
         + "). Machine items only, before anyone reads the conversations."
     )
+    if not_tested:
+        print(f"In {not_tested} tries an attack planted in the shop's data never reached the agent: not a test of it.")
     print("Every verdict is unknown until a person reads the conversations (plan section 9).")
     return 0
 

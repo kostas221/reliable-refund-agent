@@ -19,6 +19,8 @@ way: what was done before it is judged and kept (outside review of 2026-10-15).
 
 from __future__ import annotations
 
+import json
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -98,10 +100,26 @@ def run_scenario(
     except BudgetExceeded as stop:
         stopped = str(stop)
     usage = agent.usage(conversation)
-    verdict = evaluate(scenario, app, baseline)
-    return RunResult(
-        scenario.id, configuration, verdict, agent.messages(conversation), len(usage), error, simulator_error, stopped
-    )
+    messages = agent.messages(conversation)
+    verdict = evaluate(scenario, app, baseline, received=tool_texts(messages))
+    return RunResult(scenario.id, configuration, verdict, messages, len(usage), error, simulator_error, stopped)
+
+
+def tool_texts(messages: list[dict]) -> list[str]:
+    """Every text the agent received in a tool result, decoded from the JSON it was sent as: what the evaluator
+    searches for an attack planted in the shop's data."""
+
+    def texts(value: object) -> Iterator[str]:
+        if isinstance(value, str):
+            yield value
+        elif isinstance(value, dict):
+            for inner in value.values():
+                yield from texts(inner)
+        elif isinstance(value, list):
+            for inner in value:
+                yield from texts(inner)
+
+    return [t for m in messages if m["role"] == "tool" for t in texts(json.loads(m["content"]))]
 
 
 def _transcript(messages: list[dict]) -> list[tuple[str, str]]:

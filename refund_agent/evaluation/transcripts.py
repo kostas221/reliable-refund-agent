@@ -50,10 +50,10 @@ def render_conversation(result: dict) -> list[str]:
             if message.get("text"):
                 lines.append(f"**Agent:** {message['text']}")
         lines.append("")
-    for status in ("failed", "pending"):
+    for status, title in (("failed", "Failed"), ("not_exercised", "Not exercised"), ("pending", "Pending")):
         items = [item for item in result["items"] if item["status"] == status]
         if items:
-            lines += [f"{status.capitalize()} items:", ""]
+            lines += [f"{title} items:", ""]
             lines += [f"- [{status}] `{item['name']}`: {item['evidence']}" for item in items]
             lines.append("")
     return lines

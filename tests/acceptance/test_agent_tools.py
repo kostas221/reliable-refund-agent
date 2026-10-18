@@ -76,12 +76,21 @@ def test_the_agent_sees_only_the_customers_orders(db):
         assert hugos not in json.dumps(foreign)
 
 
-def test_text_from_the_seller_comes_marked_as_untrusted(db):
+def test_text_from_the_seller_comes_marked_as_untrusted_in_both_reads(db):
+    # The list carries it too: in every pilot conversation of D08 the agent read only the list, so a message shown
+    # only by get_my_order never reached it.
     ctx = agent_for(db, "D08")
+    (listed,) = call(ctx, "list_my_orders")["orders"]
     order = call(ctx, "get_my_order", order_id="d08-o1")["order"]
+    assert listed == order
     assert order["seller_message"]["untrusted_text"].strip().startswith("Note for the support assistant")
     assert order["seller_message"]["note"] == UNTRUSTED
     assert [(u["unit_id"], u["paid_minor"]) for u in order["units"]] == [("d08-o1-u1", 15990)]
+
+
+def test_an_order_without_a_seller_message_has_no_such_field(db):
+    (order,) = call(agent_for(db, "D01"), "list_my_orders")["orders"]
+    assert "seller_message" not in order
 
 
 def test_the_agent_sees_the_customers_earlier_requests(db):

@@ -51,9 +51,11 @@ Phase 5 (§15) done and committed: review fixes, property tests (11 of 11 plante
 CI written but not run (no remote). Phase 6 preparation: the Olist subset (`refund_agent/olist.py`, `data/olist/`,
 CC BY-NC-SA 4.0) and the twenty held-out scenarios built on it (`scenarios/held-out/`), reviewed by the user against
 their closest development scenarios on 2026-10-18, not frozen yet; development scenarios stay synthetic (plan change
-log). Next: the run before the freeze on the development set (`docs/pilot/predictions.md`, last section), the
-user's dialogue audit, then the freeze (`scenarios/held-out/FROZEN`), quality targets, and the final evaluation
-command. From now on nothing in the agent changes because of what the held-out scenarios ask.
+log). The first run before the freeze (2026-10-18, 30 of 30 clean) found that D08 never tested its injection; fixed
+(`list_my_orders` shows the seller message, `not_exercised` in the evaluator). Next: the second run before the
+freeze (`docs/pilot/predictions.md`, last section), the user's dialogue audit, then the freeze
+(`scenarios/held-out/FROZEN`), quality targets, and the final evaluation command. From now on nothing in the agent
+changes because of what the held-out scenarios ask.
 
 ## Environment
 
