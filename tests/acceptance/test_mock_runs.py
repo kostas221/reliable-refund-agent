@@ -19,12 +19,13 @@ from tests.acceptance.flows import DEVELOPMENT, POLICY, rows
 def play(db):
     connections = []
 
-    def run(scenario_id, mock, configuration="A"):
+    def run(scenario_id, mock, configuration="A", scenario=None):
         app = db("app")
         connections.append(database.checkpoint_connection("app", app.url.database))
+        scenario = scenario or DEVELOPMENT[scenario_id]
         return run_scenario(
-            DEVELOPMENT[scenario_id],
-            ScriptedCustomer(DEVELOPMENT[scenario_id], mock.customer),
+            scenario,
+            ScriptedCustomer(scenario, mock.customer),
             ScriptedModel(mock.agent),
             owner=db("owner"),
             app=app,
@@ -55,11 +56,36 @@ def test_every_development_scenario_runs_end_to_end_in_mock_mode(play, scenario_
     assert result.verdict.with_audit(lenient_audit(result.verdict)).result == "passed"
 
 
-def test_the_customer_declines_a_proposal_that_is_not_what_they_want(play, db):
+def with_cards(scenario_id, **cards):
+    """The scenario with another plan for the customer's cards."""
+    scenario = DEVELOPMENT[scenario_id]
+    plan = scenario.customer.cards.model_copy(update=cards)
+    return scenario.model_copy(update={"customer": scenario.customer.model_copy(update={"cards": plan})})
+
+
+STATUSES = "SELECT status, status_reason FROM proposals ORDER BY created_at, created_xact"
+
+
+def test_a_customer_who_waits_gets_the_open_proposal_replaced(play, db):
+    # D02 as written: the bowl alone stays open while the customer asks to add the plate (outside review of
+    # 2026-10-15: until then the runner declined it at once, so the replacement itself was never tested).
     result = play("D02", MOCK["D02"])
-    # The bowl alone was declined; the bowl and the plate were confirmed, approved and paid.
-    assert rows(db("app"), "SELECT status FROM proposals ORDER BY created_at") == [("cancelled",), ("refunded",)]
+    assert rows(db("app"), STATUSES) == [("invalidated", "superseded"), ("refunded", None)]
+    assert result.verdict.names("failed") == [], result.verdict.report()
     assert result.verdict.item("outcome:refunds").evidence == "refunded d02-o1-u1 for 6990, d02-o1-u2 for 3490"
+
+
+def test_a_customer_who_declines_other_cards_declines_them_at_once(play, db):
+    play("D02", MOCK["D02"], scenario=with_cards("D02", other="decline"))
+    assert rows(db("app"), STATUSES) == [("cancelled", "declined"), ("refunded", None)]
+
+
+def test_a_customer_who_cancels_after_confirming_stops_the_refund_before_the_staff_decision(play, db):
+    play("D01", MOCK["D01"], scenario=with_cards("D01", after_confirming="cancel"))
+    assert rows(db("app"), STATUSES) == [("cancelled", "cancelled_by_customer")]
+    assert rows(db("app"), "SELECT decision FROM customer_confirmations") == [("confirmed",)]
+    assert rows(db("app"), "SELECT count(*) FROM staff_decisions") == [(0,)]
+    assert rows(db("app"), "SELECT count(*) FROM refund_operations") == [(0,)]
 
 
 @pytest.mark.parametrize(

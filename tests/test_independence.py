@@ -8,7 +8,11 @@ import ast
 
 from refund_agent.policy import REPO_ROOT
 
-INDEPENDENT_DIRS = [REPO_ROOT / "tests" / "acceptance", REPO_ROOT / "refund_agent" / "evaluation"]
+INDEPENDENT_DIRS = [
+    REPO_ROOT / "tests" / "acceptance",
+    REPO_ROOT / "tests" / "browser",
+    REPO_ROOT / "refund_agent" / "evaluation",
+]
 FORBIDDEN_MODULES = {"refund_agent.states", "refund_agent.eligibility"}
 
 

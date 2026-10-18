@@ -21,7 +21,7 @@ from sqlalchemy import Engine, text
 from refund_agent.policy import REPO_ROOT
 from refund_agent.refunds import Actor, cancel, confirm, decide, execute, hand_off, open_conversation, propose
 from refund_agent.scenarios import format_brl
-from tests.acceptance.flows import DEVELOPMENT, POLICY, approved, proposed
+from tests.acceptance.flows import DEVELOPMENT, POLICY, approved, home, proposed
 
 RENDERED_PATH = REPO_ROOT / "docs" / "authorization-table.md"
 
@@ -71,8 +71,13 @@ GROUPS = {
     RETRY: "Retries: both return the stored receipt",
 }
 
-# Deviations found when the table ran, with the date and what was done about them.
-FINDINGS: tuple[str, ...] = ()
+# Deviations found when the table ran, or gaps found outside it, with the date and what was done about them.
+FINDINGS: tuple[str, ...] = (
+    "2026-10-15, row 20: an outside review found that an agent could pay a proposal approved in another conversation "
+    "of the same customer, even while its own conversation was being handed to a person, because execute read only "
+    "the proposal's conversation. The table had no such row. The check same_conversation was added and row 20 was "
+    "written with it; tests/acceptance/test_handoff_and_cancel.py shows the payment going through without it.",
+)
 
 
 # Setups: the normal flow, through the same services in both configurations
@@ -143,18 +148,29 @@ def _d01_handed_off(app, owner, configuration) -> Target:
     return target
 
 
+def _d01_approved_and_a_second_conversation_handed_off(app, owner, configuration) -> Target:
+    target = _d01_approved(app, owner, configuration)
+    second = open_conversation(app, Actor("customer", "d01-ana"), target.now)
+    hand_off(app, Actor("customer", "d01-ana"), second, "the customer asked for a person", target.now)
+    return Target("d01-ana", target.now, target.proposal, second)  # the second conversation's agent calls
+
+
 def _d01_unit_refunded_by_another_proposal(app, owner, configuration) -> Target:
     now = _now("D01")
     paid = approved(app, "d01-ana", "d01-rui", "d01-o1", ["d01-o1-u1"], "propose-1", now)
-    _, other = proposed(app, "d01-ana", "d01-o1", ["d01-o1-u1"], "propose-2", now)  # in a second conversation
-    receipt = execute(app, Actor("agent", "d01-ana"), paid, "execute-1", now, POLICY, configuration)
-    return Target("d01-ana", now, other.id, receipts=[receipt])
+    second, other = proposed(app, "d01-ana", "d01-o1", ["d01-o1-u1"], "propose-2", now)  # a second conversation
+    receipt = execute(
+        app, Actor("agent", "d01-ana"), paid, "execute-1", now, POLICY, configuration, conversation_id=home(app, paid)
+    )
+    return Target("d01-ana", now, other.id, second, [receipt])
 
 
 def _d02_one_unit_refunded_another_proposed(app, owner, configuration) -> Target:
     now = _now("D02")
     paid = approved(app, "d02-bia", "d02-rui", "d02-o1", ["d02-o1-u1"], "propose-1", now)
-    receipt = execute(app, Actor("agent", "d02-bia"), paid, "execute-1", now, POLICY, configuration)
+    receipt = execute(
+        app, Actor("agent", "d02-bia"), paid, "execute-1", now, POLICY, configuration, conversation_id=home(app, paid)
+    )
     conversation, other = proposed(app, "d02-bia", "d02-o1", ["d02-o1-u2"], "propose-2", now)
     return Target("d02-bia", now, other.id, conversation, [receipt])
 
@@ -168,7 +184,16 @@ def _d01_approved_then_amount_raised(app, owner, configuration) -> Target:
 
 def _d01_refunded(app, owner, configuration) -> Target:
     target = _d01_approved(app, owner, configuration)
-    receipt = execute(app, Actor("agent", "d01-ana"), target.proposal, "execute-1", target.now, POLICY, configuration)
+    receipt = execute(
+        app,
+        Actor("agent", "d01-ana"),
+        target.proposal,
+        "execute-1",
+        target.now,
+        POLICY,
+        configuration,
+        conversation_id=target.conversation,
+    )
     target.receipts.append(receipt)
     return target
 
@@ -179,7 +204,17 @@ def _d01_refunded(app, owner, configuration) -> Target:
 def _execute(key: str, *, hours_later: int = 0) -> Step:
     def run(app, target, configuration):
         now = target.now + timedelta(hours=hours_later)
-        return execute(app, Actor("agent", target.customer), target.proposal, key, now, POLICY, configuration)
+        # The agent of the target's conversation: the one the scenario's customer is talking to.
+        return execute(
+            app,
+            Actor("agent", target.customer),
+            target.proposal,
+            key,
+            now,
+            POLICY,
+            configuration,
+            conversation_id=target.conversation or "",
+        )
 
     later = f", {hours_later} hours later" if hours_later else ""
     return Step(f'`execute_refund(proposal, key="{key}")`{later}', "execute", run)
@@ -422,6 +457,17 @@ CASES = (
         (_execute("execute-1"), _execute("execute-2")),
         a=Expected(("same receipt", "same receipt"), 1, 4990, "refunded", violation=False),
         c=Expected(("same receipt", "same receipt"), 1, 4990, "refunded", violation=False),
+    ),
+    Case(
+        20,
+        "execute_from_another_conversation",
+        KEPT,
+        "Execute an approved proposal from another conversation of the same customer, one handed to a person",
+        "D01",
+        _d01_approved_and_a_second_conversation_handed_off,
+        (_execute("execute-1"),),
+        a=Expected(("refused: same_conversation",), 0, 0, "approved", violation=False),
+        c=Expected(("refused: same_conversation",), 0, 0, "approved", violation=False),
     ),
 )
 

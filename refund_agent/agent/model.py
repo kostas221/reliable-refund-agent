@@ -24,6 +24,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
+from refund_agent.agent.costs import BudgetExceeded
 from refund_agent.policy import REPO_ROOT
 from refund_agent.scenarios import format_brl
 
@@ -187,12 +188,21 @@ class RecordingAdapter:
             turn = self.inner.respond(instructions, messages, tools)
         except ModelError as error:
             record["error"] = {"kind": error.kind, "retryable": error.retryable, "detail": error.detail}
-            self._write(record)
+            self._write(self._attempts(record))
+            raise
+        except BudgetExceeded as stop:  # a stop is logged too, with what was tried before it
+            record["error"] = {"kind": "budget_exceeded", "retryable": False, "detail": str(stop)}
+            self._write(self._attempts(record))
             raise
         record["answer"] = {"text": turn.text, "tool_calls": list(turn.tool_calls), "model": turn.model}
         record["usage"] = asdict(turn.usage)
-        self._write(record)
+        self._write(self._attempts(record))
         return turn
+
+    def _attempts(self, record: dict) -> dict:
+        """Every attempt of an adapter that retries, with its outcome and counted cost (review of 2026-10-15)."""
+        attempts = getattr(self.inner, "last_attempts", None)
+        return record if attempts is None else {**record, "attempts": list(attempts)}
 
     def _write(self, record: dict) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)

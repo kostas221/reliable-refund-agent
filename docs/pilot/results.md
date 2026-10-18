@@ -82,6 +82,12 @@ The failed tries, read in full:
   then told the customer it "can't combine or edit the proposals already submitted" and, in try 3, handed off to
   have them combined. Proposing again with both units would have replaced the unconfirmed proposal, but nothing in
   the tool's description says so. The first pilot's `none` run showed the same separate proposal before combining.
+  **Correction, 2026-10-15** (found by an outside review): in every pilot run the runner's test actor declined the
+  proposal for the bowl alone as soon as it was made, before the customer asked to add the plate. There was no
+  unconfirmed proposal left to replace, so this reading of D02 does not hold as written, and D02 never tested the
+  replacement. The tool's new description is still accurate; whether it helps is untested. D02 now leaves that card
+  open (`customer.cards`, `tests/acceptance/test_mock_runs.py`), and the run before the held-out set is frozen
+  measures it.
 - **D06, `low`, try 1, and D10, `none`, try 1.** The agent explained the rule correctly (return the shoes first; a
   person reviews the vase) without citing its section. With D10 `low` in the first pilot, that is three times in 80
   conversations.
@@ -166,5 +172,11 @@ evidence that `none` is better.
   each order's requests with their state and receipt, the same list as the customer's screen
   (`refund_agent/reads.py`, tested with D10 in `tests/acceptance/test_agent_tools.py`). The agent's tool results
   therefore differ from the pilot's; the run before the held-out set is frozen covers it.
+- D02 was measured with the bowl's card declined at once (see the correction under the second pilot): fixed on
+  2026-10-15, to be measured in the run before the held-out set is frozen.
 - The evaluator's order of events within one agent turn: to be fixed before the final evaluation, so that
-  `resolves_ambiguity_first` does not rely on another item to catch a proposal made before asking.
+  `resolves_ambiguity_first` does not rely on another item to catch a proposal made before asking. **Done on
+  2026-10-15:** messages take their place from the audit log's counter and are stored after each step of the agent's
+  run, and the pre-check now needs a customer's answer between the agent's question and the first proposal
+  (`tests/acceptance/test_evaluator.py`, `tests/acceptance/test_agent_graph.py`). The pilot's runs were judged with
+  the earlier pre-check; the reading of their transcripts settles D09 either way.

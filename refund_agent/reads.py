@@ -173,7 +173,7 @@ def conversation(conn: Connection, conversation_id: str, now: datetime, policy: 
     )
     messages = _rows(
         conn,
-        "SELECT author, content_untrusted, created_at FROM messages WHERE conversation_id = :c ORDER BY created_at, id",
+        "SELECT author, content_untrusted, created_at FROM messages WHERE conversation_id = :c ORDER BY seq",
         c=conversation_id,
     )
     return {

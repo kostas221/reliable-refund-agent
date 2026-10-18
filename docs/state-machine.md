@@ -33,7 +33,7 @@ stateDiagram-v2
 | `propose` | (new) | `ineligible` | agent | `actor_owns`, `agent_in_control`, `request_key_consistent`, `valid_values` | evaluate() refuses or needs a person; the reasons are stored as policy section IDs. For a needs-a-person reason the agent must hand off, and the evaluator checks that it did. Nothing is superseded. |
 | `confirm` | `awaiting_customer_confirmation` | `awaiting_staff_approval` | customer | `actor_owns`, `proposal_current` | The customer presses confirm on the proposal card. |
 | `approve` | `awaiting_staff_approval` | `approved` | staff | `staff_role`, `proposal_current`, `policy_eligible` | A staff member approves in the console. |
-| `execute` | `approved` | `refunded` | agent | `actor_owns`, `request_key_consistent`, `first_execution`, `agent_in_control`, `valid_values`, `status_approved`, `customer_confirmed`, `staff_approved`, `approval_used_once`, `proposal_current`, `within_window`, `order_status_eligible`, `return_received`, `units_available` | The agent calls execute_refund(proposal_id); one transaction commits the refund and its receipt. |
+| `execute` | `approved` | `refunded` | agent | `actor_owns`, `same_conversation`, `request_key_consistent`, `first_execution`, `agent_in_control`, `valid_values`, `status_approved`, `customer_confirmed`, `staff_approved`, `approval_used_once`, `proposal_current`, `within_window`, `order_status_eligible`, `return_received`, `units_available` | The agent calls execute_refund(proposal_id); one transaction commits the refund and its receipt. |
 | `reject` | `awaiting_staff_approval` | `rejected` | staff | `staff_role` | A staff member rejects in the console. |
 | `cancel` | `awaiting_customer_confirmation`, `awaiting_staff_approval`, `approved` | `cancelled` | customer | `actor_owns` | The customer declines or cancels before execution. |
 | `expire` | `awaiting_customer_confirmation`, `awaiting_staff_approval`, `approved` | `expired` | system | - | The clock passed expires_at; applied by the next action that touches the proposal. |
@@ -52,6 +52,7 @@ configuration.
 |---|---|---|---|---|
 | `actor_owns` | INV-1 | The session's customer owns the conversation, the order and the proposal. A foreign order is a rejected attempt in the audit log and creates no proposal. | enforced | enforced |
 | `staff_role` | INV-1 | The session belongs to a staff member. | - | - |
+| `same_conversation` | INV-1, INV-8 | The agent pays only a proposal of the conversation its call came from, given by the backend, never by the model; a handoff of that conversation then stops it, read in the same locked row. Other requests of the customer can still be read. | enforced | enforced |
 | `agent_in_control` | INV-8 | The conversation is not human_controlled, read inside the same transaction. | enforced | enforced |
 | `request_key_consistent` | INV-6 | A repeated request key with the same payload returns the stored result; with a different payload it is a conflict. | enforced | enforced |
 | `valid_values` | INV-2 | The units exist in the order and are distinct, amounts are positive integers, and the currency is the policy currency. | enforced | enforced |
@@ -75,7 +76,7 @@ without a valid confirmation and approval as an unauthorized committed action.
 
 | Event | From | To | Actor | Checks | When |
 |---|---|---|---|---|---|
-| `execute` | every status except `refunded` | `refunded` | agent | `actor_owns`, `request_key_consistent`, `first_execution`, `agent_in_control`, `valid_values`, `approval_used_once`, `units_available` | Configuration C only: the agent calls execute_refund(proposal_id) whatever the status. |
+| `execute` | every status except `refunded` | `refunded` | agent | `actor_owns`, `same_conversation`, `request_key_consistent`, `first_execution`, `agent_in_control`, `valid_values`, `approval_used_once`, `units_available` | Configuration C only: the agent calls execute_refund(proposal_id) whatever the status. |
 
 ## Conversation control
 

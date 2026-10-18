@@ -10,7 +10,7 @@ from langgraph.checkpoint.postgres import PostgresSaver
 from refund_agent import db as database
 from refund_agent.agent import graph as graph_module
 from refund_agent.agent.graph import Agent, AgentLoopError
-from refund_agent.agent.model import Call, Say, ScriptedModel
+from refund_agent.agent.model import Call, ModelTurn, Say, ScriptedModel
 from refund_agent.evaluation.evaluator import capture_baseline, evaluate
 from refund_agent.fixtures import seed
 from refund_agent.refunds import Actor, confirm, decide, open_conversation
@@ -200,6 +200,40 @@ def test_an_agent_that_never_answers_is_stopped(shop):
     with pytest.raises(AgentLoopError):
         agent.receive(s.conversation, D01.customer.opening_message)
     assert rows(s.app, "SELECT count(*) FROM proposals") == [(0,)]
+
+
+class AsksAndProposesAtOnce:
+    """A model that, in one answer, asks which item is meant and also proposes a refund, as a real model can."""
+
+    name = "asks-and-proposes"
+
+    def respond(self, instructions, messages, tools):
+        if any(m["role"] == "tool" for m in messages):
+            return ModelTurn(text="Please confirm on the card below.")
+        call = {"order_id": "d01-o1", "unit_ids": ["d01-o1-u1"]}
+        propose = {"call_id": "call-1", "name": "propose_refund", "arguments": json.dumps(call)}
+        return ModelTurn(text="Which item do you mean?", tool_calls=(propose,))
+
+
+def test_what_the_agent_says_is_stored_before_the_tools_of_the_same_answer_act(shop):
+    # Outside review of 2026-10-15: a turn's messages were stored when the turn ended, after its actions, so a question
+    # and a proposal could not be put in order. Each step now stores what was said before the next step runs.
+    s = shop()
+    connection = database.checkpoint_connection("app", s.app.url.database)
+    s.connections.append(connection)
+    agent = Agent(s.app, POLICY, AsksAndProposesAtOnce(), PostgresSaver(connection), lambda: s.scenario.now)
+    agent.receive(s.conversation, "Please refund my mug.")
+    order = rows(
+        s.app,
+        "SELECT kind FROM (SELECT seq AS place, 'said: ' || content_untrusted AS kind FROM messages "
+        "UNION ALL SELECT id, 'did: ' || event FROM audit_events WHERE event = 'propose') x ORDER BY place",
+    )
+    assert order == [
+        ("said: Please refund my mug.",),
+        ("said: Which item do you mean?",),
+        ("did: propose",),
+        ("said: Please confirm on the card below.",),
+    ]
 
 
 def test_checkpoints_live_apart_from_the_business_tables(shop):

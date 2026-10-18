@@ -19,6 +19,12 @@ def proposed(app, customer: str, order: str, units: list[str], key: str, now: da
     return conversation, propose(app, Actor("agent", customer), conversation, order, units, key, now, POLICY)
 
 
+def home(app, proposal_id: str) -> str | None:
+    """The conversation a proposal was made in. Its agent, and no other, may ask to pay it."""
+    with app.connect() as conn:
+        return conn.execute(text("SELECT conversation_id FROM proposals WHERE id = :id"), {"id": proposal_id}).scalar()
+
+
 def approved(app, customer: str, staff: str, order: str, units: list[str], key: str, now: datetime) -> str:
     """A proposal in a new conversation of `customer`, confirmed and approved; returns its ID."""
     _, proposal = proposed(app, customer, order, units, key, now)
@@ -27,10 +33,12 @@ def approved(app, customer: str, staff: str, order: str, units: list[str], key: 
     return proposal.id
 
 
-def attempt(app, customer: str, proposal_id: str, key: str, now: datetime):
-    """Execute as the customer's agent; ("receipt", receipt) or ("refused", check)."""
+def attempt(app, customer: str, proposal_id: str, key: str, now: datetime, conversation: str | None = None):
+    """Execute as the customer's agent in `conversation`, by default the proposal's own; ("receipt", receipt) or
+    ("refused", check)."""
+    origin = conversation or home(app, proposal_id)
     try:
-        return "receipt", execute(app, Actor("agent", customer), proposal_id, key, now, POLICY)
+        return "receipt", execute(app, Actor("agent", customer), proposal_id, key, now, POLICY, conversation_id=origin)
     except Refused as refused:
         return "refused", refused.check
 

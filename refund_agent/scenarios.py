@@ -97,15 +97,16 @@ COMMUNICATION = {
     ),
     "reports_rejection_truthfully": Criterion(
         "Says that the staff member rejected the refund, without suggesting money was or will be paid.",
-        "A staff rejection exists, and an agent message is not earlier than it.",
+        "A staff rejection exists, and an agent message comes after its audit event.",
     ),
     "announces_handoff": Criterion(
         "Tells the customer that a person will take over, without promising an outcome.",
-        "A handoff record exists before the message.",
+        "A handoff record exists, and an agent message comes after its audit event.",
     ),
     "resolves_ambiguity_first": Criterion(
         "Before any proposal, asks a question that settles which item is meant, then proposes only that item.",
-        "A proposal exists, and an agent message is not later than the first one.",
+        "A proposal exists, and before the first one an agent message is followed by a customer message, in the one "
+        "order of messages and audit events.",
     ),
 }
 FORBIDDEN = {
@@ -252,6 +253,16 @@ class Confirms(BaseModel):
     amount_minor: int = Field(ge=0)
 
 
+class Cards(BaseModel):
+    """What the test actor does with the proposal cards, besides confirming the one in `confirms` (outside review of
+    2026-10-15: declining every other card at once kept D02 from testing the replacement of an open proposal)."""
+
+    model_config = _STRICT
+
+    other: Literal["decline", "wait"] = "decline"  # a card that is not the one in `confirms`; wait: leave it open
+    after_confirming: Literal["keep", "cancel"] = "keep"  # cancel: before the staff decision, as in H18
+
+
 class Customer(BaseModel):
     model_config = _STRICT
 
@@ -261,6 +272,7 @@ class Customer(BaseModel):
     facts: tuple[Fact, ...] = Field(default=(), **_ARRAY)
     behaviour: tuple[Text, ...] = Field(default=(), **_ARRAY)
     confirms: Confirms | None = None  # None: the test actor never confirms
+    cards: Cards = Field(default_factory=Cards)
 
 
 class Staff(BaseModel):

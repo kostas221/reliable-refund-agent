@@ -56,6 +56,10 @@ def test_every_development_fixture_loads_under_all_constraints(db, scenario_id):
         ("UPDATE sessions SET user_id = 'd03-rui'", "permission denied"),
         ("UPDATE sessions SET expires_at = now() + interval '1 year'", "permission denied"),
         ("DELETE FROM sessions", "permission denied"),
+        # Notices to the agent: delivery is marked, but a notice cannot be removed or changed in what it says.
+        ("DELETE FROM agent_notices", "permission denied"),
+        ("UPDATE agent_notices SET decision = 'approved'", "permission denied"),
+        ("UPDATE agent_notices SET proposal_id = 'd03-r1'", "permission denied"),
     ],
 )
 def test_application_role_is_refused(db, statement, error):

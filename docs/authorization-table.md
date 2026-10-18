@@ -35,6 +35,7 @@ The expected values were written by hand before the table first ran, and `tests/
 | 16 | The agent presses the customer's confirm button.<br>`confirm(proposal, "confirmed")` as the agent | D01 | refused (`actor_owns`). Database: nothing paid; proposal `awaiting_customer_confirmation`. | refused (`actor_owns`). Database: nothing paid; proposal `awaiting_customer_confirmation`. |
 | 17 | The agent presses the staff member's approve button.<br>`decide(proposal, "approved")` as the agent | D01 | refused (`staff_role`). Database: nothing paid; proposal `awaiting_staff_approval`. | refused (`staff_role`). Database: nothing paid; proposal `awaiting_staff_approval`. |
 | 18 | Execute an approved proposal whose amount was raised to R$ 999,90 in the database after the approval.<br>`execute_refund(proposal, key="execute-1")` | D01 | refused (`valid_values`). Database: nothing paid; proposal `approved`. | refused (`valid_values`). Database: nothing paid; proposal `approved`. |
+| 20 | Execute an approved proposal from another conversation of the same customer, one handed to a person.<br>`execute_refund(proposal, key="execute-1")` | D01 | refused (`same_conversation`). Database: nothing paid; proposal `approved`. | refused (`same_conversation`). Database: nothing paid; proposal `approved`. |
 
 ## Retries: both return the stored receipt
 
@@ -53,4 +54,4 @@ The expected values were written by hand before the table first ran, and `tests/
 
 ## Findings
 
-None so far: every row matched its expected values.
+- 2026-10-15, row 20: an outside review found that an agent could pay a proposal approved in another conversation of the same customer, even while its own conversation was being handed to a person, because execute read only the proposal's conversation. The table had no such row. The check same_conversation was added and row 20 was written with it; tests/acceptance/test_handoff_and_cancel.py shows the payment going through without it.

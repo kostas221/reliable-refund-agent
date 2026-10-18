@@ -175,3 +175,71 @@ def test_the_budget_counts_what_the_answer_reports():
     adapter.respond("", [{"role": "customer", "text": "Hi"}], TOOLS)
     assert budget.spent_usd == pytest.approx(cost_usd("gpt-6-luna", 1200, 200, 150))
     assert (budget.requests, list(budget.by_role)) == (1, ["agent"])
+
+
+# Every attempt counts (outside review of 2026-10-15)
+
+HI = [{"role": "customer", "text": "Hi"}]
+SEEN = cost_usd("gpt-6-luna", 1200, 200, 150)  # what FakeResponse's usage reports
+
+
+def timeout():
+    return openai.APITimeoutError(request=httpx2.Request("POST", "https://api.openai.com/v1/responses"))
+
+
+def test_an_answer_that_turns_out_unusable_was_still_counted():
+    # The review's case: two billed answers, both unusable, left the counter at zero calls and zero dollars.
+    cut = [FakeResponse([message("cut")], status="incomplete") for _ in range(2)]
+    budget = Budget(limit_usd=1.0)
+    adapter = OpenAIResponses("gpt-6-luna", "low", client=FakeClient(*cut), budget=budget)
+    for _ in range(2):
+        with pytest.raises(ModelError):
+            adapter.respond("", HI, TOOLS)
+    assert budget.requests == 2
+    assert budget.spent_usd == pytest.approx(2 * SEEN)
+    assert budget.uncertain_usd == 0
+
+
+def test_each_attempt_is_counted_on_its_own_and_an_unknown_charge_counts_its_worst_case():
+    client = FakeClient(timeout(), http_error(openai.RateLimitError, 429), FakeResponse([message("Hello!")]))
+    budget = Budget(limit_usd=1.0)
+    adapter = OpenAIResponses("gpt-6-luna", "low", client=client, budget=budget)
+    worst = adapter.worst_case_usd(adapter.request("", HI, TOOLS))
+    assert adapter.respond("", HI, TOOLS).text == "Hello!"
+    assert adapter.last_attempts == [
+        {"outcome": "timeout", "usd": worst, "uncertain": True},  # it may have been billed: nobody knows
+        {"outcome": "rate_limit", "usd": 0.0, "uncertain": False},  # refused before any work
+        {"outcome": "answered", "usd": pytest.approx(SEEN), "uncertain": False},
+    ]
+    assert budget.requests == 3
+    assert budget.spent_usd == pytest.approx(worst + SEEN)
+    assert budget.uncertain_usd == pytest.approx(worst)
+
+
+def test_a_retry_the_budget_cannot_cover_is_not_sent():
+    client = FakeClient(timeout(), FakeResponse([message("Hello!")]))
+    adapter = OpenAIResponses("gpt-6-luna", "low", client=client)
+    worst = adapter.worst_case_usd(adapter.request("", HI, TOOLS))
+    adapter.budget = Budget(limit_usd=1.5 * worst)  # room for one worst case, not two
+    with pytest.raises(BudgetExceeded):
+        adapter.respond("", HI, TOOLS)
+    assert len(client.requests) == 1  # the retry was stopped before it was sent
+    assert adapter.budget.spent_usd == pytest.approx(worst)
+
+
+def test_the_request_log_holds_every_attempt_and_a_budget_stop(tmp_path):
+    from refund_agent.agent.model import RecordingAdapter
+
+    log = tmp_path / "requests.jsonl"
+    client = FakeClient(timeout(), FakeResponse([message("Hello!")]), timeout())
+    inner = OpenAIResponses("gpt-6-luna", "low", client=client, budget=Budget(limit_usd=1.0))
+    recorded = RecordingAdapter(inner, log)
+    recorded.respond("", HI, TOOLS)
+    worst = inner.last_attempts[0]["usd"]
+    inner.budget = Budget(limit_usd=1.5 * worst)  # room for one more attempt, not for its retry
+    with pytest.raises(BudgetExceeded):
+        recorded.respond("", HI, TOOLS)
+    answered, stopped = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+    assert [a["outcome"] for a in answered["attempts"]] == ["timeout", "answered"]
+    assert stopped["error"]["kind"] == "budget_exceeded"
+    assert [a["outcome"] for a in stopped["attempts"]] == ["timeout"]  # what was tried before the stop

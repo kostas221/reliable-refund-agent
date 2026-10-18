@@ -1,0 +1,67 @@
+# Every free check, on every push and pull request (plan section 13): lint, the screens' types and unit tests, and the
+# whole Python suite on a real PostgreSQL, the property and browser tests included. No API key and no model call: the
+# agent in every test is a scripted or fake model, and nothing here needs a secret.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      # A missing database or browser fails the run here, instead of skipping those tests as a laptop may.
+      REQUIRE_DB: "1"
+      REQUIRE_BROWSER: "1"
+      # There is no Google Chrome on the runner: the browser tests drive Playwright's own Chromium.
+      BROWSER_CHANNEL: chromium
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start PostgreSQL (the pinned image, roles and port of docker-compose.yml)
+        run: docker compose up -d --wait
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Python dependencies, exactly as locked
+        run: uv sync --locked
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Screen dependencies, exactly as locked
+        run: npm ci --prefix frontend
+
+      - name: Lint and format
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Screens, types and unit tests
+        run: |
+          npm run typecheck --prefix frontend
+          npm test --prefix frontend
+
+      - name: Chromium for the browser tests
+        run: uv run playwright install --with-deps chromium
+
+      - name: Tests on PostgreSQL, property and browser tests included
+        run: uv run pytest -q
+
+      - name: Database log, when something failed
+        if: failure()
+        run: docker compose logs db

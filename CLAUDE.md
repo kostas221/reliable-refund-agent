@@ -47,9 +47,12 @@ logged with its date at the end of `docs/plan.md`. No new planning rounds.
 
 ## Now
 
-Phase 4 (§15) is done: the customer screen and the staff console in `frontend/` (`docs/screens.md`); the agent runs
-GPT-6 Luna with reasoning `none` (`docs/pilot/results.md`, which also lists what stays open). Next: phase 5, failure,
-property and browser tests, and the evaluator's order within one agent turn. Commit once per phase.
+Phase 5 (§15) in progress: the six findings of the outside review of 2026-10-15 are fixed (`docs/plan.md` change
+log); the agent runs GPT-6 Luna with reasoning `none` (`docs/pilot/results.md`, which also lists what stays open).
+Property tests done: `tests/acceptance/test_properties.py`, 11 of 11 planted bugs caught (`docs/failure-cases.md`).
+Browser tests done: `tests/browser/` (refund, restart, lost answer; 10 of 10 planted bugs, `docs/screens.md`). CI
+written (`.github/workflows/ci.yml`), not yet run: the repository has no remote. Next: the user's full suite, then
+the phase 5 commit. Commit once per phase.
 
 ## Environment
 

@@ -1,5 +1,8 @@
 """Database fixtures: one migrated template database per test session, and a fresh copy of it for every test.
 
+The template's name is the session's own, so two sessions at once (the full suite and a planted-bug script, say)
+never drop each other's template.
+
 Without a reachable PostgreSQL (`docker compose up -d`) the database tests are skipped with a message; with
 REQUIRE_DB=1, as in CI, a missing database is a failure instead.
 """
@@ -12,7 +15,7 @@ from sqlalchemy.exc import OperationalError
 
 from refund_agent import db as database
 
-TEMPLATE = "refund_template"
+TEMPLATE = f"refund_template_{uuid.uuid4().hex[:8]}"
 
 
 @pytest.fixture(scope="session")

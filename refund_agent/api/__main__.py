@@ -75,7 +75,9 @@ def main() -> None:
     try:
         # Plain HTTP on this machine only, so the cookie cannot be marked Secure here; behind HTTPS it must be.
         uvicorn.run(
-            create_app(app_engine, policy, clock, secure_cookies=False, agent=agent), host="127.0.0.1", port=8000
+            create_app(app_engine, policy, clock, secure_cookies=False, agent=agent, deliver_every_s=5),
+            host="127.0.0.1",
+            port=8000,
         )
     finally:
         pool.close()

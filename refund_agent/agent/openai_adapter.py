@@ -6,10 +6,12 @@ read it in full before any paid run. respond() sends it and translates the answe
 - Nothing is stored at OpenAI (store false). What the model needs to continue, including its reasoning items in
   encrypted form, travels back in the conversation's own checkpoint as the agent message's continuation.
 - One tool call per answer (parallel tool calls off), like the scripted model, so every step is one action.
-- The SDK's own retries are off. Retries happen here, are counted, and wait a little longer each time.
+- The SDK's own retries are off. Retries happen here, are counted, and wait a little longer each time; every
+  attempt is listed in last_attempts, for the request log.
 - The tools are offered with strict schemas reduced to structure, types and descriptions; length and count limits are
   left to the tool executor, which checks every argument anyway. The model's schema is never the authority.
-- The budget is checked before every request against its worst case, and settled with the usage reported.
+- The budget is checked before every attempt against the request's worst case, and each attempt is settled as soon
+  as it ends, before its answer is read: with the usage reported, or with the worst case when the charge is unknown.
 """
 
 from __future__ import annotations
@@ -95,6 +97,7 @@ class OpenAIResponses:
         self._client = client
         self._timeout_s = timeout_s
         self.retries_used = 0
+        self.last_attempts: list[dict] = []  # the attempts of the latest request: outcome, cost, whether it is certain
 
     @property
     def client(self) -> Any:
@@ -132,35 +135,50 @@ class OpenAIResponses:
         return cost_usd(self.model, tokens, 0, self.max_output_tokens)
 
     def respond(self, instructions: str, messages: Sequence[dict], tools: Sequence[dict]) -> ModelTurn:
-        request = self.request(instructions, messages, tools)
-        worst = self.worst_case_usd(request)
-        if self.budget is not None:
-            self.budget.reserve(worst)
-        response = self._send(request)
-        turn = parse(response)
-        if self.budget is not None:
-            usage = turn.usage
-            spent = (
-                worst
-                if getattr(response, "usage", None) is None
-                else cost_usd(self.model, usage.input_tokens, usage.cached_input_tokens, usage.output_tokens)
-            )
-            self.budget.settle(self.role, spent)
-        return turn
+        return parse(self._send(self.request(instructions, messages, tools)))
 
     def _send(self, request: dict) -> Any:
+        """Send with our retries. Each attempt reserves the worst case first and is settled as soon as it ends."""
+        worst = self.worst_case_usd(request)
+        self.last_attempts = []
         for attempt in range(self.retries + 1):
+            if self.budget is not None:
+                self.budget.reserve(worst)
             try:
-                return self.client.responses.create(**request)
+                response = self.client.responses.create(**request)
             except tuple(_RETRYABLE) as error:
                 kind = next(k for cls, k in _RETRYABLE.items() if isinstance(error, cls))
+                # A rate limit refuses the request before any work; after a timeout, a lost connection or a server
+                # error nobody knows what was billed, so the worst case is counted.
+                unknown = kind != "rate_limit"
+                self._settle(kind, worst if unknown else 0.0, uncertain=unknown)
                 if attempt == self.retries:
                     raise ModelError(kind, retryable=True, detail=str(error)) from error
                 self.retries_used += 1
                 time.sleep(2**attempt)
+                continue
             except openai.APIStatusError as error:  # bad request, authentication, permission, not found
+                self._settle("bad_request", 0.0)
                 raise ModelError("bad_request", retryable=False, detail=f"{error.status_code}: {error}") from error
+            spent = self._reported_cost(response)
+            self._settle("answered", worst if spent is None else spent, uncertain=spent is None)
+            return response
         raise AssertionError("unreachable")
+
+    def _reported_cost(self, response: Any) -> float | None:
+        """The cost the answer's usage reports, read before the answer itself: an unusable answer was still billed."""
+        usage = getattr(response, "usage", None)
+        try:
+            return cost_usd(
+                self.model, usage.input_tokens, usage.input_tokens_details.cached_tokens, usage.output_tokens
+            )
+        except AttributeError:  # no usage, or not the usual shape: the charge is unknown
+            return None
+
+    def _settle(self, outcome: str, usd: float, *, uncertain: bool = False) -> None:
+        self.last_attempts.append({"outcome": outcome, "usd": usd, "uncertain": uncertain})
+        if self.budget is not None:
+            self.budget.settle(self.role, usd, uncertain=uncertain)
 
 
 def parse(response: Any) -> ModelTurn:

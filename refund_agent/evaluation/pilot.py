@@ -10,8 +10,10 @@ A paid run refuses to start unless docs/pilot/predictions.md is committed and un
 predictions are written before the run), an OPENAI_API_KEY is present (only its presence is checked; it is never read
 or printed), and the date the prices were checked is given. It runs the development scenarios once each in
 configuration A, with the agent and the simulated customer on the chosen model, on fresh copies of a migrated
-database. It writes the manifest, every request and every verdict to runs/pilot-<time>-<reasoning>/, and stops
-before any request that could cross the budget. The verdicts stay unknown until a person reads the conversations.
+database. It writes the manifest, every request with each of its attempts, and every verdict to
+runs/pilot-<time>-<reasoning>/, and stops before any attempt, retries included, that could cross the budget; the try
+it stops is still judged on what was done and saved, marked stopped_by_budget, before its database is dropped. The
+verdicts stay unknown until a person reads the conversations.
 """
 
 from __future__ import annotations
@@ -27,7 +29,7 @@ from pathlib import Path
 from langgraph.checkpoint.postgres import PostgresSaver
 
 from refund_agent import db as database
-from refund_agent.agent.costs import PRICES, Budget, BudgetExceeded
+from refund_agent.agent.costs import PRICES, Budget
 from refund_agent.agent.model import RecordingAdapter, load_instructions
 from refund_agent.agent.openai_adapter import OpenAIResponses
 from refund_agent.agent.tools import tool_definitions
@@ -110,7 +112,7 @@ def dry_run(args: argparse.Namespace, scenarios: dict) -> None:
     )
 
 
-def _save(folder: Path, result: RunResult, attempt: int, spent: dict) -> None:
+def _save(folder: Path, result: RunResult, attempt: int, spent: dict, counted: dict) -> None:
     folder.mkdir(parents=True, exist_ok=True)
     record = {
         "scenario": result.scenario,
@@ -120,8 +122,11 @@ def _save(folder: Path, result: RunResult, attempt: int, spent: dict) -> None:
         "items": [asdict(item) for item in result.verdict.items],
         "system_error": result.system_error,
         "simulator_error": result.simulator_error,
+        "stopped_by_budget": result.stopped_by_budget,
         "agent_requests": result.model_requests,
         "spent_usd": spent,
+        "attempts_sent": counted["attempts"],  # every attempt to send a request, retries included
+        "uncertain_usd": counted["uncertain_usd"],  # worst cases counted where the charge is unknown
         "messages": result.messages,
     }
     (folder / "result.json").write_text(
@@ -163,6 +168,7 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
         for scenario_id, attempt in [(s, t) for s in sorted(scenarios) for t in range(1, args.repeats + 1)]:
             scenario, folder = scenarios[scenario_id], out / scenario_id / f"try{attempt}"
             before = dict(budget.by_role)
+            attempts_before, uncertain_before = budget.requests, budget.uncertain_usd
             agent = OpenAIResponses(args.model, args.reasoning, role="agent", budget=budget)
             simulator = OpenAIResponses(args.model, args.simulator_reasoning, role="simulator", budget=budget)
             database.create_database(RUN, template=TEMPLATE)
@@ -177,18 +183,23 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
                         app=app,
                         checkpointer=PostgresSaver(connection),
                         policy=policy,
-                    )
-            except BudgetExceeded as stop:
-                print(
-                    f"{scenario_id} try {attempt}  STOPPED by the budget before a request: {stop}. Nothing later ran."
-                )
-                return 2
+                    )  # judged before the database is dropped, even when the budget stopped the run
             finally:
                 owner.dispose()
                 app.dispose()
                 database.drop_database(RUN)
             spent = {role: budget.by_role.get(role, 0.0) - before.get(role, 0.0) for role in budget.by_role}
-            _save(folder, result, attempt, spent)
+            counted = {
+                "attempts": budget.requests - attempts_before,
+                "uncertain_usd": budget.uncertain_usd - uncertain_before,
+            }
+            _save(folder, result, attempt, spent, counted)
+            if result.stopped_by_budget:
+                print(
+                    f"{scenario_id} try {attempt}  STOPPED by the budget before a request: {result.stopped_by_budget}."
+                    f" Its result is saved, judged on what was done; nothing later ran."
+                )
+                return 2
             failed = result.verdict.names("failed")
             errors = [e for e in (result.system_error, result.simulator_error) if e]
             clean[scenario_id] = clean.get(scenario_id, 0) + (not failed and not errors)
@@ -199,8 +210,9 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
     finally:
         database.drop_database(TEMPLATE)
         print(
-            f"Spent about ${budget.spent_usd:.4f} in {budget.requests} requests "
-            f"({', '.join(f'{r} ${u:.4f}' for r, u in budget.by_role.items())}); check the provider's usage page."
+            f"Spent about ${budget.spent_usd:.4f} in {budget.requests} attempts, retries included "
+            f"({', '.join(f'{r} ${u:.4f}' for r, u in budget.by_role.items())}); of it ${budget.uncertain_usd:.4f} "
+            "is the worst case of attempts whose charge is unknown; check the provider's usage page."
         )
     every = [s for s, n in clean.items() if n == args.repeats]
     print(

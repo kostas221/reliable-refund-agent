@@ -51,7 +51,7 @@ def main() -> None:
 
     step("3. The agent tries to execute before anyone agreed")
     try:
-        execute(app, agent, proposal.id, "execute-early", at(2), policy)
+        execute(app, agent, proposal.id, "execute-early", at(2), policy, conversation_id=conversation)
     except Refused as refused:
         print(f"   refused by check '{refused.check}'; nothing written")
 
@@ -62,15 +62,15 @@ def main() -> None:
     print(f"   status: {decide(app, staff, proposal.id, 'approved', at(4), policy)}")
 
     step("6. The agent executes the refund")
-    receipt = execute(app, agent, proposal.id, "execute-1", at(5), policy)
+    receipt = execute(app, agent, proposal.id, "execute-1", at(5), policy, conversation_id=conversation)
     print(
         f"   receipt {receipt['receipt_number']}: {format_brl(receipt['amount_minor'])} "
         f"to payment {receipt['payment_id']}"
     )
 
     step("7. The HTTP answer is lost; the agent retries with the same key, then with a new key")
-    same_key = execute(app, agent, proposal.id, "execute-1", at(6), policy)
-    new_key = execute(app, agent, proposal.id, "execute-2", at(7), policy)
+    same_key = execute(app, agent, proposal.id, "execute-1", at(6), policy, conversation_id=conversation)
+    new_key = execute(app, agent, proposal.id, "execute-2", at(7), policy, conversation_id=conversation)
     print(f"   same receipt both times: {same_key == receipt and new_key == receipt}")
 
     step("8. What the database holds")

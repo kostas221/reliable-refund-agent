@@ -13,7 +13,7 @@ from refund_agent.api.app import create_app
 from refund_agent.api.auth import SESSION_COOKIE, set_password
 from refund_agent.fixtures import seed
 from refund_agent.refunds import Actor, confirm, execute, hand_off, open_conversation, propose
-from tests.acceptance.flows import DEVELOPMENT, POLICY, approved, proposed, rows
+from tests.acceptance.flows import DEVELOPMENT, POLICY, approved, home, proposed, rows
 
 PASSWORD = "test-only-password"  # a test value for the fictional users of the fixtures
 
@@ -172,7 +172,9 @@ def test_the_whole_flow_through_the_doors(db):
     answer = rui.post(f"/api/staff/proposals/{proposal.id}/decision", {"decision": "approved"})
     assert answer.json()["status"] == "approved"
 
-    receipt = execute(shop.engine, agent, proposal.id, "execute-1", shop.business(), POLICY)
+    receipt = execute(
+        shop.engine, agent, proposal.id, "execute-1", shop.business(), POLICY, conversation_id=conversation
+    )
     card = ana.get(f"/api/conversations/{conversation}").json()["proposals"][0]
     assert card["status"] == "refunded"
     assert card["receipt"]["receipt_number"] == receipt["receipt_number"]
@@ -321,7 +323,15 @@ def test_approving_through_the_door_still_cannot_override_the_policy(db):
     shop = Shop(db, "D01")
     rui = shop.browser("d01-rui")
     proposal = approved(shop.engine, "d01-ana", "d01-rui", "d01-o1", ["d01-o1-u1"], "propose-1", shop.scenario.now)
-    execute(shop.engine, Actor("agent", "d01-ana"), proposal, "execute-1", shop.scenario.now, POLICY)
+    execute(
+        shop.engine,
+        Actor("agent", "d01-ana"),
+        proposal,
+        "execute-1",
+        shop.scenario.now,
+        POLICY,
+        conversation_id=home(shop.engine, proposal),
+    )
     _, again = proposed(shop.engine, "d01-ana", "d01-o1", ["d01-o1-u1"], "propose-2", shop.scenario.now)
     assert again.status == "ineligible"  # the unit is already refunded
     answer = rui.post(f"/api/staff/proposals/{again.id}/decision", {"decision": "approved"})

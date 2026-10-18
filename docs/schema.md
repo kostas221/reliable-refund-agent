@@ -29,7 +29,7 @@ Invariant IDs (INV-n) are those of the [product contract](product-contract.md).
 | `users` | `id`, `role` (customer, staff), `email`, `display_name`, `password_hash` | The password is checked with argon2 (argon2-cffi); only its hash is stored, and NULL means the user cannot sign in. The runtime role reads users but cannot change them. |
 | `sessions` | `id` (SHA-256 of the cookie's random token), `user_id`, `csrf_token`, `created_at`, `expires_at`, `revoked_at` | In the database, so a session survives a restart and a sign-out ends it. Reading the table does not let anyone sign in. The runtime role may only add sessions and set `revoked_at`. Details in [http-api.md](http-api.md). |
 | `conversations` | `id`, `customer_id`, `control` (agent, human_controlled), `created_at` | Every write about a conversation locks this row first (see below), so a handoff and an agent write are ordered (INV-8). |
-| `messages` | `id`, `conversation_id`, `author` (customer, agent, staff, tool), `content_untrusted`, `created_at` | The staff screen links model summaries back to these messages. |
+| `messages` | `id`, `conversation_id`, `author` (customer, agent, staff, tool), `content_untrusted`, `created_at`, `seq` | The staff screen links model summaries back to these messages. `seq` comes from the audit log's own counter, so a message and an audit event (a proposal, a decision, a handoff) are in one exact order; the agent's messages are stored after each step of its run, before the tools of that step act. Times alone could not order them: the messages of one turn shared one time. |
 
 LangGraph keeps its own checkpoint tables. They hold conversation state for resuming, never authority.
 
@@ -57,6 +57,7 @@ LangGraph keeps its own checkpoint tables. They hold conversation state for resu
 | Table | Key columns | Constraints and reasons |
 |---|---|---|
 | `audit_events` | `id` (bigserial), `at`, `actor_type`, `actor_id`, `conversation_id`, `proposal_id`, `operation_id`, `event`, `outcome` (committed, rejected), `reason`, `details` | The runtime role has `INSERT` and `SELECT` only (INV-9). A committed effect and its event share one transaction; a rejected attempt is written in a new transaction after the rollback. |
+| `agent_notices` | `id` (`notice-` and the staff decision's ID), `conversation_id`, `proposal_id`, `decision`, `created_at`, `attempts`, `delivered_at`, `last_error` | Written in the staff decision's transaction, so the agent is told even if the server stops right after it; delivered after the decision, at start and every few seconds, marked delivered after the agent's run, and tried at most three times. The agent records the notice ID it applied, so a second delivery changes nothing. The runtime role may add a notice and set `attempts`, `delivered_at` and `last_error` only. |
 | `handoffs` | `id`, `conversation_id`, `origin` (customer, agent, staff), `reason`, `created_at`, `pending_proposal_id`, `prior_actions`, `customer_goal_untrusted`, `confirmed_facts_untrusted`, `decision_needed_untrusted`, `status` (open, taken), `taken_by`, `taken_at` | Created in the same transaction that sets `control = human_controlled` and invalidates the open proposals. `prior_actions` comes from the audit log, so it is trusted. |
 
 ## Transactions

@@ -36,9 +36,12 @@ The whole file is for the evaluator. During a run:
   goal, the facts, the behaviour and the opening message. Never the fixture, the expectations, the policy checks or
   the staff decision, which could leak the answer or steer the agent. A test checks the view.
 - **The test actor for the customer's buttons** presses confirm only on a stored proposal whose units are exactly
-  `customer.confirms.units` and whose amount is exactly `customer.confirms.amount_minor`, and declines any other.
-  The agent cannot press it (plan section 9). Where the customer changes their mind, `behaviour` says when (in D02:
-  when the first proposal, for the bowl alone, is shown and before confirming it).
+  `customer.confirms.units` and whose amount is exactly `customer.confirms.amount_minor`; with
+  `customer.cards.after_confirming = "cancel"` it then cancels that proposal before the staff decision (H18). Any
+  other proposal is declined, or, with `customer.cards.other = "wait"`, left open while the customer asks for a
+  change in the chat (D02: the bowl alone stays open, so the agent's new proposal must replace it). The agent cannot
+  press it (plan section 9). Until 2026-10-15 every other proposal was declined at once, so D02 never tested the
+  replacement of an open proposal (found by an outside review; the pilot's D02 results were measured that way).
 - **The scripted staff member** applies `staff.decision` to every proposal that reaches the queue. No LLM approves.
 - **The evaluator** sees the expectations and the complete result: database, events and messages.
 
@@ -111,11 +114,20 @@ where configuration C pays.
    checks that no template ID is reused and that each row names its closest development scenario; it cannot tell
    whether two situations are really different. That is a human review: before freezing, each held-out file is
    read next to its closest development scenario, and the difference stated in the table must hold.
-3. **When:** the files are written once whole conversations run in mock mode (phase 3), in the development format.
-   The Olist import, and any correction it brings to fixtures or expectations, happens before the freeze. Before
-   the first live pilot, the hash of every held-out file is recorded in the repository; after that the files are
-   not edited, not used for tuning, and run only in the final evaluation (3 repeats x 3 configurations). The pilot
-   uses development scenarios only.
+3. **When, as it happened, and the freeze.** The situations in the table below were written in phase 1
+   (2026-10-10), before any live run. This item then promised that the files would be written in phase 3 and their
+   hashes recorded before the first live pilot. That did not happen: the pilots ran on 2026-10-14 with no held-out
+   file written (found by an outside review on 2026-10-15). Nothing leaked, since no held-out file existed and the
+   pilots ran the development set only, but the files are now written after the pilots, by people who have read
+   the agent's development conversations. To limit what that can steer: each file instantiates the situation
+   already in the table, chosen before the pilots (H04, replaced on 2026-10-15, is the one exception, and says so),
+   and its expectations follow the policy and the scenario format, never what the agent did in a pilot. The Olist
+   import, and any correction it brings to fixtures or expectations, happens before the freeze. **The freeze**,
+   before any run of these files: (a) all twenty files load under the strict schema and pass the human review of
+   item 2; (b) the SHA-256 of every file is written, with the date, to `scenarios/held-out/FROZEN` and committed;
+   (c) the final evaluation's command refuses to start unless every file matches that list; (d) after that the
+   files are not edited, not used for tuning, and run only in the final evaluation (3 repeats x 3 configurations).
+   The run before the freeze uses development scenarios only.
 4. **Fixtures:** the development fixtures are synthetic because the Olist subset is not imported yet. Once it is,
    the orders of both sets take their shapes and prices from it, so development and held-out come from the same
    source; the source of every order is recorded.
@@ -127,7 +139,7 @@ where configuration C pays.
 | H01 | eligible | `one-item-of-multi-seller-order` | Refund one item of an order from two sellers; the other seller's item is untouched. | D02: one item asked for from the start, items from two sellers, no change of mind. |
 | H02 | eligible | `discounted-item-in-mixed-order` | The refund is the discounted price actually paid, not the list price. | D03: one discounted item among different products, no identical units, no earlier refund. |
 | H03 | eligible | `whole-order-partly-returned` | The customer asks to refund the whole order; two of three items were returned. | D03: different products, no earlier refund, the request is for everything. |
-| H04 | eligible | `request-in-last-hour` | Request made in the last hour before the deadline. | D01: same flow, but the clock is minutes before the deadline. |
+| H04 | eligible | `asks-when-money-arrives` | After confirming, the customer asks when the money will arrive; the answer comes from the payout section and promises no date the policy does not give. | D01: the same kind of refund, plus a question that only the payout section answers. |
 | H05 | eligible | `status-question-then-refund` | The customer first asks where another order is, then asks for a refund of a returned item. | D01: the refund is the second topic of the conversation. |
 | H06 | eligible | `all-identical-units-returned` | All units of an identical product returned; the refund is their split amounts in full. | D03: every unit returned, none refunded before. |
 | H07 | eligible | `right-order-among-two` | Two orders contain similar items; the right order has to be found. | D09: the ambiguity is between two orders, not two items of one order. |
@@ -145,6 +157,8 @@ where configuration C pays.
 | H19 | clarification_handoff | `two-payment-records` | Order paid with a card and a voucher; the policy sends it to a person. | D10: sent to a person because of the payments, not lateness. |
 | H20 | clarification_handoff | `rejected-then-asks-for-person` | The staff member rejects; the customer disputes it and asks for a person. | D04: the customer disputes the rejection instead of accepting it. |
 
+H04 was `request-in-last-hour` until 2026-10-15: D01 with the clock minutes before the deadline, a variant of dates only, which item 2 keeps on D01's side (found by an outside review). The time limit's edge needs no model: `tests/test_eligibility.py` checks a request exactly at the deadline (on time) and one second after (refused). The replacement was chosen after the pilots, from a need no row covered: a question that only the policy's payout section answers.
+
 ## Where each rule is checked
 
 "Acceptance n" is item n of the acceptance tests in [schema.md](schema.md). A dash means the rule is not checked at
@@ -154,7 +168,8 @@ that level; the gaps are deliberate and stated.
 |---|---|---|---|---|
 | Only delivered orders qualify | `test_eligibility` | - | - | H09 |
 | Missing or impossible delivery time goes to a person | `test_eligibility` | - | - | - |
-| Time window, deadline included | `test_eligibility` | - | D05 | H04, H11 |
+| Time window, deadline included | `test_eligibility` (exactly at the deadline, one second after) | - | D05 | H11 |
+| When the money is paid, told without a promised date | - | - | - | H04 |
 | Late after an earlier on-time proposal goes to a person | `test_eligibility` | - | D10 | - |
 | Only units received back | `test_eligibility` | - | D03, D06 | H12 |
 | Each unit refunded once | `test_eligibility` | Acceptance 6 (unique ledger line) | D03 | H08, H10 |

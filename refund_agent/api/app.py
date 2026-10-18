@@ -17,7 +17,9 @@ is "not found", so its existence is not revealed.
 # No `from __future__ import annotations` here: FastAPI reads the parameter types of the routes, and the session
 # dependencies are defined inside create_app, where string annotations could not be resolved.
 import logging
-from collections.abc import Callable
+import threading
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
@@ -77,17 +79,44 @@ def create_app(
     wall_clock: Clock = _real_time,
     secure_cookies: bool = True,
     agent: Agent | None = None,
+    deliver_every_s: float | None = None,
 ) -> FastAPI:
     """engine: the refund_app role. clock: the business time given to the services. wall_clock: real time, for
     sessions. secure_cookies: False only for a local demo over plain HTTP. agent: the agent behind the chat door,
-    always in configuration A; without one the chat door answers 503."""
+    always in configuration A; without one the chat door answers 503. deliver_every_s: when set, pending notices to
+    the agent are delivered when the server starts and then this often, so a decision stored just before a stop is
+    still delivered (tests leave it unset and deliver explicitly)."""
     if agent is not None and agent.configuration != "A":
         raise ValueError("the lab configuration is never served over HTTP (plan section 10.5)")
     log = logging.getLogger("refund_agent.api")
+
+    def deliver(conversation_id: str | None = None) -> None:
+        """Hand the stored notices to the agent. The decisions are already stored, whatever happens here."""
+        try:
+            notices.deliver_pending(engine, agent, clock, conversation_id)
+        except Exception:
+            log.exception("pending notices could not be delivered; they are tried again later")
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        stop = threading.Event()
+        if agent is not None and deliver_every_s:
+
+            def loop() -> None:
+                while True:
+                    deliver()
+                    if stop.wait(deliver_every_s):
+                        return
+
+            threading.Thread(target=loop, name="agent-notices", daemon=True).start()
+        yield
+        stop.set()
+
     app = FastAPI(
         title="Reliable Refund Agent",
         version="0.0.1",
         summary="Customer screen and staff console. Refunds are proposed and executed only by the agent.",
+        lifespan=lifespan,
     )
 
     @app.exception_handler(Refused)
@@ -257,19 +286,13 @@ def create_app(
     def decide_proposal(proposal_id: str, body: DecisionBody, user: Changing, background: BackgroundTasks) -> dict:
         status = decide(engine, staff(user), proposal_id, body.decision, clock(), policy)
         if agent is not None and status in ("approved", "rejected"):
+            # The decision stored its notice; it is delivered after the answer is sent, or later if this fails.
             with engine.connect() as conn:
                 conversation = conn.execute(
                     text("SELECT conversation_id FROM proposals WHERE id = :id"), {"id": proposal_id}
                 ).scalar_one()
-            background.add_task(wake, conversation, notices.staff_decision(proposal_id, status))
+            background.add_task(deliver, conversation)
         return {"proposal_id": proposal_id, "status": status}
-
-    def wake(conversation_id: str, event: str) -> None:
-        """After the staff answer is sent. The decision is already stored, whatever happens here."""
-        try:
-            agent.notify(conversation_id, event)
-        except Exception:
-            log.exception("the agent could not be woken in %s; the customer's next message continues", conversation_id)
 
     @app.post("/api/staff/handoffs/{handoff_id}/take")
     def take(handoff_id: str, user: Changing) -> dict:

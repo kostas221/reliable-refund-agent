@@ -69,7 +69,9 @@ class Conversation:
         decide(self.app, Actor("staff", self.staff_id), proposal, decision, self.tick(), POLICY)
 
     def execute(self, proposal: str, key: str) -> str:
-        receipt = execute(self.app, Actor("agent", self.customer_id), proposal, key, self.tick(), POLICY)
+        receipt = execute(
+            self.app, Actor("agent", self.customer_id), proposal, key, self.tick(), POLICY, conversation_id=self.id
+        )
         return receipt["receipt_number"]
 
     def hand_off(self, reason: str, origin: str | None = None) -> None:

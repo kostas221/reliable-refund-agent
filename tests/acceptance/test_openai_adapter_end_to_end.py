@@ -8,7 +8,7 @@ from langgraph.checkpoint.postgres import PostgresSaver
 from openai.types.responses import ResponseFunctionToolCall, ResponseReasoningItem
 
 from refund_agent import db as database
-from refund_agent.agent.costs import Budget
+from refund_agent.agent.costs import Budget, BudgetExceeded
 from refund_agent.agent.model import RecordingAdapter
 from refund_agent.agent.openai_adapter import OpenAIResponses
 from refund_agent.evaluation.customers import SimulatedCustomer
@@ -103,3 +103,48 @@ def test_a_whole_conversation_through_the_real_adapter(db, tmp_path):
     # The budget counted both, apart, and the logs hold every request.
     assert set(budget.by_role) == {"agent", "simulator"} and budget.requests == 6
     assert len((tmp_path / "agent.jsonl").read_text(encoding="utf-8").splitlines()) == 5
+
+
+class Allowing(Budget):
+    """A budget that lets `n` attempts through and stops the next one, wherever the run has got to."""
+
+    def __init__(self, n):
+        super().__init__(limit_usd=1.0)
+        self.left = n
+
+    def reserve(self, worst_case_usd):
+        if self.left == 0:
+            raise BudgetExceeded("the test's budget ends here")
+        self.left -= 1
+
+
+def test_a_budget_stop_in_the_middle_is_judged_on_what_was_done(db, tmp_path):
+    # Outside review of 2026-10-15: a stop used to end the pilot before any result was saved, losing the judgement of
+    # what had been done. Here the budget runs out when the approval wakes the agent to pay: inside the delivery of
+    # the notice, which must not swallow it as a failed delivery.
+    app = db("app")
+    budget = Allowing(3)  # list the orders, propose, tell the customer; the payment's request is stopped
+    agent = OpenAIResponses("gpt-6-luna", "low", role="agent", budget=budget, client=Agentlike())
+    simulator = OpenAIResponses("gpt-6-luna", "low", role="simulator", budget=budget, client=Customerlike())
+    with database.checkpoint_connection("app", app.url.database) as connection:
+        result = run_scenario(
+            D01,
+            SimulatedCustomer(D01, RecordingAdapter(simulator, tmp_path / "simulator.jsonl")),
+            RecordingAdapter(agent, tmp_path / "agent.jsonl"),
+            owner=db("owner"),
+            app=app,
+            checkpointer=PostgresSaver(connection),
+            policy=POLICY,
+        )
+
+    assert result.stopped_by_budget == "the test's budget ends here"
+    assert (result.system_error, result.simulator_error) == (None, None)
+    # Judged on the database as the stop left it: approved, not paid, so the expected refund is missing.
+    assert rows(app, "SELECT status FROM proposals") == [("approved",)]
+    assert rows(app, "SELECT count(*) FROM refund_operations") == [(0,)]
+    assert result.verdict.result == "failed"
+    assert "outcome:refunds" in result.verdict.names("failed")
+    # The notice was neither marked delivered nor counted as a failed delivery: the run stopped, nothing failed.
+    assert rows(app, "SELECT attempts, delivered_at FROM agent_notices") == [(0, None)]
+    stop = json.loads((tmp_path / "agent.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert stop["error"]["kind"] == "budget_exceeded"

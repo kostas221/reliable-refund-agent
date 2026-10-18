@@ -84,9 +84,11 @@ def test_configuration_c_differs_exactly_where_the_plan_says():
     (execute,) = transitions("execute")
     assert lab <= set(execute.checks)
     # Ownership, positive amounts and currency, balance and quantity, deduplication stay enforced in C.
-    # agent_in_control is not part of the experiment, so it stays enforced as well.
+    # agent_in_control and same_conversation (who may act, and from where) are not part of the experiment, so they
+    # stay enforced as well.
     assert set(execute.checks) - lab == {
         "actor_owns",
+        "same_conversation",
         "agent_in_control",
         "request_key_consistent",
         "first_execution",
@@ -137,6 +139,7 @@ def test_configuration_c_adds_exactly_one_transition():
     # The same checks as in A, in the same order, minus the ones C does not enforce.
     assert lab.checks == (
         "actor_owns",
+        "same_conversation",
         "request_key_consistent",
         "first_execution",
         "agent_in_control",

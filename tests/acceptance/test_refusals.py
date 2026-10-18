@@ -10,7 +10,7 @@ from sqlalchemy.exc import DBAPIError
 
 from refund_agent.fixtures import seed
 from refund_agent.refunds import Actor, cancel, confirm, decide, execute, propose
-from tests.acceptance.flows import DEVELOPMENT, POLICY, approved, attempt, proposed, refused_check, rows
+from tests.acceptance.flows import DEVELOPMENT, POLICY, approved, attempt, home, proposed, refused_check, rows
 
 NOW = DEVELOPMENT["D01"].now
 
@@ -165,7 +165,11 @@ def test_execute_refuses_a_customer_or_staff_actor(db):
     app = seeded(db, "D01")
     proposal_id = approved(app, "d01-ana", "d01-rui", "d01-o1", ["d01-o1-u1"], "propose-1", NOW)
     for actor in (Actor("customer", "d01-ana"), Actor("staff", "d01-rui")):
-        check = refused_check(lambda a=actor: execute(app, a, proposal_id, "execute-1", NOW, POLICY))
+        check = refused_check(
+            lambda a=actor: execute(
+                app, a, proposal_id, "execute-1", NOW, POLICY, conversation_id=home(app, proposal_id)
+            )
+        )
         assert check == "actor_owns"
     assert rows(app, "SELECT count(*) FROM refund_operations") == [(0,)]
 

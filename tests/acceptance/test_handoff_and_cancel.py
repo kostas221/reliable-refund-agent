@@ -12,13 +12,24 @@ import pytest
 
 from refund_agent import refunds
 from refund_agent.fixtures import seed
-from refund_agent.refunds import Actor, cancel, confirm, decide, execute, hand_off, propose, take_handoff
+from refund_agent.refunds import (
+    Actor,
+    cancel,
+    confirm,
+    decide,
+    execute,
+    hand_off,
+    open_conversation,
+    propose,
+    take_handoff,
+)
 from tests.acceptance.flows import (
     DEVELOPMENT,
     POLICY,
     approved,
     attempt,
     hold_at,
+    home,
     proposed,
     refused_check,
     rows,
@@ -44,7 +55,12 @@ def test_cancel_after_confirming_ends_the_proposal_for_good(app):
 
     assert cancel(app, CUSTOMER, proposal.id, NOW, POLICY) == "cancelled"
     assert refused_check(lambda: decide(app, STAFF, proposal.id, "approved", NOW, POLICY)) == "invalid_transition"
-    assert refused_check(lambda: execute(app, AGENT, proposal.id, "execute-1", NOW, POLICY)) == "status_approved"
+    assert (
+        refused_check(
+            lambda: execute(app, AGENT, proposal.id, "execute-1", NOW, POLICY, conversation_id=home(app, proposal.id))
+        )
+        == "status_approved"
+    )
     assert rows(app, "SELECT status, status_reason FROM proposals") == [("cancelled", "cancelled_by_customer")]
     assert rows(app, "SELECT count(*) FROM refund_operations") == [(0,)]
 
@@ -57,7 +73,7 @@ def test_cancel_after_approval_still_stops_the_refund(app):
 
 def test_a_refunded_proposal_cannot_be_cancelled(app):
     proposal_id = approved(app, "d01-ana", "d01-rui", "d01-o1", ["d01-o1-u1"], "propose-1", NOW)
-    execute(app, AGENT, proposal_id, "execute-1", NOW, POLICY)
+    execute(app, AGENT, proposal_id, "execute-1", NOW, POLICY, conversation_id=home(app, proposal_id))
     assert refused_check(lambda: cancel(app, CUSTOMER, proposal_id, NOW, POLICY)) == "invalid_transition"
     assert rows(app, "SELECT status FROM proposals") == [("refunded",)]
 
@@ -191,3 +207,44 @@ def test_handoff_first_then_refund_nothing_is_paid(app, monkeypatch):
     assert rows(app, "SELECT status, status_reason FROM proposals") == [("invalidated", "handed_off")]
     assert rows(app, "SELECT count(*) FROM refund_operations") == [(0,)]
     assert rows(app, "SELECT pending_proposal_id FROM handoffs") == [(proposal_id,)]
+
+
+# The agent pays only from the conversation the request was made in (review of 2026-10-15)
+
+
+def test_an_agent_pays_only_the_requests_of_its_own_conversation(app):
+    proposal_id = approved(app, "d01-ana", "d01-rui", "d01-o1", ["d01-o1-u1"], "propose-1", NOW)  # conversation A
+    other = open_conversation(app, CUSTOMER, NOW)  # conversation B, the same customer
+    assert attempt(app, "d01-ana", proposal_id, "execute-1", NOW, conversation=other) == (
+        "refused",
+        "same_conversation",
+    )
+    assert rows(app, "SELECT count(*) FROM refund_operations") == [(0,)]
+    assert rows(app, "SELECT event, reason FROM audit_events WHERE outcome = 'rejected'") == [
+        ("execute", "same_conversation")
+    ]
+    # The approval is untouched: the agent of the conversation it was made in can still pay it.
+    assert attempt(app, "d01-ana", proposal_id, "execute-2", NOW)[0] == "receipt"
+    assert rows(app, "SELECT count(*) FROM refund_operations") == [(1,)]
+
+
+def test_a_handoff_stops_a_call_from_that_conversation_for_a_request_made_elsewhere(app, monkeypatch):
+    # Conversation B is being handed to a person while its agent, already on its way, asks to pay a request approved
+    # in conversation A. Before this check, only A's control was read under A's lock, so the payment went through.
+    proposal_id = approved(app, "d01-ana", "d01-rui", "d01-o1", ["d01-o1-u1"], "propose-1", NOW)
+    other = open_conversation(app, CUSTOMER, NOW)
+    inside, release = threading.Event(), threading.Event()
+    monkeypatch.setattr(refunds, "failpoint", hold_at("hand_off", inside, release))
+
+    with ThreadPoolExecutor(2) as pool:
+        handoff = pool.submit(hand_off, app, CUSTOMER, other, "customer_request", NOW)
+        assert inside.wait(10)
+        refund = pool.submit(attempt, app, "d01-ana", proposal_id, "execute-1", NOW, other)
+        outcome = refund.result(10)  # refused at once, while B's handoff is still open
+        release.set()
+        handoff.result(10)
+
+    assert outcome == ("refused", "same_conversation")
+    assert rows(app, "SELECT count(*) FROM refund_operations") == [(0,)]
+    assert rows(app, f"SELECT control FROM conversations WHERE id = '{other}'") == [("human_controlled",)]
+    assert rows(app, "SELECT status FROM proposals") == [("approved",)]  # A's request waits for A's agent

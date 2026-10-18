@@ -44,6 +44,8 @@ EXPLANATIONS = {
     "no_confirmed_open_proposal": "The customer already confirmed another proposal in this conversation. Wait for "
     "the staff decision on it.",
     "request_key_consistent": "This request conflicts with an earlier one.",
+    "same_conversation": "This request was made in another conversation and can be paid only there. Its state can "
+    "still be read with get_request_status.",
 }
 
 
@@ -191,6 +193,7 @@ def execute_refund(ctx: ToolContext, args: ProposalArgs, call_id: str) -> dict:
         ctx.clock(),
         ctx.policy,
         ctx.configuration,
+        conversation_id=ctx.conversation_id,
     )
     return {"receipt": receipt}
 

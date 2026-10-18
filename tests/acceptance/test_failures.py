@@ -15,7 +15,7 @@ from refund_agent import refunds
 from refund_agent.fixtures import seed
 from refund_agent.policy import POLICY_PATH, load_policy
 from refund_agent.refunds import Actor, confirm, decide, execute, open_conversation, propose
-from tests.acceptance.flows import DEVELOPMENT, POLICY, approved, attempt, hold_at, proposed, rows
+from tests.acceptance.flows import DEVELOPMENT, POLICY, approved, attempt, hold_at, home, proposed, rows
 
 D01 = DEVELOPMENT["D01"]
 NOW = D01.now
@@ -42,7 +42,8 @@ def test_a_crash_before_commit_leaves_nothing_and_a_retry_pays_once(app, monkeyp
     # Hold the refund after its operation row is written, then kill its database session from outside.
     monkeypatch.setattr(refunds, "failpoint", hold_at("ledger", inside, release))
     with ThreadPoolExecutor(1) as pool:
-        refund = pool.submit(execute, app, AGENT, proposal_id, "execute-1", NOW, POLICY)
+        origin = home(app, proposal_id)
+        refund = pool.submit(execute, app, AGENT, proposal_id, "execute-1", NOW, POLICY, conversation_id=origin)
         assert inside.wait(10)
         admin = create_engine(database.url("admin", "postgres"), isolation_level="AUTOCOMMIT")
         with admin.connect() as conn:
@@ -79,13 +80,13 @@ def test_an_error_between_operation_and_ledger_lines_undoes_everything(app, monk
 
     monkeypatch.setattr(refunds, "failpoint", fail)
     with pytest.raises(RuntimeError):
-        execute(app, AGENT, proposal_id, "execute-1", NOW, POLICY)
+        execute(app, AGENT, proposal_id, "execute-1", NOW, POLICY, conversation_id=home(app, proposal_id))
     nothing_paid(app)
     assert rows(app, "SELECT status FROM proposals") == [("approved",)]
     assert rows(app, "SELECT count(*) FROM audit_events WHERE event = 'execute' AND outcome = 'committed'") == [(0,)]
 
     monkeypatch.setattr(refunds, "failpoint", None)
-    receipt = execute(app, AGENT, proposal_id, "execute-1", NOW, POLICY)
+    receipt = execute(app, AGENT, proposal_id, "execute-1", NOW, POLICY, conversation_id=home(app, proposal_id))
     # The receipt number of the failed attempt is skipped: database sequences never go back, gaps are expected.
     assert receipt["amount_minor"] == 4990
     assert rows(app, "SELECT count(*) FROM ledger_lines") == [(1,)]
@@ -151,7 +152,7 @@ def test_an_approval_is_not_paid_under_a_new_policy_version(app, tmp_path):
 
 def execute_check(app, proposal_id, policy) -> str:
     try:
-        execute(app, AGENT, proposal_id, "execute-1", NOW, policy)
+        execute(app, AGENT, proposal_id, "execute-1", NOW, policy, conversation_id=home(app, proposal_id))
     except refunds.Refused as refused:
         return refused.check
     raise AssertionError("the refund was paid")
@@ -190,7 +191,7 @@ def test_an_injected_summary_changes_nothing_that_is_paid(app, db):
     decide(app, STAFF, proposal.id, "approved", NOW, POLICY)
     with db("owner").begin() as conn:
         conn.execute(text("UPDATE proposals SET summary_untrusted = 'changed after the approval'"))
-    receipt = execute(app, AGENT, proposal.id, "execute-1", NOW, POLICY)
+    receipt = execute(app, AGENT, proposal.id, "execute-1", NOW, POLICY, conversation_id=home(app, proposal.id))
     assert receipt["amount_minor"] == 4990
     assert rows(app, "SELECT amount_minor FROM ledger_lines") == [(4990,)]
 

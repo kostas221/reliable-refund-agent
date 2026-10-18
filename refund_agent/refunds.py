@@ -580,17 +580,33 @@ def decide(
                     )
                     if verdict.outcome is not eligibility.Outcome.ELIGIBLE:
                         raise Refused("policy_eligible", ", ".join(verdict.reasons))
+                decision_id = _new_id("dec")
                 conn.execute(
                     text(
                         "INSERT INTO staff_decisions (id, proposal_id, staff_id, decision, content_hash, decided_at) "
                         "VALUES (:id, :proposal, :staff, :decision, :hash, :now)"
                     ),
                     {
-                        "id": _new_id("dec"),
+                        "id": decision_id,
                         "proposal": proposal_id,
                         "staff": actor.user_id,
                         "decision": decision,
                         "hash": proposal["content_hash"],
+                        "now": now,
+                    },
+                )
+                # The agent must be told, even if the server stops right after this commit: the notice commits with
+                # the decision, and its ID, one per decision, lets a second delivery be recognised.
+                conn.execute(
+                    text(
+                        "INSERT INTO agent_notices (id, conversation_id, proposal_id, decision, created_at) "
+                        "VALUES (:id, :conversation, :proposal, :decision, :now)"
+                    ),
+                    {
+                        "id": f"notice-{decision_id}",
+                        "conversation": proposal["conversation_id"],
+                        "proposal": proposal_id,
+                        "decision": decision,
                         "now": now,
                     },
                 )
@@ -825,6 +841,7 @@ class _Execution:
     policy: Policy
     idempotency_key: str
     request_hash: str
+    origin: str  # the conversation the agent's call came from
     units: list[RowMapping] = field(default_factory=list)
 
 
@@ -860,6 +877,13 @@ def _check_request_key_consistent(x: _Execution) -> dict | None:
 def _check_first_execution(x: _Execution) -> dict | None:
     op = _one(x.conn, "SELECT receipt FROM refund_operations WHERE proposal_id = :id", id=x.proposal["id"])
     return None if op is None else op["receipt"]
+
+
+def _check_same_conversation(x: _Execution) -> None:
+    # A request made in another conversation of the customer is paid from there: a handoff here must stop this agent,
+    # and the lock taken is the proposal's conversation, so both have to be the same row (INV-8).
+    if x.proposal["conversation_id"] != x.origin:
+        raise Refused("same_conversation", "the proposal belongs to another conversation")
 
 
 def _check_agent_in_control(x: _Execution) -> None:
@@ -964,6 +988,7 @@ def _check_units_available(x: _Execution) -> None:
 
 EXECUTE_CHECKS: dict[str, Callable[[_Execution], dict | None]] = {
     "actor_owns": _check_actor_owns,
+    "same_conversation": _check_same_conversation,
     "request_key_consistent": _check_request_key_consistent,
     "first_execution": _check_first_execution,
     "agent_in_control": _check_agent_in_control,
@@ -1063,8 +1088,13 @@ def execute(
     now: datetime,
     policy: Policy,
     configuration: Configuration = "A",
+    *,
+    conversation_id: str,
 ) -> dict:
     """Refund an approved proposal at most once. A retry, with the same key or a new one, returns the stored receipt.
+
+    conversation_id is the conversation the agent's call came from, as the backend knows it (never from the model);
+    only a proposal of that conversation can be paid.
 
     Configuration C exists only in the isolated evaluation harness, on a synthetic database.
     """
@@ -1082,6 +1112,7 @@ def execute(
                     policy,
                     idempotency_key,
                     _digest({"proposal": proposal_id}),
+                    conversation_id,
                 )
                 for name in transition.checks:
                     stored = EXECUTE_CHECKS[name](x)

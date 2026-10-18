@@ -5,14 +5,16 @@ in a paid run. Around it the runner plays the people, by the scenario's own rule
 
 - the customer (a script in mock mode, a model in a live run: refund_agent/evaluation/customers.py) says the opening
   message, then one line after each answer of the agent, until it has nothing more to say;
-- the customer's confirm button (the test actor) is pressed only on a proposal with exactly the units and amount the
-  scenario's customer confirms, and every other proposal waiting for the customer is declined;
+- the customer's buttons (the test actor): confirm only on a proposal with exactly the units and amount the scenario's
+  customer confirms, then keep it or cancel it before the staff decision; any other proposal waiting for the
+  customer is declined, or left open while the customer asks for a change in the chat (`customer.cards`);
 - the scripted staff member applies the scenario's decision to every proposal that reaches the queue, and the agent
   is told, as the staff console does.
 
 The business clock moves one minute per step, so the order of events is plain. A model error or a loop is a failure
 of the system, and a failure of the simulated customer is the evaluation's: each is kept in the result, apart, and
-the evaluator still judges what the database holds (plan section 11).
+the evaluator still judges what the database holds (plan section 11). A budget stop ends the conversation the same
+way: what was done before it is judged and kept (outside review of 2026-10-15).
 """
 
 from __future__ import annotations
@@ -24,13 +26,14 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from sqlalchemy import Engine, text
 
 from refund_agent.agent import notices
+from refund_agent.agent.costs import BudgetExceeded
 from refund_agent.agent.graph import Agent, AgentLoopError
 from refund_agent.agent.model import ModelAdapter, ModelError
 from refund_agent.evaluation.customers import Customer, SimulatorError
 from refund_agent.evaluation.evaluator import Verdict, capture_baseline, evaluate
 from refund_agent.fixtures import seed
 from refund_agent.policy import Policy
-from refund_agent.refunds import Actor, Configuration, confirm, decide, open_conversation
+from refund_agent.refunds import Actor, Configuration, cancel, confirm, decide, open_conversation
 from refund_agent.scenarios import Scenario, customer_confirms
 
 
@@ -55,6 +58,7 @@ class RunResult:
     model_requests: int
     system_error: str | None  # the agent's model error or loop: a failure of the system, never hidden
     simulator_error: str | None = None  # the simulated customer failed: the run is not a valid test of the agent
+    stopped_by_budget: str | None = None  # the budget stopped the run before a request: not a valid test either
 
 
 def run_scenario(
@@ -75,7 +79,7 @@ def run_scenario(
     clock = Clock(scenario.now)
     agent = Agent(app, policy, model, checkpointer, clock, configuration=configuration)
     conversation = open_conversation(app, Actor("customer", scenario.customer.id), clock())
-    error = simulator_error = None
+    error = simulator_error = stopped = None
     try:
         clock.tick()
         agent.receive(conversation, customer.opening())
@@ -91,10 +95,12 @@ def run_scenario(
         error = f"{type(failure).__name__}: {failure}"
     except SimulatorError as failure:
         simulator_error = str(failure)
+    except BudgetExceeded as stop:
+        stopped = str(stop)
     usage = agent.usage(conversation)
     verdict = evaluate(scenario, app, baseline)
     return RunResult(
-        scenario.id, configuration, verdict, agent.messages(conversation), len(usage), error, simulator_error
+        scenario.id, configuration, verdict, agent.messages(conversation), len(usage), error, simulator_error, stopped
     )
 
 
@@ -117,10 +123,15 @@ def _proposals(app: Engine, conversation: str, status: str) -> list[tuple[str, l
 
 def _people_act(scenario: Scenario, app: Engine, agent: Agent, conversation: str, clock: Clock, policy: Policy) -> bool:
     """The customer's button and the staff decision. True when the agent was told something and answered."""
-    customer = Actor("customer", scenario.customer.id)
+    customer, cards = Actor("customer", scenario.customer.id), scenario.customer.cards
     for proposal, units, amount in _proposals(app, conversation, "awaiting_customer_confirmation"):
-        accepts = customer_confirms(scenario.customer, units, amount)
-        confirm(app, customer, proposal, "confirmed" if accepts else "declined", clock.tick(), policy)
+        if customer_confirms(scenario.customer, units, amount):
+            confirm(app, customer, proposal, "confirmed", clock.tick(), policy)
+            if cards.after_confirming == "cancel":
+                cancel(app, customer, proposal, clock.tick(), policy)
+        elif cards.other == "decline":
+            confirm(app, customer, proposal, "declined", clock.tick(), policy)
+        # wait: the card stays open while the customer, in the chat, asks for a change
     if scenario.staff.decision == "none":
         return False
     staff = Actor("staff", scenario.fixture.staff[0].id)
@@ -128,6 +139,6 @@ def _people_act(scenario: Scenario, app: Engine, agent: Agent, conversation: str
     for proposal, _, _ in _proposals(app, conversation, "awaiting_staff_approval"):
         decide(app, staff, proposal, decision, clock.tick(), policy)
         clock.tick()
-        agent.notify(conversation, notices.staff_decision(proposal, decision))
-        return True
+        # The product's path: the decision stored its notice, and the agent is told through the same delivery.
+        return notices.deliver_pending(app, agent, clock, conversation) > 0
     return False

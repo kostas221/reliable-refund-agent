@@ -71,6 +71,13 @@ CHECKS = (
     ),
     Check("staff_role", ("INV-1",), "The session belongs to a staff member."),
     Check(
+        "same_conversation",
+        ("INV-1", "INV-8"),
+        "The agent pays only a proposal of the conversation its call came from, given by the backend, never by the "
+        "model; a handoff of that conversation then stops it, read in the same locked row. Other requests of the "
+        "customer can still be read.",
+    ),
+    Check(
         "agent_in_control",
         ("INV-8",),
         "The conversation is not human_controlled, read inside the same transaction.",
@@ -200,6 +207,7 @@ TRANSITIONS = (
             # Ownership first. A completed refund is then returned as stored, even after expiry or a handoff:
             # those stop new payments, not the retrieval of one already made.
             "actor_owns",
+            "same_conversation",
             "request_key_consistent",
             "first_execution",
             "agent_in_control",

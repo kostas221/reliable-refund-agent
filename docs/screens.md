@@ -71,6 +71,24 @@ browser holds one session: to see both screens at once, use a second browser or 
   answer means, and the CSRF retry (once, never a loop).
 - `tests/acceptance/test_http.py` and `tests/acceptance/test_agent_tools.py`: the reads the screens use (requests per
   order, citations, the customer's conversations, the staff history without the model's words), on PostgreSQL.
+- `tests/browser/test_screens.py`, in a real browser (the installed Chrome, through Playwright), typed and clicked,
+  each person in a session of their own, what the screens show checked against the database:
+  - a refund through both screens, to the receipt on the card;
+  - a restart while the request waits for approval (failure case 8): the screens keep what they last read and say
+    the server does not answer, then show the same state with no new sign-in, also after a reload, and the
+    approval pays once;
+  - a confirmation whose answer is lost on the way back (an uncertain HTTP result): the page says it does not know,
+    then shows the stored state; Confirm pressed again in a second, stale tab is refused ("This changed in the
+    meantime"), one confirmation stays, and the approval pays once.
+
+  The tests build the screens first and serve them with the API from one test server, on a copy of the template
+  database, with the scripted agent: `REQUIRE_DB=1 uv run pytest tests/browser` (about a minute). Ten bugs planted
+  one at a time were each caught on 2026-10-18: Confirm sending a decline, Approve rejecting, a decision storing no
+  notice for the agent, changes without the CSRF token, another amount on the receipt, a restart signing everybody
+  out, a failed read clearing the screen, a failed read not being told, a change whose answer is lost being sent
+  again blindly, and a second confirmation not checked by the service. An eleventh, removing only the decision
+  door's immediate delivery, changes nothing a person sees, since the server also delivers stored notices every few
+  seconds.
 - By hand on 2026-10-14, in the in-app browser against the demo server and its scripted agent, each checked in the
   database as well:
 
@@ -87,8 +105,8 @@ browser holds one session: to see both screens at once, use a second browser or 
 ## Limits
 
 - The checks by hand drove the page with scripts inside it, because the browser pane was not displayed: forms were
-  submitted and buttons clicked by code, so the keyboard and the mouse were not tested. The browser tests of phase 5
-  (plan section 13) cover confirmation, approval, refresh, rejected and expired requests, and the receipt.
+  submitted and buttons clicked by code, so the keyboard and the mouse were not tested. Since 2026-10-18 the browser
+  tests type and click the refund, the restart and a lost answer; rejected and expired cards stay unit tests.
 - An expired card was not seen live (it needs 72 hours of demo time). Its words and its missing confirm button are
   unit tests, and the backend's display of expiry is tested in `test_http.py`.
 - The queue's list does not mark a handoff the assistant recorded on the customer's behalf; the case itself does.

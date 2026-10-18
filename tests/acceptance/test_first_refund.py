@@ -13,6 +13,7 @@ from refund_agent.fixtures import seed
 from refund_agent.policy import load_policy
 from refund_agent.refunds import Actor, Refused, confirm, decide, execute, open_conversation, propose
 from refund_agent.scenarios import load_split
+from tests.acceptance.flows import home
 
 POLICY = load_policy()
 D01 = next(s for s in load_split("development") if s.id == "D01")
@@ -40,22 +41,28 @@ def test_one_refund_is_committed_once_and_every_retry_returns_the_same_receipt(d
 
     # Before anyone agreed, the backend refuses and writes nothing.
     with pytest.raises(Refused) as refused:
-        execute(app, AGENT, proposal.id, "execute-early", minutes(2), POLICY)
+        execute(app, AGENT, proposal.id, "execute-early", minutes(2), POLICY, conversation_id=home(app, proposal.id))
     assert refused.value.check == "status_approved"
     assert rows(app, "SELECT count(*) FROM refund_operations") == [(0,)]
 
     assert confirm(app, CUSTOMER, proposal.id, "confirmed", minutes(3), POLICY) == "awaiting_staff_approval"
     assert decide(app, STAFF, proposal.id, "approved", minutes(4), POLICY) == "approved"
 
-    receipt = execute(app, AGENT, proposal.id, "execute-1", minutes(5), POLICY)
+    receipt = execute(app, AGENT, proposal.id, "execute-1", minutes(5), POLICY, conversation_id=home(app, proposal.id))
     assert (receipt["amount_minor"], receipt["currency"], receipt["units"]) == (
         4990,
         "BRL",
         [{"unit_id": "d01-o1-u1", "amount_minor": 4990}],
     )
     # The HTTP answer was lost and the call is repeated, first with the same key, then with a new one.
-    assert execute(app, AGENT, proposal.id, "execute-1", minutes(6), POLICY) == receipt
-    assert execute(app, AGENT, proposal.id, "execute-2", minutes(7), POLICY) == receipt
+    assert (
+        execute(app, AGENT, proposal.id, "execute-1", minutes(6), POLICY, conversation_id=home(app, proposal.id))
+        == receipt
+    )
+    assert (
+        execute(app, AGENT, proposal.id, "execute-2", minutes(7), POLICY, conversation_id=home(app, proposal.id))
+        == receipt
+    )
 
     assert rows(app, "SELECT status FROM proposals") == [("refunded",)]
     assert rows(app, "SELECT count(*), sum(amount_minor) FROM refund_operations") == [(1, 4990)]
@@ -78,10 +85,13 @@ def test_the_receipt_survives_expiry(db):
     proposal = propose(app, AGENT, conversation, "d01-o1", ["d01-o1-u1"], "propose-1", minutes(1), POLICY)
     confirm(app, CUSTOMER, proposal.id, "confirmed", minutes(2), POLICY)
     decide(app, STAFF, proposal.id, "approved", minutes(3), POLICY)
-    receipt = execute(app, AGENT, proposal.id, "execute-1", minutes(4), POLICY)
+    receipt = execute(app, AGENT, proposal.id, "execute-1", minutes(4), POLICY, conversation_id=home(app, proposal.id))
 
     four_days_later = minutes(4 * 24 * 60)
-    assert execute(app, AGENT, proposal.id, "execute-1", four_days_later, POLICY) == receipt
+    assert (
+        execute(app, AGENT, proposal.id, "execute-1", four_days_later, POLICY, conversation_id=home(app, proposal.id))
+        == receipt
+    )
     assert rows(app, "SELECT count(*) FROM ledger_lines") == [(1,)]
 
 

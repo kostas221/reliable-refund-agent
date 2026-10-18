@@ -126,13 +126,17 @@ class Agent:
                 return []
             return self._run(conversation_id, {"messages": [message]})
 
-    def notify(self, conversation_id: str, event: str) -> list[dict]:
+    def notify(self, conversation_id: str, event: str, notice_id: str | None = None) -> list[dict]:
         """A backend event, such as an approval. Only text for the model: it proves nothing. It waits for a run in
-        progress instead of being lost, and wakes nobody once a person has taken over."""
+        progress instead of being lost, and wakes nobody once a person has taken over. A notice with an ID is applied
+        once: delivered again, after a crash between this run and the mark of its delivery, it changes nothing."""
         with self._turn(conversation_id, wait=True):
             if self._conversation(conversation_id)["control"] == "human_controlled":
                 return []
-            return self._run(conversation_id, {"messages": [{"role": "event", "text": event}]})
+            if notice_id and any(m.get("notice_id") == notice_id for m in self.messages(conversation_id)):
+                return []
+            message = {"role": "event", "text": event} | ({"notice_id": notice_id} if notice_id else {})
+            return self._run(conversation_id, {"messages": [message]})
 
     def resume(self, conversation_id: str) -> list[dict]:
         """Finish a run that stopped in the middle, for example after a crash."""
@@ -164,13 +168,21 @@ class Agent:
         before = len(self.messages(conversation_id))
         try:
             if start is not None and self.graph.get_state(config).next:
-                self.graph.invoke(None, config)  # first finish the run that a crash cut short
-            self.graph.invoke(start, config)
+                self._steps(conversation_id, None, config)  # first finish the run that a crash cut short
+            self._steps(conversation_id, start, config)
         except GraphRecursionError as error:
             raise AgentLoopError(f"no answer to the customer within {self.max_steps} steps") from error
         finally:
             self._mirror(conversation_id)
         return self.messages(conversation_id)[before:]
+
+    def _steps(self, conversation_id: str, start: dict | None, config: RunnableConfig) -> None:
+        """Run the graph one step at a time and store what was said after each step, so a message is written before
+        the tools of the same turn act, and messages and actions have one exact order (outside review of 2026-10-15).
+        The state comes from the stream itself: the step's checkpoint may not be saved yet when the next step starts,
+        so reading it back would store the message one step late."""
+        for state in self.graph.stream(start, config, stream_mode="values"):
+            self._mirror(conversation_id, state.get("messages", []))
 
     # The database
 
@@ -187,8 +199,10 @@ class Agent:
             raise LookupError(f"no conversation {conversation_id}")
         return dict(found)
 
-    def _mirror(self, conversation_id: str) -> None:
-        """Write what the customer and the agent said to the messages table, once per place in the conversation."""
+    def _mirror(self, conversation_id: str, messages: list[dict] | None = None) -> None:
+        """Write what the customer and the agent said to the messages table, once per place in the conversation.
+        `messages` is the conversation's state as the run has it; by default the last saved checkpoint."""
+        said = self.messages(conversation_id) if messages is None else messages
         rows = [
             {
                 "id": f"{conversation_id}/m{index:04d}",
@@ -197,7 +211,7 @@ class Agent:
                 "content": message["text"],
                 "at": self.clock(),
             }
-            for index, message in enumerate(self.messages(conversation_id))
+            for index, message in enumerate(said)
             if message["role"] in ("customer", "agent") and message.get("text")
         ]
         if rows:
