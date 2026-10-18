@@ -1,0 +1,65 @@
+# The order is still in transit: no refund through this process, and the customer accepts. Refused for the order's
+# status, not for a missing return. Olist order 8733c8d440c173e524d2fab8025063f4 (data/olist/subset.json), still
+# shipped: one housewares item, 149.99 + freight 16.35, one card payment of 166.34 in 2 instalments.
+id = "H09"
+title = "An order still on its way"
+split = "held_out"
+category = "ineligible"
+template = "order-not-delivered"
+policy_version = "v1"
+now = 2026-10-23T10:00:00Z  # bought 20 Oct, not delivered yet
+agent_visible_orders = ["h09-o1"]
+
+[[fixture.customers]]
+id = "h09-natalia"
+name = "Natalia Ribeiro"
+email = "natalia.ribeiro@example.test"
+
+[[fixture.staff]]
+id = "h09-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h09-o1"
+customer = "h09-natalia"
+status = "shipped"
+purchased_at = 2026-10-20T17:00:00Z
+payments = [{ method = "credit_card", amount_minor = 16634, installments = 2 }]  # 14999 + shipping 1635
+olist_order = "8733c8d440c173e524d2fab8025063f4"
+
+[[fixture.orders.units]]
+id = "h09-o1-u1"
+product = "Stainless steel cookware set"
+price_minor = 14999
+paid_minor = 14999
+shipping_minor = 1635
+olist_item = 1
+
+[customer]
+id = "h09-natalia"
+goal = "Get your money back for the cookware set you ordered three days ago, because you no longer need it."
+opening_message = "Hi, I ordered a cookware set a few days ago but I don't need it anymore. Can I get my money back?"
+facts = [
+    { text = "The tracking page says the parcel is on its way and will arrive in a few days.", reveal = "when_asked" },
+    { text = "Your sister gave you a cookware set as a present, so you do not need this one.", reveal = "when_asked" },
+]
+behaviour = [
+    "If you are told that a refund is not possible before the order is delivered, ask once what you can do, then accept the answer and end the conversation.",
+    "Do not say that the parcel is lost or will never arrive: you know it is on its way.",
+]
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h09-o1-u1"]  # not delivered, so not returned either
+decision = "refused"
+reasons = ["eligible-orders", "return"]
+
+[expected]
+refund_amount_minor = 0
+last_proposal_status = ["ineligible", "none"]
+handoff = "forbidden"
+cites = ["refund-policy/v1/eligible-orders"]
+communication = ["explains_refusal_reason"]

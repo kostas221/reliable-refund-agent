@@ -86,6 +86,26 @@ def test_the_customer_talks_to_the_agent_and_an_approval_wakes_it(shop):
     assert "customer confirmed" in told[0] and "ready to be paid" in told[0]
 
 
+def test_an_approval_whose_answer_is_lost_is_pressed_again_and_pays_once(shop):
+    """Failure case 6 at the doors. No answer follows a refund here: the agent pays from the approval's notice, after
+    the staff member's answer is sent. So the answer that can be lost is that one, and the staff member presses
+    again: refused, with one decision, one refund and the receipt the customer already sees."""
+    s = shop()
+    ana, rui = s.browser("d01-ana"), s.browser("d01-rui")
+    conversation = ana.post("/api/conversations").json()["conversation_id"]
+    ana.post(f"/api/conversations/{conversation}/messages", {"text": s.scenario.customer.opening_message})
+    proposal = conversation_of(s, conversation)["proposals"][0]["proposal_id"]
+    ana.post(f"/api/proposals/{proposal}/confirmation", {"decision": "confirmed"})
+    rui.post(f"/api/staff/proposals/{proposal}/decision", {"decision": "approved"})  # its answer is lost
+    receipt = conversation_of(s, conversation)["proposals"][0]["receipt"]["receipt_number"]
+
+    again = rui.post(f"/api/staff/proposals/{proposal}/decision", {"decision": "approved"})
+    assert again.status_code == 409
+    assert rows(s.engine, "SELECT decision FROM staff_decisions") == [("approved",)]
+    assert rows(s.engine, "SELECT receipt_number FROM refund_operations") == [(receipt,)]
+    assert conversation_of(s, conversation)["proposals"][0]["receipt"]["receipt_number"] == receipt
+
+
 def test_a_rejection_wakes_the_agent_too(shop):
     script = [
         Call("propose_refund", {"order_id": "d04-o1", "unit_ids": ["d04-o1-u1"]}),

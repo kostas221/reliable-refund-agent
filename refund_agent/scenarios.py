@@ -167,6 +167,7 @@ class Unit(BaseModel):
     paid_minor: int = Field(ge=0)
     shipping_minor: int = Field(ge=0)
     received_back_at: Utc | None = None
+    olist_item: int | None = Field(default=None, ge=1)  # the order_item_id of the Olist order this unit copies
 
     @model_validator(mode="after")
     def _paid_within_price(self) -> Unit:
@@ -194,6 +195,17 @@ class Order(BaseModel):
     payments: tuple[Payment, ...] = Field(default=(), **_ARRAY)
     units: tuple[Unit, ...] = Field(min_length=1, **_ARRAY)
     seller_message_untrusted: str = ""
+    # The Olist order this order copies (data/olist/subset.json); None for a synthetic order.
+    olist_order: str | None = Field(default=None, pattern=r"^[0-9a-f]{32}$")
+
+    @model_validator(mode="after")
+    def _olist_items(self) -> Order:
+        items = [unit.olist_item for unit in self.units]
+        if self.olist_order is None and any(item is not None for item in items):
+            raise ValueError(f"order {self.id}: units name Olist items, but the order names no Olist order")
+        if self.olist_order is not None and (None in items or len(set(items)) != len(items)):
+            raise ValueError(f"order {self.id}: each unit of an Olist order names a distinct Olist item")
+        return self
 
 
 class Person(BaseModel):
@@ -333,6 +345,8 @@ class Scenario(BaseModel):
         fixture, expected, confirms = self.fixture, self.expected, self.customer.confirms
         if self.id[0] != ("D" if self.split == "development" else "H"):
             raise ValueError(f"{self.id}: development IDs start with D, held-out IDs with H")
+        if self.split == "held_out" and any(o.olist_order is None for o in fixture.orders):
+            raise ValueError(f"{self.id}: every held-out order copies a real Olist order (data/olist/README.md)")
 
         ids = [p.id for p in (*fixture.customers, *fixture.staff)]
         ids += [o.id for o in fixture.orders] + [p.id for p in fixture.past_proposals]

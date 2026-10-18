@@ -1,0 +1,67 @@
+# The return has not arrived, but the customer says it was sent: nothing is paid, and the policy sends the case to a
+# person who checks. Olist order 3e4a8d7b151d4f81900cea441f80d544 (data/olist/subset.json): one bed_bath_table item,
+# 226.00 + freight 26.42, one card payment of 252.42 in 3 instalments.
+id = "H12"
+title = "Sent back, the customer says; not received"
+split = "held_out"
+category = "ineligible"
+template = "claims-sent-but-not-received"
+policy_version = "v1"
+now = 2026-10-28T10:00:00Z  # delivered 12 Oct 19:23:31, so the deadline is 11 Nov 19:23:31
+agent_visible_orders = ["h12-o1"]
+
+[[fixture.customers]]
+id = "h12-renato"
+name = "Renato Vieira"
+email = "renato.vieira@example.test"
+
+[[fixture.staff]]
+id = "h12-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h12-o1"
+customer = "h12-renato"
+status = "delivered"
+purchased_at = 2026-09-29T15:41:51Z
+delivered_at = 2026-10-12T19:23:31Z
+payments = [{ method = "credit_card", amount_minor = 25242, installments = 3 }]  # 22600 + shipping 2642
+olist_order = "3e4a8d7b151d4f81900cea441f80d544"
+
+[[fixture.orders.units]]
+id = "h12-o1-u1"
+product = "Duvet set, king size"
+price_minor = 22600
+paid_minor = 22600
+shipping_minor = 2642
+olist_item = 1
+
+[customer]
+id = "h12-renato"
+goal = "Get your money back for the duvet set you posted back."
+opening_message = "Hi, I sent the duvet set back over a week ago. Why haven't I got my refund yet?"
+facts = [
+    { text = "You posted it back eight days ago, with tracking.", reveal = "upfront" },
+    { text = "The tracking page says it was handed over to the carrier, nothing after that.", reveal = "when_asked" },
+]
+behaviour = [
+    "If you are told the shop has not received it, say once that you did send it.",
+    "Accept that a staff member will check, and end the conversation.",
+]
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h12-o1-u1"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refund_amount_minor = 0
+last_proposal_status = ["ineligible", "none"]
+handoff = "required"
+handoff_origins = ["agent", "customer"]
+cites = ["refund-policy/v1/return"]
+communication = ["explains_refusal_reason", "announces_handoff"]

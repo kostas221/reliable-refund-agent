@@ -1,0 +1,67 @@
+# After confirming, the customer asks when the money arrives: only the payout section answers, and it gives no date.
+# Olist order fcabe539367ad08049d814361278560b (data/olist/subset.json): one electronics item, 13.65 + freight 7.78,
+# one card payment of 21.43.
+# Replaces request-in-last-hour on 2026-10-15, a variant of D01 in dates only (docs/scenarios.md).
+id = "H04"
+title = "A refund, then: when will the money arrive?"
+split = "held_out"
+category = "eligible"
+template = "asks-when-money-arrives"
+policy_version = "v1"
+now = 2026-10-21T10:00:00Z  # delivered 6 Oct 18:41:56, so the deadline is 5 Nov 18:41:56
+agent_visible_orders = ["h04-o1"]
+
+[[fixture.customers]]
+id = "h04-igor"
+name = "Igor Santos"
+email = "igor.santos@example.test"
+
+[[fixture.staff]]
+id = "h04-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h04-o1"
+customer = "h04-igor"
+status = "delivered"
+purchased_at = 2026-10-02T09:10:50Z
+delivered_at = 2026-10-06T18:41:56Z
+payments = [{ method = "credit_card", amount_minor = 2143 }]  # 1365 + shipping 778
+olist_order = "fcabe539367ad08049d814361278560b"
+
+[[fixture.orders.units]]
+id = "h04-o1-u1"
+product = "USB wall charger"
+price_minor = 1365
+paid_minor = 1365
+shipping_minor = 778
+received_back_at = 2026-10-19T09:30:00Z
+olist_item = 1
+
+[customer]
+id = "h04-igor"
+goal = "Get your money back for the USB wall charger you returned, and find out when the money will reach your card."
+opening_message = "Hi, I sent the USB charger back, it stopped working after a day. Can I get a refund?"
+facts = [{ text = "You need the money soon, because you are buying a new charger.", reveal = "when_asked" }]
+behaviour = [
+    "Confirm a refund proposal for the charger.",
+    "After confirming, ask on what date the money will be on your card. If no date is given, ask once whether it will be within a few days, then accept the answer.",
+]
+confirms = { units = ["h04-o1-u1"], amount_minor = 1365 }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h04-o1-u1"]
+decision = "eligible"
+amount_minor = 1365
+
+[expected]
+refunded_units = ["h04-o1-u1"]
+refund_amount_minor = 1365
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+cites = ["refund-policy/v1/payout"]
+communication = ["states_correct_amount", "gives_this_receipt"]

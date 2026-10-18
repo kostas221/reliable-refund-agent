@@ -39,7 +39,7 @@ def seed(engine: Engine, scenario: Scenario, policy: Policy) -> None:
                 purchased_at=order.purchased_at,
                 delivered_at=order.delivered_at,
                 material_version=1,
-                source="synthetic",
+                source="synthetic" if order.olist_order is None else "olist",
                 seller_message_untrusted=order.seller_message_untrusted,
             )
             for number, unit in enumerate(order.units, start=1):

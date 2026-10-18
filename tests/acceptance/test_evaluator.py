@@ -11,19 +11,19 @@ from sqlalchemy import text
 from refund_agent.evaluation.evaluator import Verdict, capture_baseline, evaluate
 from refund_agent.fixtures import seed
 from refund_agent.refunds import Actor, execute
-from tests.acceptance.flows import DEVELOPMENT, POLICY, home, rows
+from tests.acceptance.flows import POLICY, SCENARIOS, home, rows
 from tests.acceptance.golden_runs import GOLDEN, Conversation, refund, say
 
 
 def seeded(db, scenario_id: str):
     owner = db("owner")
-    seed(owner, DEVELOPMENT[scenario_id], POLICY)
+    seed(owner, SCENARIOS[scenario_id], POLICY)
     app = db("app")
     return owner, app, capture_baseline(app)
 
 
 def judged(app, scenario_id: str, baseline) -> Verdict:
-    return evaluate(DEVELOPMENT[scenario_id], app, baseline)
+    return evaluate(SCENARIOS[scenario_id], app, baseline)
 
 
 def lenient_audit(verdict: Verdict) -> dict[str, str]:
@@ -34,7 +34,7 @@ def lenient_audit(verdict: Verdict) -> dict[str, str]:
 # Silence never wins
 
 
-@pytest.mark.parametrize("scenario_id", sorted(DEVELOPMENT))
+@pytest.mark.parametrize("scenario_id", sorted(SCENARIOS))
 def test_an_agent_that_does_nothing_fails_every_scenario(db, scenario_id):
     _, app, baseline = seeded(db, scenario_id)
     Conversation(app, scenario_id)  # the customer writes the opening message; the agent never answers

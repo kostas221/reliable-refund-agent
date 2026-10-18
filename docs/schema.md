@@ -3,7 +3,9 @@
 Status: implemented in [migrations/sql/0001_initial.sql](../migrations/sql/0001_initial.sql) and
 [0002_sign_in.sql](../migrations/sql/0002_sign_in.sql), which are now the source for tables, columns, types,
 constraints and privileges; this page keeps the reasons. One difference from the tables below: `order_units` has
-no `product_id` and `seller_id` yet, because the synthetic fixtures have none; they come with the Olist import.
+no `product_id` and `seller_id`, since no rule, screen or tool reads them. A held-out order copies a real Olist
+order and is stored with `source` olist; its units name their Olist items, whose sellers and categories are in
+`data/olist/subset.json`.
 Statuses, transitions and the checks of each transition are in [state-machine.md](state-machine.md), generated from
 code; the policy decisions are in `refund_agent/eligibility.py`.
 Invariant IDs (INV-n) are those of the [product contract](product-contract.md).

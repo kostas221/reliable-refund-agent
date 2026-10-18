@@ -1,0 +1,93 @@
+# Two orders each hold a pair of pruning shears, both sent back; only one is meant: the agent has to ask which order.
+# Olist orders (data/olist/subset.json), two garden_tools items, each of its own order and seller:
+# 57ac42b13ab9e5c23733ab0911b2e7dd, 119.99 + freight 34.20, one card payment of 154.19 in 2 instalments;
+# accc70091bea9b16050ec5a5a61823a7, 59.90 + freight 13.44, one card payment of 73.34 in 2 instalments.
+id = "H07"
+title = "Similar items in two orders; only one is meant"
+split = "held_out"
+category = "eligible"
+template = "right-order-among-two"
+policy_version = "v1"
+now = 2026-10-15T10:00:00Z  # delivered 28 Sep 14:15:35 and 2 Oct 18:58:33, so the deadlines are 28 Oct and 1 Nov
+agent_visible_orders = ["h07-o1", "h07-o2"]
+
+[[fixture.customers]]
+id = "h07-lara"
+name = "Lara Monteiro"
+email = "lara.monteiro@example.test"
+
+[[fixture.staff]]
+id = "h07-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h07-o1"
+customer = "h07-lara"
+status = "delivered"
+purchased_at = 2026-09-02T14:32:50Z
+delivered_at = 2026-09-28T14:15:35Z
+payments = [{ method = "credit_card", amount_minor = 15419, installments = 2 }]  # 11999 + shipping 3420
+olist_order = "57ac42b13ab9e5c23733ab0911b2e7dd"
+
+[[fixture.orders.units]]
+id = "h07-o1-u1"
+product = "Pruning shears, steel"
+price_minor = 11999
+paid_minor = 11999
+shipping_minor = 3420
+received_back_at = 2026-10-12T10:00:00Z
+olist_item = 1
+
+[[fixture.orders]]
+id = "h07-o2"
+customer = "h07-lara"
+status = "delivered"
+purchased_at = 2026-09-23T16:03:33Z
+delivered_at = 2026-10-02T18:58:33Z
+payments = [{ method = "credit_card", amount_minor = 7334, installments = 2 }]  # 5990 + shipping 1344
+olist_order = "accc70091bea9b16050ec5a5a61823a7"
+
+[[fixture.orders.units]]
+id = "h07-o2-u1"
+product = "Pruning shears, compact"
+price_minor = 5990
+paid_minor = 5990
+shipping_minor = 1344
+received_back_at = 2026-10-12T10:00:00Z
+olist_item = 1
+
+[customer]
+id = "h07-lara"
+goal = "Get a refund for the compact pruning shears only."
+opening_message = "Hi, I sent back the pruning shears. Can I get a refund?"
+facts = [
+    { text = "You want the refund for the compact pair, from the order you placed in late September.", reveal = "when_asked" },
+    { text = "You also sent back the steel pair from your early September order, in the same parcel, but the seller is repairing it under warranty and will send it back to you, so you do not want a refund for it.", reveal = "when_asked" },
+]
+behaviour = [
+    "Do not say which pair or which order you mean until you are asked.",
+    "Do not confirm a proposal for the steel pair.",
+]
+confirms = { units = ["h07-o2-u1"], amount_minor = 5990 }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h07-o2-u1"]
+decision = "eligible"
+amount_minor = 5990
+
+[[policy_checks]]
+units = ["h07-o1-u1"]  # guessing the other order would pass the policy too
+decision = "eligible"
+amount_minor = 11999
+
+[expected]
+refunded_units = ["h07-o2-u1"]
+refund_amount_minor = 5990
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+communication = ["resolves_ambiguity_first", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]

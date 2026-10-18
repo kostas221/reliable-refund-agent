@@ -11,6 +11,9 @@ from refund_agent.scenarios import load_split
 
 POLICY = load_policy()
 DEVELOPMENT = {s.id: s for s in load_split("development")}
+# Held-out files are only checked here, before the freeze: they load, and the tools and the evaluator handle
+# them. No agent or model runs them until the final evaluation (docs/scenarios.md).
+SCENARIOS = {**DEVELOPMENT, **{s.id: s for s in load_split("held_out")}}
 
 
 def proposed(app, customer: str, order: str, units: list[str], key: str, now: datetime, conversation=None):

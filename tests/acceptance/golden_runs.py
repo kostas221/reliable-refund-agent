@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import Engine, text
 
 from refund_agent.refunds import Actor, confirm, decide, execute, hand_off, open_conversation, propose
-from tests.acceptance.flows import DEVELOPMENT, POLICY
+from tests.acceptance.flows import POLICY, SCENARIOS
 
 
 def say(app: Engine, conversation: str, author: str, content: str, at: datetime) -> None:
@@ -36,7 +36,7 @@ class Conversation:
     """One scenario's conversation, with a clock that moves one minute per step so the order of events is clear."""
 
     def __init__(self, app: Engine, scenario_id: str) -> None:
-        self.app, self.scenario = app, DEVELOPMENT[scenario_id]
+        self.app, self.scenario = app, SCENARIOS[scenario_id]
         self.customer_id = self.scenario.customer.id
         self.staff_id = self.scenario.fixture.staff[0].id
         self.minute = 0

@@ -1,0 +1,91 @@
+# The customer first asks where another order is, then asks for a refund of a returned item: the refund is the
+# second topic. Olist orders (data/olist/subset.json): d36e6c0da5f3caf39e121bc833ed03e1, one health_beauty item,
+# 99.90 + freight 21.65, one card payment of 121.55 in 6 instalments; and 2373680d3bd825670bee96c048b19731, still
+# shipped, one consoles_games item, 38.00 + freight 15.10, one card payment of 53.10 in 2 instalments.
+id = "H05"
+title = "A question about another order, then a refund"
+split = "held_out"
+category = "eligible"
+template = "status-question-then-refund"
+policy_version = "v1"
+now = 2026-10-22T10:00:00Z  # the hair dryer was delivered 3 Oct 19:48:35, so its deadline is 2 Nov 19:48:35
+agent_visible_orders = ["h05-o1", "h05-o2"]
+
+[[fixture.customers]]
+id = "h05-julia"
+name = "Julia Pereira"
+email = "julia.pereira@example.test"
+
+[[fixture.staff]]
+id = "h05-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h05-o1"
+customer = "h05-julia"
+status = "delivered"
+purchased_at = 2026-09-05T13:10:24Z
+delivered_at = 2026-10-03T19:48:35Z
+payments = [{ method = "credit_card", amount_minor = 12155, installments = 6 }]  # 9990 + shipping 2165
+olist_order = "d36e6c0da5f3caf39e121bc833ed03e1"
+
+[[fixture.orders.units]]
+id = "h05-o1-u1"
+product = "Hair dryer, 2000 W"
+price_minor = 9990
+paid_minor = 9990
+shipping_minor = 2165
+received_back_at = 2026-10-20T10:00:00Z
+olist_item = 1
+
+[[fixture.orders]]
+id = "h05-o2"
+customer = "h05-julia"
+status = "shipped"
+purchased_at = 2026-10-17T14:19:26Z
+payments = [{ method = "credit_card", amount_minor = 5310, installments = 2 }]  # 3800 + shipping 1510
+olist_order = "2373680d3bd825670bee96c048b19731"
+
+[[fixture.orders.units]]
+id = "h05-o2-u1"
+product = "Wireless game controller"
+price_minor = 3800
+paid_minor = 3800
+shipping_minor = 1510
+olist_item = 1
+
+[customer]
+id = "h05-julia"
+goal = "First find out where your game controller order is. Then get your money back for the hair dryer you returned."
+opening_message = "Hi, my game controller has not arrived yet. Where is it?"
+facts = [
+    { text = "You ordered the controller five days ago.", reveal = "when_asked" },
+    { text = "You also sent back a hair dryer from an earlier order, which you want a refund for.", reveal = "upfront" },
+]
+behaviour = [
+    "Ask about the controller first. Once you have an answer about it, ask for the refund of the hair dryer.",
+    "Confirm a refund proposal for the hair dryer.",
+]
+confirms = { units = ["h05-o1-u1"], amount_minor = 9990 }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h05-o1-u1"]
+decision = "eligible"
+amount_minor = 9990
+
+[[policy_checks]]
+units = ["h05-o2-u1"]  # in transit and not returned
+decision = "refused"
+reasons = ["eligible-orders", "return"]
+
+[expected]
+refunded_units = ["h05-o1-u1"]
+refund_amount_minor = 9990
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+communication = ["states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]

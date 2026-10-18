@@ -1,4 +1,5 @@
-"""The development scenarios are consistent, their policy part agrees with the code, and the held-out plan is sound.
+"""The scenarios are consistent, their policy part agrees with the code, the held-out files follow the held-out plan,
+and every held-out order is the real Olist order drawn for it.
 
 A disagreement between a scenario's hand-written policy decision and refund_agent.eligibility means one of the
 two is wrong: find out which, never edit the scenario to match the code without that check.
@@ -8,6 +9,7 @@ import json
 import re
 import tomllib
 from collections import Counter
+from datetime import datetime
 from typing import get_args
 
 import pytest
@@ -35,7 +37,12 @@ from refund_agent.states import FINAL
 
 POLICY = load_policy()
 DEVELOPMENT = load_split("development")
+HELD_OUT = load_split("held_out")
+ALL = DEVELOPMENT + HELD_OUT
 BY_ID = {s.id: s for s in DEVELOPMENT}
+SUBSET = json.loads((REPO_ROOT / "data" / "olist" / "subset.json").read_text(encoding="utf-8"))
+# A list price above what was paid is synthetic, and written in the scenario (data/olist/README.md).
+SYNTHETIC_LIST_PRICE = {"H02"}
 
 
 def policy_order(scenario: Scenario, unit_id: str) -> eligibility.Order:
@@ -71,10 +78,10 @@ def test_file_names_are_id_and_template():
 
 
 def test_scenarios_use_the_current_policy_version():
-    assert {s.policy_version for s in DEVELOPMENT} == {POLICY.version}
+    assert {s.policy_version for s in ALL} == {POLICY.version}
 
 
-@pytest.mark.parametrize("scenario", DEVELOPMENT, ids=lambda s: s.id)
+@pytest.mark.parametrize("scenario", ALL, ids=lambda s: s.id)
 def test_hand_written_policy_decisions_agree_with_the_policy_code(scenario):
     for check in scenario.policy_checks:
         decision = eligibility.evaluate(
@@ -91,7 +98,7 @@ def test_hand_written_policy_decisions_agree_with_the_policy_code(scenario):
         ), check
 
 
-@pytest.mark.parametrize("scenario", DEVELOPMENT, ids=lambda s: s.id)
+@pytest.mark.parametrize("scenario", ALL, ids=lambda s: s.id)
 def test_fixture_arithmetic(scenario):
     units = scenario.fixture.unit_by_id()
     expected = scenario.expected
@@ -109,13 +116,13 @@ def test_fixture_arithmetic(scenario):
             assert paid == eligibility.split_paid(sum(paid), len(paid)), order.id
 
 
-@pytest.mark.parametrize("scenario", DEVELOPMENT, ids=lambda s: s.id)
+@pytest.mark.parametrize("scenario", ALL, ids=lambda s: s.id)
 def test_agent_sees_exactly_the_customers_orders(scenario):
     own = {o.id for o in scenario.fixture.orders if o.customer == scenario.customer.id}
     assert set(scenario.agent_visible_orders) == own
 
 
-@pytest.mark.parametrize("scenario", DEVELOPMENT, ids=lambda s: s.id)
+@pytest.mark.parametrize("scenario", ALL, ids=lambda s: s.id)
 def test_citations_and_reasons_name_policy_sections(scenario):
     sections = {section.id for section in POLICY.sections}
     for citation in scenario.expected.cites:
@@ -125,7 +132,7 @@ def test_citations_and_reasons_name_policy_sections(scenario):
         assert set(check.reasons) <= sections, check
 
 
-@pytest.mark.parametrize("scenario", DEVELOPMENT, ids=lambda s: s.id)
+@pytest.mark.parametrize("scenario", ALL, ids=lambda s: s.id)
 def test_the_simulator_gets_only_what_the_customer_knows(scenario):
     view = simulator_view(scenario)
     assert set(view) == {"goal", "opening_message", "facts", "behaviour"}
@@ -195,6 +202,43 @@ def test_held_out_templates_are_unique_and_not_shared_with_development():
 def test_every_held_out_scenario_names_its_closest_development_scenario():
     # The named difference is for the human review before freezing; the test only checks the reference exists.
     assert {row[3] for row in held_out_plan()} <= set(BY_ID)
+
+
+def test_held_out_files_follow_their_rows_of_the_plan():
+    assert [s.id for s in HELD_OUT] == [f"H{n:02d}" for n in range(1, 21)]
+    plan = {row[0]: row for row in held_out_plan()}
+    for scenario in HELD_OUT:
+        _, group, template, _ = plan[scenario.id]
+        assert (scenario.category, scenario.template) == (group, template), scenario.id
+    names = sorted(path.name for path in SPLIT_DIRS["held_out"].glob("*.toml"))
+    assert names == [f"{s.id}-{s.template}.toml" for s in HELD_OUT]
+
+
+def olist_time(value: str) -> datetime:
+    return datetime.fromisoformat(value)
+
+
+@pytest.mark.parametrize("scenario", HELD_OUT, ids=lambda s: s.id)
+def test_held_out_orders_are_the_olist_orders_drawn_for_them(scenario):
+    drawn = {o["order_id"]: o for o in SUBSET["situations"][scenario.id]}
+    assert sorted(o.olist_order for o in scenario.fixture.orders) == sorted(drawn)
+    for order in scenario.fixture.orders:
+        olist = drawn[order.olist_order]
+        assert order.status == olist["status"], order.id
+        items = {item["order_item_id"]: item for item in olist["items"]}
+        assert sorted(u.olist_item for u in order.units) == sorted(items), order.id
+        for unit in order.units:
+            item = items[unit.olist_item]
+            assert (unit.paid_minor, unit.shipping_minor) == (item["price_minor"], item["freight_minor"]), unit.id
+            assert unit.price_minor == item["price_minor"] or scenario.id in SYNTHETIC_LIST_PRICE, unit.id
+        stated = [(p.method, p.installments, p.amount_minor) for p in order.payments]
+        assert stated == [(p["method"], p["installments"], p["amount_minor"]) for p in olist["payments"]], order.id
+        # The dates are moved as one block: from purchase to delivery takes as long as it did at Olist.
+        if olist["delivered_at"] is None:
+            assert order.delivered_at is None, order.id
+        else:
+            taken = olist_time(olist["delivered_at"]) - olist_time(olist["purchased_at"])
+            assert order.delivered_at - order.purchased_at == taken, order.id
 
 
 # The loader rejects broken scenarios

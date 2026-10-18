@@ -1,0 +1,80 @@
+# Every unit of an identical product came back, none refunded before: all of them are refunded in full.
+# Olist order dc1db1e1520b30e1d279a28b53a2f169 (data/olist/subset.json): three units of one housewares product of
+# one seller, 10.99 + freight 11.85 each, one card payment of 68.52 in 3 instalments. The refund: 3 x 1099 = 3297.
+id = "H06"
+title = "All identical units returned"
+split = "held_out"
+category = "eligible"
+template = "all-identical-units-returned"
+policy_version = "v1"
+now = 2026-10-23T10:00:00Z  # delivered 9 Oct 17:47:06, so the deadline is 8 Nov 17:47:06
+agent_visible_orders = ["h06-o1"]
+
+[[fixture.customers]]
+id = "h06-kleber"
+name = "Kleber Souza"
+email = "kleber.souza@example.test"
+
+[[fixture.staff]]
+id = "h06-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h06-o1"
+customer = "h06-kleber"
+status = "delivered"
+purchased_at = 2026-10-01T18:56:47Z
+delivered_at = 2026-10-09T17:47:06Z
+payments = [{ method = "credit_card", amount_minor = 6852, installments = 3 }]  # 3 x 1099 + shipping 3 x 1185
+olist_order = "dc1db1e1520b30e1d279a28b53a2f169"
+
+[[fixture.orders.units]]
+id = "h06-o1-u1"
+product = "Glass storage jar"
+price_minor = 1099
+paid_minor = 1099
+shipping_minor = 1185
+received_back_at = 2026-10-21T09:00:00Z
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h06-o1-u2"
+product = "Glass storage jar"
+price_minor = 1099
+paid_minor = 1099
+shipping_minor = 1185
+received_back_at = 2026-10-21T09:00:00Z
+olist_item = 2
+
+[[fixture.orders.units]]
+id = "h06-o1-u3"
+product = "Glass storage jar"
+price_minor = 1099
+paid_minor = 1099
+shipping_minor = 1185
+received_back_at = 2026-10-21T09:00:00Z
+olist_item = 3
+
+[customer]
+id = "h06-kleber"
+goal = "Get your money back for all three glass storage jars you sent back."
+opening_message = "Hi, I returned the three glass storage jars I ordered. Please refund them."
+facts = [{ text = "The jars were smaller than you expected.", reveal = "when_asked" }]
+behaviour = ["Confirm a refund proposal for all three jars."]
+confirms = { units = ["h06-o1-u1", "h06-o1-u2", "h06-o1-u3"], amount_minor = 3297 }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h06-o1-u1", "h06-o1-u2", "h06-o1-u3"]
+decision = "eligible"
+amount_minor = 3297
+
+[expected]
+refunded_units = ["h06-o1-u1", "h06-o1-u2", "h06-o1-u3"]
+refund_amount_minor = 3297
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+communication = ["states_correct_amount", "gives_this_receipt"]

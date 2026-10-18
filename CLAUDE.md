@@ -47,12 +47,13 @@ logged with its date at the end of `docs/plan.md`. No new planning rounds.
 
 ## Now
 
-Phase 5 (§15) in progress: the six findings of the outside review of 2026-10-15 are fixed (`docs/plan.md` change
-log); the agent runs GPT-6 Luna with reasoning `none` (`docs/pilot/results.md`, which also lists what stays open).
-Property tests done: `tests/acceptance/test_properties.py`, 11 of 11 planted bugs caught (`docs/failure-cases.md`).
-Browser tests done: `tests/browser/` (refund, restart, lost answer; 10 of 10 planted bugs, `docs/screens.md`). CI
-written (`.github/workflows/ci.yml`), not yet run: the repository has no remote. Next: the user's full suite, then
-the phase 5 commit. Commit once per phase.
+Phase 5 (§15) done and committed: review fixes, property tests (11 of 11 planted bugs), browser tests (10 of 10),
+CI written but not run (no remote). Phase 6 preparation: the Olist subset (`refund_agent/olist.py`, `data/olist/`,
+CC BY-NC-SA 4.0) and the twenty held-out scenarios built on it (`scenarios/held-out/`), reviewed by the user against
+their closest development scenarios on 2026-10-18, not frozen yet; development scenarios stay synthetic (plan change
+log). Next: the run before the freeze on the development set (`docs/pilot/predictions.md`, last section), the
+user's dialogue audit, then the freeze (`scenarios/held-out/FROZEN`), quality targets, and the final evaluation
+command. From now on nothing in the agent changes because of what the held-out scenarios ask.
 
 ## Environment
 

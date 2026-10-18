@@ -1,0 +1,86 @@
+# Every unit of the order was already refunded; the customer asks again. Nothing remains to refund.
+# Olist order 3735a11cbccd8916dbc9ccf5f671cc2c (data/olist/subset.json): a cool_stuff item, 58.90 + freight 24.33,
+# and a tablets_printing_image item, 99.00 + freight 8.76, from two sellers, one card payment of 190.99 in 5
+# instalments. The earlier refund of both, 5890 + 9900 = 15790, is synthetic.
+id = "H10"
+title = "Everything already refunded, asked again"
+split = "held_out"
+category = "ineligible"
+template = "everything-already-refunded"
+policy_version = "v1"
+now = 2026-10-27T10:00:00Z  # delivered 28 Sep 18:32:17, so the deadline is 28 Oct 18:32:17
+agent_visible_orders = ["h10-o1"]
+
+[[fixture.customers]]
+id = "h10-otavio"
+name = "Otavio Barros"
+email = "otavio.barros@example.test"
+
+[[fixture.staff]]
+id = "h10-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h10-o1"
+customer = "h10-otavio"
+status = "delivered"
+purchased_at = 2026-09-23T07:43:57Z
+delivered_at = 2026-09-28T18:32:17Z
+payments = [{ method = "credit_card", amount_minor = 19099, installments = 5 }]  # 5890 + 9900 + shipping 2433 + 876
+olist_order = "3735a11cbccd8916dbc9ccf5f671cc2c"
+
+[[fixture.orders.units]]
+id = "h10-o1-u1"
+product = "USB desk fan"
+price_minor = 5890
+paid_minor = 5890
+shipping_minor = 2433
+received_back_at = 2026-10-06T10:00:00Z
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h10-o1-u2"
+product = "Aluminium tablet stand"
+price_minor = 9900
+paid_minor = 9900
+shipping_minor = 876
+received_back_at = 2026-10-06T10:00:00Z
+olist_item = 2
+
+[[fixture.past_refunds]]
+units = ["h10-o1-u1", "h10-o1-u2"]
+committed_at = 2026-10-09T12:00:00Z
+receipt_number = "R-H10-0001"
+
+[customer]
+id = "h10-otavio"
+goal = "Get your money back for the desk fan and the tablet stand you returned."
+opening_message = "Hello, I returned the desk fan and the tablet stand at the start of the month. When do I get my refund?"
+facts = [
+    { text = "You sent both items back in one parcel at the start of October.", reveal = "upfront" },
+    { text = "You have not looked at your card statement since then.", reveal = "when_asked" },
+]
+behaviour = [
+    "If you are told that both items were already refunded, ask for the receipt number, then accept and end the conversation.",
+]
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h10-o1-u1", "h10-o1-u2"]
+decision = "refused"
+reasons = ["remaining"]
+
+[[policy_checks]]
+units = ["h10-o1-u2"]
+decision = "refused"
+reasons = ["remaining"]
+
+[expected]
+refund_amount_minor = 0
+last_proposal_status = ["ineligible", "none"]
+handoff = "forbidden"
+cites = ["refund-policy/v1/remaining"]
+communication = ["explains_refusal_reason"]

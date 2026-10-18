@@ -10,14 +10,18 @@ from refund_agent.scenarios import load_split
 
 POLICY = load_policy()
 DEVELOPMENT = {s.id: s for s in load_split("development")}
+SCENARIOS = {s.id: s for s in (*load_split("development"), *load_split("held_out"))}
 
 
-@pytest.mark.parametrize("scenario_id", sorted(DEVELOPMENT))
-def test_every_development_fixture_loads_under_all_constraints(db, scenario_id):
-    seed(db("owner"), DEVELOPMENT[scenario_id], POLICY)
+@pytest.mark.parametrize("scenario_id", sorted(SCENARIOS))
+def test_every_fixture_loads_under_all_constraints(db, scenario_id):
+    scenario = SCENARIOS[scenario_id]
+    seed(db("owner"), scenario, POLICY)
     with db("app").connect() as conn:
         units = conn.execute(text("SELECT count(*) FROM order_units")).scalar_one()
-    assert units == sum(len(o.units) for o in DEVELOPMENT[scenario_id].fixture.orders)
+        sources = conn.execute(text("SELECT DISTINCT source FROM orders")).scalars().all()
+    assert units == sum(len(o.units) for o in scenario.fixture.orders)
+    assert sources == ["olist" if scenario.split == "held_out" else "synthetic"]
 
 
 @pytest.mark.parametrize(

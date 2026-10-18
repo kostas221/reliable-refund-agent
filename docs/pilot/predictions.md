@@ -87,3 +87,51 @@ evaluator finds no machine failure and the reading of the conversation passes it
 4. 28 to 30 of 30 tries without a machine failure for each setting.
 5. `none` still hands off the friend's order of D07 in at least 1 of 3 tries; nothing here targets it.
 6. Cost under $0.05 per setting.
+
+## Run before the freeze: written on 2026-10-18, after phases 4 and 5 and before this run
+
+### What changes and what runs
+
+- The agent is unchanged since the third check: `gpt-6-luna` with reasoning `none` (chosen there), instructions
+  version 2, the same seven tools.
+- What changed around it (phases 4 and 5, `docs/plan.md` change log): `list_my_orders` and `get_my_order` list each
+  order's refund requests with their state and receipt (the D10 gap); the agent's messages are stored after each step,
+  in one order with the audit events, and `resolves_ambiguity_first` now needs a customer's answer between the agent's
+  question and the first proposal; the test actor leaves D02's card for the bowl alone open (`cards.other = "wait"`),
+  so the agent's next proposal must replace it, where until 2026-10-15 that card was declined at once; a staff
+  decision reaches the agent through a stored notice; the budget counts every attempt; and `execute` checks
+  `same_conversation`.
+- The ten development scenarios, three tries each, in configuration A: 30 conversations. Simulated customer
+  `gpt-6-luna`, reasoning `low`. Budget $1; the dry run's worst case is $2.56, the third check cost $0.0136 per
+  setting.
+- The twenty held-out scenarios are written and reviewed, but neither run nor frozen. If this run shows a fault in
+  the evaluator or in the scenario format, it is fixed in both sets before the freeze; nothing in a held-out file
+  changes because of what the agent does here.
+
+### The question
+
+Do the third check's results hold with these changes, and what happens to the three items it left open: D09
+proposing before asking (2 of 3 tries with `none`), D02 replacing an open proposal (never measured), and D10 now
+that the agent sees the earlier request?
+
+### Predictions
+
+1. No unauthorized or duplicate committed refund in any of the 30.
+2. 27 to 30 of 30 tries without a machine failure (the third check: 28; the stricter D09 pre-check can only lower
+   it).
+3. D09: a proposal before asking in 1 to 3 of its 3 tries, since nothing the agent sees in D09 changed; each such
+   try now fails `resolves_ambiguity_first` itself, not only `proposal_with_other_units`.
+4. D02: the refund of the bowl and the plate, R$ 104,80, after a new proposal that replaces the open one, in at
+   least 2 of its 3 tries.
+5. D10: no missing citation in any of its 3 tries.
+6. Cost under $0.05.
+
+### How the results are read
+
+- As before, every conversation is read in full by a person before any pending item counts as passed; faults of the
+  simulated customer are counted apart from the agent's.
+- If D09 proposes before asking in 2 or 3 of 3, the follow-up written on 2026-10-14 applies: the citation line of
+  instructions version 2 is taken out and tested on the development set, before the freeze. With 0 or 1 of 3, the
+  instructions stay as they are.
+- These numbers, with three tries of ten scenarios, are the basis for the quality targets written before the final
+  evaluation; no interval is claimed from them.

@@ -5,11 +5,13 @@ Each call goes through call_tool, as the conversation graph will call it, with J
 
 import json
 
+import pytest
+
 from refund_agent.agent.policy_search import WordSearch
 from refund_agent.agent.tools import UNTRUSTED, ToolContext, call_tool
 from refund_agent.fixtures import seed
 from refund_agent.refunds import Actor, confirm, decide, open_conversation
-from tests.acceptance.flows import DEVELOPMENT, POLICY, proposed, rows
+from tests.acceptance.flows import DEVELOPMENT, POLICY, SCENARIOS, proposed, rows
 
 
 def agent_for(db, scenario_id, configuration="A"):
@@ -32,6 +34,33 @@ def approve(ctx, proposal_id, staff):
     """The customer's button and the staff decision, which no tool can do."""
     confirm(ctx.engine, Actor("customer", ctx.customer_id), proposal_id, "confirmed", ctx.clock(), POLICY)
     decide(ctx.engine, Actor("staff", staff), proposal_id, "approved", ctx.clock(), POLICY)
+
+
+# Every fixture, before the final evaluation
+
+
+@pytest.mark.parametrize("scenario_id", sorted(SCENARIOS))
+def test_every_tool_answers_on_every_fixture(db, scenario_id):
+    """A paid run must not stop on a fixture shape the development set lacks (an order not delivered, two payments,
+    a second customer): every read, and a proposal for each unit alone, own or not, answers with a result or a
+    refusal, never an error."""
+    scenario = SCENARIOS[scenario_id]
+    seed(db("owner"), scenario, POLICY)
+    app = db("app")
+    customer = scenario.customer.id
+
+    def tools() -> ToolContext:
+        conversation = open_conversation(app, Actor("customer", customer), scenario.now)
+        return ToolContext(app, POLICY, WordSearch(POLICY), lambda: scenario.now, customer, conversation)
+
+    listed = call(tools(), "list_my_orders")
+    assert sorted(o["order_id"] for o in listed["orders"]) == sorted(scenario.agent_visible_orders)
+    for order in scenario.fixture.orders:
+        own = order.customer == customer
+        assert call(tools(), "get_my_order", order_id=order.id)["ok"] == own, order.id
+        for unit in order.units:
+            answer = call(tools(), "propose_refund", order_id=order.id, unit_ids=[unit.id])
+            assert answer["ok"] if own else answer.get("refused") == "actor_owns", answer
 
 
 # What the agent can see

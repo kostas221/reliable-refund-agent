@@ -128,9 +128,14 @@ where configuration C pays.
    (c) the final evaluation's command refuses to start unless every file matches that list; (d) after that the
    files are not edited, not used for tuning, and run only in the final evaluation (3 repeats x 3 configurations).
    The run before the freeze uses development scenarios only.
-4. **Fixtures:** the development fixtures are synthetic because the Olist subset is not imported yet. Once it is,
-   the orders of both sets take their shapes and prices from it, so development and held-out come from the same
-   source; the source of every order is recorded.
+4. **Fixtures:** the held-out orders are real Olist orders, drawn for their situations by
+   `refund_agent/olist.py` into `data/olist/subset.json` ([data/olist/README.md](../data/olist/README.md): the
+   source, the licence, what is real and what is synthetic); each fixture names the Olist order it copies, and a
+   test checks that its numbers are that order's. The development fixtures stay synthetic: this item first said
+   both sets would take their orders from Olist, but the development IDs appear 546 times in 42 test files, and the
+   final evaluation runs the held-out set only (plan change log, 2026-10-18). The two sets therefore come from
+   different sources, a limit of the evaluation: the held-out orders are, if anything, less like the ones the agent
+   was built on.
 5. **After the final run:** a bug found then is fixed and the earlier report is kept; a new held-out claim needs new
    scenarios (plan section 15).
 
