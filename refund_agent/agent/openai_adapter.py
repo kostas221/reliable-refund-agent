@@ -132,7 +132,8 @@ class OpenAIResponses:
 
     def worst_case_usd(self, request: dict) -> float:
         tokens = estimated_tokens(json.dumps(request, ensure_ascii=False))
-        return cost_usd(self.model, tokens, 0, self.max_output_tokens)
+        # Every input token at the dearest input price, a cache write: still a bound if the provider writes them all.
+        return cost_usd(self.model, tokens, 0, self.max_output_tokens, cache_write_tokens=tokens)
 
     def respond(self, instructions: str, messages: Sequence[dict], tools: Sequence[dict]) -> ModelTurn:
         return parse(self._send(self.request(instructions, messages, tools)))
@@ -169,8 +170,13 @@ class OpenAIResponses:
         """The cost the answer's usage reports, read before the answer itself: an unusable answer was still billed."""
         usage = getattr(response, "usage", None)
         try:
+            details = usage.input_tokens_details
             return cost_usd(
-                self.model, usage.input_tokens, usage.input_tokens_details.cached_tokens, usage.output_tokens
+                self.model,
+                usage.input_tokens,
+                details.cached_tokens,
+                usage.output_tokens,
+                cache_write_tokens=getattr(details, "cache_write_tokens", 0) or 0,
             )
         except AttributeError:  # no usage, or not the usual shape: the charge is unknown
             return None
@@ -206,6 +212,7 @@ def parse(response: Any) -> ModelTurn:
         usage=Usage(
             input_tokens=usage.input_tokens,
             cached_input_tokens=usage.input_tokens_details.cached_tokens,
+            cache_write_tokens=getattr(usage.input_tokens_details, "cache_write_tokens", 0) or 0,
             output_tokens=usage.output_tokens,
             reasoning_tokens=usage.output_tokens_details.reasoning_tokens,
         )

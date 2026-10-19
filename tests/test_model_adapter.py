@@ -70,7 +70,13 @@ def test_the_log_holds_each_request_in_full(tmp_path):
     assert (first["instructions"], first["instructions_sha256"]) == (INSTRUCTIONS.text, INSTRUCTIONS.sha256)
     assert first["messages"] == messages and first["tools"] == TOOL_LIST
     assert first["answer"]["tool_calls"][0]["name"] == "list_my_orders"
-    assert first["usage"] == {"input_tokens": 0, "cached_input_tokens": 0, "output_tokens": 0, "reasoning_tokens": 0}
+    assert first["usage"] == {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "cache_write_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+    }
     assert failed["error"]["kind"] == "invalid_output"  # a failure is logged too, then raised
 
 

@@ -23,12 +23,14 @@ TOOLS = tool_definitions()
 
 
 class FakeResponse:
-    def __init__(self, output, status="completed", usage=(1200, 200, 150, 60), model="gpt-6-luna-2026-09-30"):
+    def __init__(
+        self, output, status="completed", usage=(1200, 200, 150, 60), model="gpt-6-luna-2026-09-30", written=0
+    ):
         self.id, self.model, self.status, self.output, self.incomplete_details = "resp_1", model, status, output, None
         inputs, cached, outputs, reasoning = usage
         self.usage = openai.types.responses.ResponseUsage(
             input_tokens=inputs,
-            input_tokens_details={"cached_tokens": cached, "cache_write_tokens": 0},
+            input_tokens_details={"cached_tokens": cached, "cache_write_tokens": written},
             output_tokens=outputs,
             output_tokens_details={"reasoning_tokens": reasoning},
             total_tokens=inputs + outputs,
@@ -265,3 +267,28 @@ def test_after_an_attempt_that_cost_more_than_its_reservation_nothing_more_is_se
     with pytest.raises(BudgetExceeded, match="cost more than its worst case"):
         adapter.respond("", HI, TOOLS)
     assert len(client.requests) == 1
+
+
+# Prices as checked on 2026-10-19: Sol's cached input, and cache writes
+
+
+def test_cache_writes_are_billed_at_their_own_price():
+    # 1000 input tokens: 200 read from the cache, 300 written to it, 500 plain; 100 output tokens.
+    paid = (500 * 2.00 + 200 * 0.10 + 300 * 2.50 + 100 * 10.00) / 1_000_000
+    assert cost_usd("gpt-6.1-sol", 1000, 200, 100, cache_write_tokens=300) == pytest.approx(paid)
+
+
+def test_the_adapter_counts_the_cache_writes_an_answer_reports():
+    budget = Budget(limit_usd=1.0)
+    answer = FakeResponse([message("Hello!")], written=1000)
+    adapter = OpenAIResponses("gpt-6-luna", "low", client=FakeClient(answer), budget=budget)
+    turn = adapter.respond("", HI, TOOLS)
+    assert turn.usage.cache_write_tokens == 1000
+    assert budget.spent_usd == pytest.approx(cost_usd("gpt-6-luna", 1200, 200, 150, cache_write_tokens=1000))
+
+
+def test_the_worst_case_holds_even_if_every_input_token_is_written_to_the_cache():
+    adapter = OpenAIResponses("gpt-6.1-sol", "low")
+    request = adapter.request("", HI, TOOLS)
+    tokens = estimated_tokens(json.dumps(request, ensure_ascii=False))
+    assert adapter.worst_case_usd(request) == pytest.approx(cost_usd("gpt-6.1-sol", tokens, 0, 4000, tokens))

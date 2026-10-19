@@ -17,11 +17,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-# USD per 1M tokens: (input, cached input, output). List prices as recorded on 2026-10-07 in the Agent Action Guard
-# project; the pilot command makes the person running it confirm the date they checked them (plan section 12).
-PRICES: dict[str, tuple[float, float, float]] = {
-    "gpt-6-luna": (0.10, 0.01, 0.50),
-    "gpt-6.1-sol": (2.00, 0.20, 10.00),
+# USD per 1M tokens: (input, cached input, cache writes, output), standard tier, as the user read them on the
+# models' pages on 2026-10-19. They corrected what was recorded on 2026-10-07: Sol's cached input is $0.10, not $0.20,
+# and cache writes, 1.25 times the input price, were not counted before. The paid commands make the person running
+# them confirm the date they checked the prices (plan section 12).
+PRICES: dict[str, tuple[float, float, float, float]] = {
+    "gpt-6-luna": (0.10, 0.01, 0.125, 0.50),
+    "gpt-6.1-sol": (2.00, 0.10, 2.50, 10.00),
 }
 
 
@@ -29,11 +31,15 @@ class BudgetExceeded(Exception):
     """The next request could cross the budget, so it was not sent."""
 
 
-def cost_usd(model: str, input_tokens: int, cached_tokens: int, output_tokens: int) -> float:
-    """output_tokens include reasoning tokens, which are billed as output."""
-    price_input, price_cached, price_output = PRICES[model]
-    fresh = input_tokens - cached_tokens
-    return (fresh * price_input + cached_tokens * price_cached + output_tokens * price_output) / 1_000_000
+def cost_usd(
+    model: str, input_tokens: int, cached_tokens: int, output_tokens: int, cache_write_tokens: int = 0
+) -> float:
+    """input_tokens include the cached and the cache-written ones, each billed at its own price; output_tokens
+    include reasoning tokens, which are billed as output."""
+    price_input, price_cached, price_write, price_output = PRICES[model]
+    fresh = input_tokens - cached_tokens - cache_write_tokens
+    paid = fresh * price_input + cached_tokens * price_cached + cache_write_tokens * price_write
+    return (paid + output_tokens * price_output) / 1_000_000
 
 
 FRAMING_TOKENS = 256  # the provider's own markers around instructions, messages and tools, generously
