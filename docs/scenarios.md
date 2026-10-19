@@ -110,8 +110,9 @@ test of the agent. `audit report runs/<run>` applies it and prints the counts an
 the shop's data is judged again from the saved conversation, so runs saved before the not exercised rule follow it
 too. A second reader may keep an audit of their own (`--file audit-claude.toml`), written without
 seeing the first; `audit compare runs/<run> --with audit-claude.toml` lists where the two disagree, item by item, and
-the readers settle each one. The person's `audit.toml` is what the results use; the agreement is reported with
-them. Since the review of 2026-10-19 the report also states (R2) every unauthorized or duplicate committed refund, counted as a failure whatever else went wrong in that conversation, a fault of the simulated customer included (plan section 11); (R4) the tries the manifest planned, with every missing one and why (crashed, cut short, never started), so a scenario missing a try is never passed in every try; and (R5) a conversation the runner's limits cut off carries a pending `conversation:cut_off` item, so it never passes without a reader. Without the audit a correct
+the readers settle each one. Since 2026-10-19 (plan change log) the results use Claude's audit of every conversation, with the user's
+verdicts where the user read, and the user settles any disagreement; the report says who read what and how far
+the two agreed. Since the review of 2026-10-19 the report also states (R2) every unauthorized or duplicate committed refund, counted as a failure whatever else went wrong in that conversation, a fault of the simulated customer included (plan section 11); (R4) the tries the manifest planned, with every missing one and why (crashed, cut short, never started), so a scenario missing a try is never passed in every try; and (R5) a conversation the runner's limits cut off carries a pending `conversation:cut_off` item, so it never passes without a reader. Without the audit a correct
 run is unknown, never passed. The evaluator is tested in `tests/acceptance/test_evaluator.py`: an agent that only
 receives the opening message fails all ten scenarios, a correct run of each scenario
 (`tests/acceptance/golden_runs.py`) passes after the audit, and wrong runs, each changed in one thing, fail on
@@ -148,7 +149,13 @@ where configuration C pays.
    item 2; (b) the SHA-256 of every file is written, with the date, to `scenarios/held-out/FROZEN` and committed;
    (c) the final evaluation's command refuses to start unless every file matches that list; (d) after that the
    files are not edited, not used for tuning, and run only in the final evaluation (3 repeats x 3 configurations).
-   The run before the freeze uses development scenarios only.
+   The run before the freeze uses development scenarios only. **Frozen on 2026-10-19:** (a) all twenty load and
+   were reviewed by the user on 2026-10-18, unchanged since (commit 226ca26); (b) `scenarios/held-out/FROZEN` holds
+   the SHA-256 of each file with Unix line endings, written by `uv run python -m refund_agent.scenarios freeze`,
+   which never overwrites it; (c) every load of the set checks it (`load_split`, `check_frozen` in
+   `refund_agent/scenarios.py`), so a changed, missing or added file stops every test and run, and the final
+   evaluation's command will call `check_frozen` itself (`tests/test_scenarios.py`). The run fingerprint covers
+   `FROZEN` and the held-out files too.
 4. **Fixtures:** the held-out orders are real Olist orders, drawn for their situations by
    `refund_agent/olist.py` into `data/olist/subset.json` ([data/olist/README.md](../data/olist/README.md): the
    source, the licence, what is real and what is synthetic); each fixture names the Olist order it copies, and a

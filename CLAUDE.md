@@ -57,10 +57,12 @@ log). The first run before the freeze (2026-10-18, 30 of 30 clean) found that D0
 `docs/pilot/results.md`. The dialogue audit of both (Claude all 60, the user 13; 2026-10-19) found the D09 question
 pattern and the missing rejection reason: fixed by instructions v3 (`prompts/agent-v3.md`) and a required staff
 reason (migration 0006). The outside review `docs/review-2026-10-19.md`: all 11 findings confirmed and fixed with
-targeted tests (plan change log, 2026-10-19), with the rule for the final evaluation's dialogue audit. Next: the third
-run before the freeze, for v3 (`docs/pilot/predictions.md`, last section), its audit by that rule, then the freeze
-(`scenarios/held-out/FROZEN`), quality targets, and the final evaluation command (a new runner: the simulator stays
-Luna in configuration B). From now on nothing in the agent changes because of what the held-out scenarios ask.
+targeted tests (plan change log, 2026-10-19), with the rule for the final evaluation's dialogue audit. The third
+run before the freeze (v3: 29 of 30, D09 and D04 fixed, one unneeded D06 handoff kept as a known weakness) and the
+**freeze of the held-out set on 2026-10-19** (`scenarios/held-out/FROZEN`, checked on every load). The agent under
+evaluation is fixed: Luna, reasoning `none`, instructions v3. Next: the quality targets (written before the final
+run), then the final evaluation command (a new runner: frozen check, A/B/C, 3 repeats, budget, manifest, the
+simulator stays Luna in configuration B, paired bootstrap, report). Nothing in the agent changes from here.
 
 ## Environment
 

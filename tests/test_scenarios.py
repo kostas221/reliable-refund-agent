@@ -20,15 +20,21 @@ from refund_agent.policy import REPO_ROOT, load_policy
 from refund_agent.scenarios import (
     COMMUNICATION,
     FORBIDDEN,
+    FROZEN,
     GLOBAL_FORBIDDEN,
     RENDERED_PATH,
     SPLIT_DIRS,
     Communication,
     Forbidden,
+    FrozenError,
     ProposalStatus,
     Scenario,
+    check_frozen,
     customer_confirms,
+    file_sha256,
     format_brl,
+    freeze,
+    frozen_hashes,
     load_split,
     render_markdown,
     simulator_view,
@@ -278,3 +284,58 @@ def test_broken_scenario_is_rejected(change, message):
     change(raw)
     with pytest.raises(ValidationError, match=message):
         Scenario.model_validate(raw)
+
+
+# The freeze of the held-out set (docs/scenarios.md, held-out plan, item 3)
+
+
+def test_the_held_out_set_is_frozen_and_every_file_matches():
+    held_out = SPLIT_DIRS["held_out"]
+    check_frozen()
+    assert sorted(frozen_hashes(held_out)) == sorted(path.name for path in held_out.glob("*.toml"))
+    assert len(frozen_hashes(held_out)) == 20
+
+
+@pytest.fixture
+def copy(tmp_path):
+    """A frozen copy of the held-out set."""
+    for path in SPLIT_DIRS["held_out"].glob("*.toml"):
+        (tmp_path / path.name).write_bytes(path.read_bytes())
+    freeze(tmp_path, ["a test copy"])
+    return tmp_path
+
+
+def test_a_changed_missing_or_added_held_out_file_stops_every_load(copy):
+    first, second = sorted(copy.glob("*.toml"))[:2]
+    first.write_text(first.read_text(encoding="utf-8").replace("refund", "Refund", 1), encoding="utf-8")
+    second.unlink()
+    (copy / "H21-new.toml").write_text("id = 'H21'\n", encoding="utf-8")
+    with pytest.raises(FrozenError) as refused:
+        check_frozen(copy)
+    assert f"changed ['{first.name}'], missing ['{second.name}'], added ['H21-new.toml']" in str(refused.value)
+
+
+def test_line_endings_alone_do_not_count_as_a_change(copy):
+    path = sorted(copy.glob("*.toml"))[0]
+    before = file_sha256(path)
+    path.write_bytes(path.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+    assert file_sha256(path) == before
+    check_frozen(copy)
+
+
+def test_a_freeze_is_written_once_and_an_unfrozen_set_is_refused(copy, tmp_path_factory):
+    with pytest.raises(FrozenError, match="frozen already"):
+        freeze(copy, ["again"])
+    assert (copy / FROZEN).read_text(encoding="utf-8").startswith("# a test copy\n")
+    with pytest.raises(FrozenError, match="not frozen"):
+        check_frozen(tmp_path_factory.mktemp("never-frozen"))
+
+
+def test_loading_the_held_out_set_checks_the_freeze_itself(copy, monkeypatch):
+    # Every test, evaluator check and run loads the set through load_split: none can use a changed file.
+    monkeypatch.setitem(SPLIT_DIRS, "held_out", copy)
+    assert len(load_split("held_out")) == 20
+    path = sorted(copy.glob("*.toml"))[0]
+    path.write_text(path.read_text(encoding="utf-8") + "# a late edit\n", encoding="utf-8")
+    with pytest.raises(FrozenError, match=path.name):
+        load_split("held_out")

@@ -14,6 +14,8 @@ The development scenarios are summarized in docs/development-scenarios.md, rende
 
 from __future__ import annotations
 
+import hashlib
+import sys
 import tomllib
 from collections.abc import Iterable
 from datetime import datetime, timedelta
@@ -438,8 +440,56 @@ def load_scenario(path: Path) -> Scenario:
     return scenario
 
 
+# The freeze of the held-out set (docs/scenarios.md, held-out plan, item 3): the SHA-256 of every held-out file,
+# written once, before any run of them. A file that changed, went missing or was added stops every load.
+FROZEN = "FROZEN"
+
+
+class FrozenError(Exception):
+    """The held-out files are not the ones that were frozen, or were never frozen."""
+
+
+def file_sha256(path: Path) -> str:
+    """Of the text with Unix line endings, so a Windows checkout hashes like any other."""
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
+def frozen_hashes(directory: Path) -> dict[str, str]:
+    """File name -> SHA-256, as the freeze recorded them."""
+    path = directory / FROZEN
+    if not path.exists():
+        raise FrozenError(f"{directory.name}/ is not frozen: no {FROZEN} file")
+    lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line and not line.startswith("#")]
+    return {name: digest for digest, name in (line.split("  ", 1) for line in lines)}
+
+
+def check_frozen(directory: Path = SPLIT_DIRS["held_out"]) -> None:
+    """Refuses unless every held-out file is exactly one the freeze recorded, and none is missing or added."""
+    frozen = frozen_hashes(directory)
+    now = {path.name: file_sha256(path) for path in sorted(directory.glob("*.toml"))}
+    changed = sorted(name for name in frozen.keys() & now.keys() if frozen[name] != now[name])
+    missing, added = sorted(frozen.keys() - now.keys()), sorted(now.keys() - frozen.keys())
+    if changed or missing or added:
+        raise FrozenError(
+            f"the held-out set is not the one frozen in {directory.name}/{FROZEN}: changed {changed}, "
+            f"missing {missing}, added {added}"
+        )
+
+
+def freeze(directory: Path, header: list[str]) -> Path:
+    """Writes the freeze once. Freezing again is a deliberate act: the earlier file has to be removed by hand."""
+    path = directory / FROZEN
+    if path.exists():
+        raise FrozenError(f"{directory.name}/ is frozen already; {FROZEN} is never overwritten")
+    rows = [f"{file_sha256(file)}  {file.name}" for file in sorted(directory.glob("*.toml"))]
+    path.write_text("\n".join([*(f"# {line}" for line in header), *rows]) + "\n", encoding="utf-8", newline="\n")
+    return path
+
+
 def load_split(split: Literal["development", "held_out"]) -> tuple[Scenario, ...]:
     directory = SPLIT_DIRS[split]
+    if split == "held_out" and (directory / FROZEN).exists():
+        check_frozen(directory)
     scenarios = tuple(load_scenario(path) for path in sorted(directory.glob("*.toml"))) if directory.exists() else ()
     wrong = [s.id for s in scenarios if s.split != split]
     if wrong:
@@ -500,7 +550,19 @@ def render_markdown() -> str:
     return "\n".join(lines)
 
 
+FREEZE_HEADER = [
+    "The held-out set, frozen on 2026-10-19 (docs/scenarios.md, held-out plan, item 3; plan change log).",
+    "Written and reviewed by the user against its closest development scenarios on 2026-10-18; all twenty load",
+    "under the strict schema and copy their Olist orders (tests/test_scenarios.py). None was run by an agent or model.",
+    "From now on these files are not edited, not used for tuning, and run only in the final evaluation.",
+    "SHA-256 of each file with Unix line endings, then its name:",
+]
+
+
 def main() -> None:
+    if sys.argv[1:] == ["freeze"]:
+        print(f"wrote {freeze(SPLIT_DIRS['held_out'], FREEZE_HEADER).relative_to(REPO_ROOT).as_posix()}")
+        return
     RENDERED_PATH.write_text(render_markdown(), encoding="utf-8", newline="\n")
     print(f"wrote {RENDERED_PATH.relative_to(REPO_ROOT).as_posix()}")
 
