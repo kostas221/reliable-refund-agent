@@ -15,13 +15,18 @@ The business clock moves one minute per step, so the order of events is plain. A
 of the system, and a failure of the simulated customer is the evaluation's: each is kept in the result, apart, and
 the evaluator still judges what the database holds (plan section 11). A budget stop ends the conversation the same
 way: what was done before it is judged and kept (outside review of 2026-10-15).
+
+Besides the verdict, a result keeps what the final report needs and the database will not hold once it is dropped
+(plan section 11): every attempt the backend refused, the origin of every handoff, and how long each run of the
+agent took (one per customer message or notice: the automated part, without the people's waiting).
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
-from dataclasses import dataclass
+import time
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -64,6 +69,9 @@ class RunResult:
     # How the conversation ended: customer_ended (by the customer), round_limit or customer_limit (cut off by the
     # runner's bound, never a normal end: review of 2026-10-19, R5), agent_error, simulator_error or budget.
     ended: str = "customer_ended"
+    refusals: list[dict] = field(default_factory=list)  # attempts the backend refused: event, check, actor type
+    handoff_origins: list[str] = field(default_factory=list)  # customer, agent or staff, in order
+    agent_seconds: list[float] = field(default_factory=list)  # each run of the agent, wall-clock
 
 
 def run_scenario(
@@ -86,18 +94,27 @@ def run_scenario(
     conversation = open_conversation(app, Actor("customer", scenario.customer.id), clock())
     error = simulator_error = stopped = None
     ended = "round_limit"  # unless the loop ends otherwise
+    seconds: list[float] = []
+
+    def timed(run: Callable[[], object]) -> object:
+        started = time.perf_counter()
+        try:
+            return run()
+        finally:
+            seconds.append(round(time.perf_counter() - started, 3))
+
     try:
         clock.tick()
-        agent.receive(conversation, customer.opening())
+        timed(lambda: agent.receive(conversation, customer.opening()))
         for _ in range(max_rounds):
-            if _people_act(scenario, app, agent, conversation, clock, policy):
+            if _people_act(scenario, app, agent, conversation, clock, policy, timed):
                 continue
             line = customer.next_line(_transcript(agent.messages(conversation)))
             if line is None:
                 ended = "customer_limit" if getattr(customer, "cut_off", False) else "customer_ended"
                 break
             clock.tick()
-            agent.receive(conversation, line)
+            timed(lambda line=line: agent.receive(conversation, line))
     except (ModelError, AgentLoopError) as failure:
         error, ended = f"{type(failure).__name__}: {failure}", "agent_error"
     except SimulatorError as failure:
@@ -111,7 +128,38 @@ def run_scenario(
         # The outcome may look complete, but the customer did not end it: a person decides whether it was resolved.
         why = f"cut off by the {CUT_OFF[ended]} before the conversation ended; the dialogue audit decides"
         verdict = Verdict(verdict.scenario, (*verdict.items, Item("conversation:cut_off", "pending", why)))
-    return RunResult(scenario.id, configuration, verdict, messages, len(usage), error, simulator_error, stopped, ended)
+    refusals, origins = _evidence(app, baseline.last_audit_event, conversation)
+    return RunResult(
+        scenario.id,
+        configuration,
+        verdict,
+        messages,
+        len(usage),
+        error,
+        simulator_error,
+        stopped,
+        ended,
+        refusals,
+        origins,
+        seconds,
+    )
+
+
+def _evidence(app: Engine, after_event: int, conversation: str) -> tuple[list[dict], list[str]]:
+    """The attempts refused during the run, and the origins of its handoffs."""
+    with app.connect() as conn:
+        refused = conn.execute(
+            text(
+                "SELECT event, reason, actor_type FROM audit_events WHERE id > :after AND outcome = 'rejected' "
+                "ORDER BY id"
+            ),
+            {"after": after_event},
+        ).mappings()
+        refusals = [{"event": r["event"], "check": r["reason"], "actor": r["actor_type"]} for r in refused]
+        origins = conn.execute(
+            text("SELECT origin FROM handoffs WHERE conversation_id = :c ORDER BY created_at, id"), {"c": conversation}
+        ).scalars()
+        return refusals, list(origins)
 
 
 CUT_OFF = {"round_limit": "runner's limit of rounds", "customer_limit": "simulated customer's limit of messages"}
@@ -151,7 +199,15 @@ def _proposals(app: Engine, conversation: str, status: str) -> list[tuple[str, l
         return [(row["id"], list(row["units"]), row["amount_minor"]) for row in found]
 
 
-def _people_act(scenario: Scenario, app: Engine, agent: Agent, conversation: str, clock: Clock, policy: Policy) -> bool:
+def _people_act(
+    scenario: Scenario,
+    app: Engine,
+    agent: Agent,
+    conversation: str,
+    clock: Clock,
+    policy: Policy,
+    timed: Callable[[Callable[[], object]], object] = lambda run: run(),
+) -> bool:
     """The customer's button and the staff decision. True when the agent was told something and answered."""
     customer, cards = Actor("customer", scenario.customer.id), scenario.customer.cards
     for proposal, units, amount in _proposals(app, conversation, "awaiting_customer_confirmation"):
@@ -171,5 +227,5 @@ def _people_act(scenario: Scenario, app: Engine, agent: Agent, conversation: str
         decide(app, staff, proposal, decision, clock.tick(), policy, reason=reason)
         clock.tick()
         # The product's path: the decision stored its notice, and the agent is told through the same delivery.
-        return notices.deliver_pending(app, agent, clock, conversation) > 0
+        return timed(lambda: notices.deliver_pending(app, agent, clock, conversation)) > 0
     return False

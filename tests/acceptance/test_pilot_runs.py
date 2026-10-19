@@ -1,6 +1,7 @@
-"""The paid pilot's bookkeeping, with no model and no key: the runner is replaced, the databases are real (review of
-2026-10-19, R3 and R7). A try writes that it started, saves its result before its database is dropped, and an
-unexpected failure keeps its database and is saved; two runs never share a database."""
+"""The paid pilot's bookkeeping, through refund_agent/evaluation/trials.py, with no model and no key: the runner is
+replaced, the databases are real (review of 2026-10-19, R3 and R7). A try writes that it started, saves its result
+before its database is dropped, and an unexpected failure keeps its database and is saved; two runs never share a
+database."""
 
 import argparse
 import json
@@ -12,7 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from refund_agent import db as database
-from refund_agent.evaluation import mock, pilot
+from refund_agent.evaluation import mock, pilot, trials
 from refund_agent.evaluation.evaluator import Verdict
 from refund_agent.evaluation.runner import RunResult
 from refund_agent.fixtures import seed
@@ -75,11 +76,11 @@ def folder_of(tmp_path, scenario_id: str):
 
 def test_a_try_that_crashes_is_saved_and_keeps_its_database(recorded, monkeypatch, tmp_path):
     # The try commits something, then fails in a way the runner does not catch.
-    def crashing(scenario, customer, model, *, owner, app, checkpointer, policy):
+    def crashing(scenario, customer, model, *, owner, policy, **_):
         seed(owner, scenario, policy)
         raise RuntimeError("the connection to the database was lost")
 
-    monkeypatch.setattr(pilot, "run_scenario", crashing)
+    monkeypatch.setattr(trials, "run_scenario", crashing)
     assert pilot.paid_run(ARGS, TWO, "abc123") == 3
     folder = folder_of(tmp_path, "D01")
     crash = json.loads((folder / "crash.json").read_text(encoding="utf-8"))
@@ -105,14 +106,14 @@ def test_a_result_is_saved_before_its_database_is_dropped(recorded, monkeypatch,
         return RunResult(scenario.id, "A", Verdict(scenario.id, ()), [], 0, None)
 
     saved = []
-    save = pilot._save
+    save = trials.save_result
 
     def saving(folder, result, *rest):
         saved.append((result.scenario, len(recorded)))
         save(folder, result, *rest)
 
-    monkeypatch.setattr(pilot, "run_scenario", judged)
-    monkeypatch.setattr(pilot, "_save", saving)
+    monkeypatch.setattr(trials, "run_scenario", judged)
+    monkeypatch.setattr(trials, "save_result", saving)
     assert pilot.paid_run(ARGS, TWO, "abc123") == 0
     template = recorded[0][1]
     d01, d04 = (name for kind, name in recorded if kind == "create" and name != template)
@@ -130,7 +131,7 @@ def test_a_result_is_saved_before_its_database_is_dropped(recorded, monkeypatch,
 
 def test_a_failed_save_keeps_the_database(recorded, monkeypatch):
     monkeypatch.setattr(
-        pilot,
+        trials,
         "run_scenario",
         lambda scenario, *_, **__: RunResult(scenario.id, "A", Verdict(scenario.id, ()), [], 0, None),
     )
@@ -138,7 +139,7 @@ def test_a_failed_save_keeps_the_database(recorded, monkeypatch):
     def broken(*_):
         raise OSError("no space left on the disk")
 
-    monkeypatch.setattr(pilot, "_save", broken)
+    monkeypatch.setattr(trials, "save_result", broken)
     with pytest.raises(OSError, match="no space"):
         pilot.paid_run(ARGS, TWO, "abc123")
     (kept,) = [name for kind, name in recorded if kind == "create" and not name.endswith("_template")]
@@ -147,7 +148,7 @@ def test_a_failed_save_keeps_the_database(recorded, monkeypatch):
 
 def test_two_pilots_never_share_a_database(recorded, monkeypatch):
     monkeypatch.setattr(
-        pilot,
+        trials,
         "run_scenario",
         lambda scenario, *_, **__: RunResult(scenario.id, "A", Verdict(scenario.id, ()), [], 0, None),
     )

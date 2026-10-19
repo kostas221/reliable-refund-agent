@@ -15,6 +15,7 @@ from refund_agent.evaluation.audit import (
     gaps,
     main,
     report,
+    review_sample,
     template,
 )
 from refund_agent.scenarios import load_split
@@ -281,3 +282,28 @@ def test_results_the_manifest_did_not_plan_or_in_the_wrong_folder_are_refused(ru
     moved.write_text(moved.read_text(encoding="utf-8").replace('"try": 2', '"try": 1'), encoding="utf-8")
     with pytest.raises(AuditError, match="holds the result of D01 try 1"):
         conversations(run)
+
+
+# The user's part of the audit (plan change log, 2026-10-19)
+
+
+def test_the_user_reads_every_flagged_conversation_and_a_fixed_sample_of_the_rest(run):
+    audit(run, "audit-claude.toml", **{"D01.try2": 'read = true\nnote = "odd wording"'})
+    chosen = review_sample(run)
+    assert chosen["flagged"] == ["D01.try2", "D09.try2"]  # noted by Claude; failed by the machine
+    assert chosen["sampled"] == ["D01.try1", "D09.try1"]  # fewer than 5 left: all of them
+    assert review_sample(run) == chosen
+
+
+def test_in_a_final_run_the_sample_spans_the_configurations(tmp_path):
+    for name in ("A", "B"):
+        folder = tmp_path / name
+        folder.mkdir()
+        for attempt in range(1, 31):
+            save(folder, "D01", attempt, [(PENDING[0], "pending")])
+        plan(folder, ["D01"], 30)
+        audit(folder, "audit-claude.toml")
+    chosen = review_sample(tmp_path)
+    assert chosen["flagged"] == []
+    assert len(chosen["sampled"]) == 6  # 10% of 60
+    assert {key.split("/")[0] for key in chosen["sampled"]} <= {"A", "B"}

@@ -27,21 +27,17 @@ import argparse
 import json
 import os
 import sys
-import uuid
-from dataclasses import asdict
 from datetime import UTC, date, datetime
 from pathlib import Path
 
-from langgraph.checkpoint.postgres import PostgresSaver
-
-from refund_agent import db as database
 from refund_agent.agent.costs import PRICES, Budget
-from refund_agent.agent.model import RecordingAdapter, load_instructions
+from refund_agent.agent.model import load_instructions
 from refund_agent.agent.openai_adapter import OpenAIResponses
 from refund_agent.agent.tools import tool_definitions
 from refund_agent.evaluation import manifest
-from refund_agent.evaluation.customers import SIMULATOR_INSTRUCTIONS, SimulatedCustomer, simulator_instructions
-from refund_agent.evaluation.runner import CUT_OFF, RunResult, run_scenario
+from refund_agent.evaluation.customers import SIMULATOR_INSTRUCTIONS, simulator_instructions
+from refund_agent.evaluation.runner import CUT_OFF
+from refund_agent.evaluation.trials import Batch, run_try
 from refund_agent.policy import REPO_ROOT, load_policy
 from refund_agent.scenarios import load_split
 
@@ -118,31 +114,6 @@ def dry_run(args: argparse.Namespace, scenarios: dict) -> None:
     )
 
 
-def _save(folder: Path, result: RunResult, attempt: int, spent: dict, counted: dict) -> None:
-    record = {
-        "scenario": result.scenario,
-        "try": attempt,
-        "configuration": result.configuration,
-        "result": result.verdict.result,
-        "items": [asdict(item) for item in result.verdict.items],
-        "system_error": result.system_error,
-        "simulator_error": result.simulator_error,
-        "stopped_by_budget": result.stopped_by_budget,
-        "ended": result.ended,
-        "agent_requests": result.model_requests,
-        "spent_usd": spent,
-        "attempts_sent": counted["attempts"],  # every attempt to send a request, retries included
-        "uncertain_usd": counted["uncertain_usd"],  # worst cases counted where the charge is unknown
-        "messages": result.messages,
-    }
-    _write(folder / "result.json", record)
-
-
-def _write(path: Path, record: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(record, indent=2, ensure_ascii=False, default=str), encoding="utf-8", newline="\n")
-
-
 def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str) -> int:
     policy = load_policy()
     started = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -166,10 +137,6 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
         "predictions_commit": predictions_commit,
     }
     (out / "manifest.json").write_text(json.dumps(manifest.build(identity), indent=2), encoding="utf-8", newline="\n")
-    batch = f"refund_pilot_{uuid.uuid4().hex[:8]}"  # this run's databases only
-    template = f"{batch}_template"
-    database.create_database(template)
-    database.migrate(template)
     print(
         f"Pilot {_shown(out)}: {args.model}, reasoning {args.reasoning}, {args.repeats} tries per scenario, "
         f"budget ${args.budget_usd:.2f}"
@@ -177,66 +144,42 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
     clean: dict[str, int] = {}  # tries without a machine failure or an error, per scenario
     not_tested = 0  # tries in which an attack planted in the data never reached the agent
     try:
-        for scenario_id, attempt in [(s, t) for s in sorted(scenarios) for t in range(1, args.repeats + 1)]:
-            scenario, folder = scenarios[scenario_id], out / scenario_id / f"try{attempt}"
-            before = dict(budget.by_role)
-            attempts_before, uncertain_before = budget.requests, budget.uncertain_usd
-            agent = OpenAIResponses(args.model, args.reasoning, role="agent", budget=budget)
-            simulator = OpenAIResponses(args.model, args.simulator_reasoning, role="simulator", budget=budget)
-            run = f"{batch}_{scenario_id.lower()}_{attempt}"
-            _write(folder / "started.json", {"scenario": scenario_id, "try": attempt, "database": run})
-            database.create_database(run, template=template)
-            owner, app = database.engine("owner", run), database.engine("app", run)
-            crash = None
-            try:
-                with database.checkpoint_connection("app", run) as connection:
-                    result = run_scenario(
-                        scenario,
-                        SimulatedCustomer(scenario, RecordingAdapter(simulator, folder / "simulator-requests.jsonl")),
-                        RecordingAdapter(agent, folder / "agent-requests.jsonl"),
-                        owner=owner,
-                        app=app,
-                        checkpointer=PostgresSaver(connection),
-                        policy=policy,
-                    )  # judged before the database is dropped, even when the budget stopped the run
-            except Exception as error:  # not the agent's or the simulator's failure, which the runner records
-                crash = f"{type(error).__name__}: {error}"
-            finally:
-                owner.dispose()
-                app.dispose()
-            spent = {role: budget.by_role.get(role, 0.0) - before.get(role, 0.0) for role in budget.by_role}
-            counted = {
-                "attempts": budget.requests - attempts_before,
-                "uncertain_usd": budget.uncertain_usd - uncertain_before,
-            }
-            if crash is not None:
-                record = {"scenario": scenario_id, "try": attempt, "crash": crash, "kept_database": run}
-                _write(folder / "crash.json", {**record, "spent_usd": spent, **counted})
-                print(
-                    f"{scenario_id} try {attempt}  CRASHED: {crash}. Saved in crash.json; its database {run} is kept "
-                    "for diagnosis; nothing later ran."
+        with Batch("refund_pilot") as batch:
+            for scenario_id, attempt in [(s, t) for s in sorted(scenarios) for t in range(1, args.repeats + 1)]:
+                outcome = run_try(
+                    batch,
+                    scenarios[scenario_id],
+                    attempt,
+                    out / scenario_id / f"try{attempt}",
+                    agent=OpenAIResponses(args.model, args.reasoning, role="agent", budget=budget),
+                    simulator=OpenAIResponses(args.model, args.simulator_reasoning, role="simulator", budget=budget),
+                    budget=budget,
+                    policy=policy,
                 )
-                return 3
-            _save(folder, result, attempt, spent, counted)  # saved first: a failed save keeps the database
-            database.drop_database(run)
-            if result.stopped_by_budget:
+                if outcome.crash is not None:
+                    print(
+                        f"{scenario_id} try {attempt}  CRASHED: {outcome.crash}. Saved in crash.json; its database "
+                        f"{outcome.database} is kept for diagnosis; nothing later ran."
+                    )
+                    return 3
+                result = outcome.result
+                if result.stopped_by_budget:
+                    print(
+                        f"{scenario_id} try {attempt}  STOPPED by the budget before a request: "
+                        f"{result.stopped_by_budget}. Its result is saved, judged on what was done; nothing later ran."
+                    )
+                    return 2
+                failed, untested = result.verdict.names("failed"), result.verdict.names("not_exercised")
+                errors = [e for e in (result.system_error, result.simulator_error) if e]
+                clean[scenario_id] = clean.get(scenario_id, 0) + (not failed and not errors)
+                not_tested += bool(untested)
                 print(
-                    f"{scenario_id} try {attempt}  STOPPED by the budget before a request: {result.stopped_by_budget}."
-                    f" Its result is saved, judged on what was done; nothing later ran."
+                    f"{scenario_id} try {attempt}  {'FAILED: ' + ', '.join(failed) if failed else 'no machine failure'}"
+                    f"{'; NOT EXERCISED: ' + ', '.join(untested) if untested else ''}"
+                    f"{'; CUT OFF: ' + result.ended if result.ended in CUT_OFF else ''}"
+                    f"{'; ERROR: ' + '; '.join(errors) if errors else ''}  (${sum(outcome.spent.values()):.4f})"
                 )
-                return 2
-            failed, untested = result.verdict.names("failed"), result.verdict.names("not_exercised")
-            errors = [e for e in (result.system_error, result.simulator_error) if e]
-            clean[scenario_id] = clean.get(scenario_id, 0) + (not failed and not errors)
-            not_tested += bool(untested)
-            print(
-                f"{scenario_id} try {attempt}  {'FAILED: ' + ', '.join(failed) if failed else 'no machine failure'}"
-                f"{'; NOT EXERCISED: ' + ', '.join(untested) if untested else ''}"
-                f"{'; CUT OFF: ' + result.ended if result.ended in CUT_OFF else ''}"
-                f"{'; ERROR: ' + '; '.join(errors) if errors else ''}  (${sum(spent.values()):.4f})"
-            )
     finally:
-        database.drop_database(template)
         print(
             f"Spent about ${budget.spent_usd:.4f} in {budget.requests} attempts, retries included "
             f"({', '.join(f'{r} ${u:.4f}' for r, u in budget.by_role.items())}); of it ${budget.uncertain_usd:.4f} "

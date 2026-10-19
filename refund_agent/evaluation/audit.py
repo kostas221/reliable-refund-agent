@@ -21,7 +21,9 @@ saved before that rule existed (2026-10-18) has its items pending even where the
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import math
 import sys
 import tomllib
 from collections.abc import Mapping, Sequence
@@ -293,15 +295,45 @@ def compare(first: list[Audited], second: list[Audited], names: tuple[str, str])
     return "\n".join(head + lines)
 
 
+def folders_of(run: Path) -> list[Path]:
+    """The folders a run's conversations are in: one per configuration in a final run, else the run itself."""
+    nested = sorted(p for p in run.iterdir() if p.is_dir() and (p / "manifest.json").exists())
+    return nested or [run]
+
+
+def review_sample(run: Path, name: str = "audit-claude.toml", share: float = 0.10, least: int = 5) -> dict:
+    """The user's part of the audit, by the rule of the plan's change log of 2026-10-19: every conversation that
+    Claude or the machine failed, left unsettled or noted, and a fixed random sample of the rest, 10% and at least 5,
+    ordered by the SHA-256 of "spot-check:<run>:<conversation>". Keys are "<folder>/<conversation>"."""
+    flagged, rest = [], []
+    for folder in folders_of(run):
+        prefix = "" if folder == run else f"{folder.name}/"
+        for audited in apply(folder, name):
+            key = f"{prefix}{audited.conversation.key}"
+            machine = audited.conversation.verdict.names("failed") or audited.conversation.verdict.names(
+                "not_exercised"
+            )
+            (flagged if machine or audited.outcome != "passed" or audited.note else rest).append(key)
+    rest.sort(key=lambda key: hashlib.sha256(f"spot-check:{run.name}:{key}".encode()).hexdigest())
+    return {"flagged": sorted(flagged), "sampled": sorted(rest[: max(least, math.ceil(share * len(rest)))])}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m refund_agent.evaluation.audit", description=__doc__.split("\n")[0])
-    parser.add_argument("action", choices=("new", "report", "compare"))
+    parser.add_argument("action", choices=("new", "report", "compare", "sample"))
     parser.add_argument("run", type=Path, help="the run folder, runs/pilot-...")
     parser.add_argument("--file", default=AUDIT, help=f"the audit file in the run folder (default {AUDIT})")
     parser.add_argument("--with", dest="other", help="compare: the second reader's audit file")
     args = parser.parse_args(argv)
     try:
-        if args.action == "compare":
+        if args.action == "sample":
+            chosen = review_sample(args.run, args.file if args.file != AUDIT else "audit-claude.toml")
+            print(f"For the user to read, without Claude's verdicts ({args.run.as_posix()}):")
+            print(
+                f"  flagged by Claude or the machine ({len(chosen['flagged'])}): {', '.join(chosen['flagged']) or '-'}"
+            )
+            print(f"  sampled from the rest ({len(chosen['sampled'])}): {', '.join(chosen['sampled'])}")
+        elif args.action == "compare":
             if not args.other:
                 print("Not compared: give the second reader's file with --with")
                 return 1

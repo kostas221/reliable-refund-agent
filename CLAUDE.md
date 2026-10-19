@@ -25,6 +25,12 @@ logged with its date at the end of `docs/plan.md`. No new planning rounds.
   predictions and the question written down before the run, a budget cap in the runner.
 - Every result states its denominators, uncertainty and limits. Negative results are reported, not hidden.
 - Windows console is cp1253: console output in ASCII (emoji crash it).
+- Two roles (the user's request, 2026-10-19). Documentation (README, `docs/`, module docstrings that explain a
+  design) is written as a professional technical writer would: for a named reader, the point first, one term per
+  concept, structure by what the reader needs to do or check, examples, and dated history kept in change logs and
+  results rather than in reference text. Ideas, design, implementation and code are done as a senior AI engineer
+  would: evidence over assumption, measured trade-offs, the simplest design that holds, tests that fail without the
+  fix.
 
 ## Rules from the plan (short; details in docs/plan.md)
 
@@ -60,9 +66,11 @@ reason (migration 0006). The outside review `docs/review-2026-10-19.md`: all 11 
 targeted tests (plan change log, 2026-10-19), with the rule for the final evaluation's dialogue audit. The third
 run before the freeze (v3: 29 of 30, D09 and D04 fixed, one unneeded D06 handoff kept as a known weakness) and the
 **freeze of the held-out set on 2026-10-19** (`scenarios/held-out/FROZEN`, checked on every load). The agent under
-evaluation is fixed: Luna, reasoning `none`, instructions v3. Next: the quality targets (written before the final
-run), then the final evaluation command (a new runner: frozen check, A/B/C, 3 repeats, budget, manifest, the
-simulator stays Luna in configuration B, paired bootstrap, report). Nothing in the agent changes from here.
+evaluation is fixed: Luna, reasoning `none`, instructions v3. Quality targets approved and written
+(`docs/quality-targets.md`: none unsafe in A and B, success at least 85%, pass^3 at least 70%). The final
+evaluation's command, report and review sample are written and tested (`docs/final/README.md`), with the
+predictions (`docs/final/predictions.md`). Next: the user checks Sol's price and access, commits, and runs it;
+then Claude's audit of all 180, the user's sample, the report. Nothing in the agent changes from here.
 
 ## Environment
 
