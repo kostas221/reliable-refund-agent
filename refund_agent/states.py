@@ -92,7 +92,8 @@ CHECKS = (
         "valid_values",
         ("INV-2",),
         "The units exist in the order and are distinct, amounts are positive integers, "
-        "and the currency is the policy currency.",
+        "and the currency is the policy currency. A rejection carries the staff member's reason for the customer, "
+        "1 to 500 characters; an approval carries none.",
     ),
     Check(
         "no_confirmed_open_proposal",
@@ -195,7 +196,7 @@ TRANSITIONS = (
         frozenset({Status.AWAITING_STAFF_APPROVAL}),
         Status.APPROVED,
         Actor.STAFF,
-        ("staff_role", "proposal_current", "policy_eligible"),
+        ("staff_role", "valid_values", "proposal_current", "policy_eligible"),
         "A staff member approves in the console.",
     ),
     Transition(
@@ -229,8 +230,8 @@ TRANSITIONS = (
         frozenset({Status.AWAITING_STAFF_APPROVAL}),
         Status.REJECTED,
         Actor.STAFF,
-        ("staff_role",),
-        "A staff member rejects in the console.",
+        ("staff_role", "valid_values"),
+        "A staff member rejects in the console, with a reason for the customer.",
     ),
     Transition(
         "cancel",

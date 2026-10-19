@@ -2,7 +2,8 @@
 
 The identity holds the models, settings, prices, budget and prompt hashes; the fingerprint covers every file that
 decides what a run does (the agent, the backend's rules, the evaluator, the prompts, the policy, the scenarios, the
-schema and the locked dependencies), with line endings made uniform so a Windows checkout hashes like any other.
+schema with the code that applies it, and the dependencies), with line endings made uniform so a Windows checkout
+hashes like any other. The code that sets the database up was missing until the review of 2026-10-19 (R10).
 The commit is recorded too, with whether tracked files had uncommitted changes; untracked files, such as the run's
 own output folder, do not count (the first pilot recorded them as dirty by mistake, though its fingerprint matched its
 commit). Two runs with different fingerprints are different experiments and are never pooled.
@@ -30,7 +31,15 @@ RUN_FILES = (
     "prompts/*.md",
     "policies/*.toml",
     "scenarios/development/*.toml",
+    "scenarios/held-out/*.toml",
+    "scenarios/held-out/FROZEN",
     "migrations/sql/*.sql",
+    "migrations/versions/*.py",
+    "migrations/env.py",
+    "alembic.ini",
+    "docker/initdb/*.sql",
+    "refund_agent/db.py",
+    "pyproject.toml",
     "uv.lock",
 )
 

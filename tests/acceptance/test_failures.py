@@ -114,7 +114,7 @@ def test_a_restart_with_a_pending_approval_continues_from_the_database(db):
 def test_a_rejected_proposal_is_not_paid(app):
     _, proposal = proposed(app, "d01-ana", "d01-o1", ["d01-o1-u1"], "propose-1", NOW)
     confirm(app, CUSTOMER, proposal.id, "confirmed", NOW, POLICY)
-    decide(app, STAFF, proposal.id, "rejected", NOW, POLICY)
+    decide(app, STAFF, proposal.id, "rejected", NOW, POLICY, reason="The mug came back unbroken.")
     assert attempt(app, "d01-ana", proposal.id, "execute-1", NOW) == ("refused", "status_approved")
     nothing_paid(app)
 

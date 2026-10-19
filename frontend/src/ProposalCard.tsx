@@ -43,6 +43,11 @@ export function ProposalCardView({ card, viewer = "customer", children }: Props)
       <p className="state">
         <span className="badge">{status.label}</span> {status.detail}
       </p>
+      {card.rejection_reason && (
+        <p className="reason">
+          The staff member&apos;s reason: <span className="text">{card.rejection_reason}</span>
+        </p>
+      )}
       {card.policy_citations.length > 0 && (
         <p className="cite">
           Policy:{" "}

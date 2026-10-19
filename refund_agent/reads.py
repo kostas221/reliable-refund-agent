@@ -92,6 +92,7 @@ def _requests(conn: Connection, customer_id: str, order_id: str, now: datetime) 
                 "unit_ids": list(units),
                 "created_at": proposal["created_at"],
                 "receipt_number": operation["receipt"]["receipt_number"] if operation else None,
+                "rejection_reason": _rejection_reason(conn, proposal["id"]),
             }
         )
     return result
@@ -121,6 +122,13 @@ def _citations(proposal: RowMapping, policy: Policy) -> list[dict]:
         }
         for reason in proposal["reasons"]
     ]
+
+
+def _rejection_reason(conn: Connection, proposal_id: str) -> str | None:
+    """What the staff member told the customer when rejecting; None for any other decision or none yet."""
+    return conn.execute(
+        text("SELECT reason FROM staff_decisions WHERE proposal_id = :p AND decision = 'rejected'"), {"p": proposal_id}
+    ).scalar()
 
 
 def _display_status(proposal: RowMapping, now: datetime) -> str:
@@ -158,6 +166,7 @@ def proposal_card(conn: Connection, proposal: RowMapping, now: datetime, policy:
         "created_at": proposal["created_at"],
         "expires_at": proposal["expires_at"],
         "receipt": operation["receipt"] if operation else None,
+        "rejection_reason": _rejection_reason(conn, proposal["id"]),
     }
 
 
@@ -218,8 +227,16 @@ def staff_queue(conn: Connection, now: datetime, policy: Policy) -> dict:
         "SELECT h.*, c.customer_id FROM handoffs h JOIN conversations c ON c.id = h.conversation_id "
         "WHERE h.status = 'open' ORDER BY h.created_at",
     )
+    # A decision the agent has not been told of, after a failed delivery: shown until a delivery succeeds, so a
+    # request cannot wait unseen once the delivery's attempts run out (review of 2026-10-19, R1).
+    untold = _rows(
+        conn,
+        "SELECT proposal_id, conversation_id, decision, attempts, last_error FROM agent_notices "
+        "WHERE delivered_at IS NULL AND last_error IS NOT NULL ORDER BY created_at, id",
+    )
     return {
         "awaiting_approval": [staff_proposal(conn, p, now, policy) for p in waiting],
+        "untold_decisions": [dict(n) for n in untold],
         "open_handoffs": [
             {
                 "trusted": {

@@ -284,7 +284,8 @@ class Shop(RuleBasedStateMachine):
     def staff_decides(self, data):
         proposal = self.proposal(data, "awaiting_staff_approval")
         decision = data.draw(st.sampled_from(["approved", "approved", "rejected"]))
-        self.attempt(decide, Actor("staff", self.staff), proposal, decision)
+        reason = {"reason": "The item came back damaged."} if decision == "rejected" else {}
+        self.attempt(decide, Actor("staff", self.staff), proposal, decision, **reason)
 
     @precondition(lambda self: self.proposals)
     @rule(data=st.data())
@@ -372,11 +373,11 @@ class Shop(RuleBasedStateMachine):
         if open_:
             self.until_expiry_of(data.draw(st.sampled_from(open_)), early=data.draw(st.sampled_from([0, 1])))
 
-    def attempt(self, service, actor: Actor, proposal: str, *decision: str) -> None:
+    def attempt(self, service, actor: Actor, proposal: str, *decision: str, **extra: str) -> None:
         """confirm, decide or cancel, a minute after the last action; a refusal is recorded and is no failure."""
         self.tick()
         try:
-            service(self.app, actor, proposal, *decision, self.now, POLICY)
+            service(self.app, actor, proposal, *decision, self.now, POLICY, **extra)
         except Refused as refused:
             event(f"{service.__name__} refused: {refused.check}")
             return

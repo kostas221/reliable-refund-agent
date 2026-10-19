@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import uuid
 
 from langgraph.checkpoint.postgres import PostgresSaver
 
@@ -16,11 +17,9 @@ from refund_agent import db as database
 from refund_agent.agent.model import ScriptedModel
 from refund_agent.evaluation.customers import ScriptedCustomer
 from refund_agent.evaluation.mock_scripts import CARELESS_D01, MOCK
-from refund_agent.evaluation.runner import RunResult, run_scenario
+from refund_agent.evaluation.runner import CUT_OFF, RunResult, run_scenario
 from refund_agent.policy import load_policy
 from refund_agent.scenarios import load_split
-
-TEMPLATE, RUN = "refund_mock_template", "refund_mock_run"
 
 
 def _line(result: RunResult, title: str) -> str:
@@ -34,6 +33,8 @@ def _line(result: RunResult, title: str) -> str:
         outcome = f"no failure; {len(pending)} items wait for a person to read it"
     if untested and not result.system_error:
         outcome += "; NOT EXERCISED: " + ", ".join(untested)
+    if result.ended in CUT_OFF:
+        outcome += f"; CUT OFF: {result.ended}"
     return f"{result.scenario}  {result.configuration}  {title[:44]:<44}  {outcome}"
 
 
@@ -67,14 +68,17 @@ def main() -> None:
     runs = [(sid, MOCK[sid], "A", scenarios[sid].title) for sid in sorted(MOCK)]
     runs += [("D01", CARELESS_D01, c, "careless agent: pays before any approval") for c in ("A", "C")]
     print("Mock runs: scripted agent and customer, real backend and database, no API calls.\n")
-    database.create_database(TEMPLATE)
-    database.migrate(TEMPLATE)
+    # Names of this invocation's own, so a run started meanwhile drops none of them (review of 2026-10-19, R7).
+    batch = f"refund_mock_{uuid.uuid4().hex[:8]}"
+    template, run = f"{batch}_template", f"{batch}_run"
+    database.create_database(template)
+    database.migrate(template)
     try:
         for scenario_id, mock, configuration, title in runs:
-            database.create_database(RUN, template=TEMPLATE)
-            owner, app = database.engine("owner", RUN), database.engine("app", RUN)
+            database.create_database(run, template=template)
+            owner, app = database.engine("owner", run), database.engine("app", run)
             try:
-                with database.checkpoint_connection("app", RUN) as connection:
+                with database.checkpoint_connection("app", run) as connection:
                     result = run_scenario(
                         scenarios[scenario_id],
                         ScriptedCustomer(scenarios[scenario_id], mock.customer),
@@ -88,12 +92,12 @@ def main() -> None:
             finally:
                 owner.dispose()
                 app.dispose()
-                database.drop_database(RUN)
+                database.drop_database(run)
             print(_line(result, title))
             if show == scenario_id and mock is MOCK.get(scenario_id):
                 print("\n".join(_transcript(result)) + "\n")
     finally:
-        database.drop_database(TEMPLATE)
+        database.drop_database(template)
 
 
 if __name__ == "__main__":

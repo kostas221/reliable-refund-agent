@@ -105,6 +105,7 @@ def test_the_agent_sees_the_customers_earlier_requests(db):
             "unit_ids": ["d10-o1-u1"],
             "created_at": "2026-09-11T09:00:00+00:00",
             "receipt_number": None,
+            "rejection_reason": None,
         }
     ]
     assert call(ctx, "get_my_order", order_id="d10-o1")["order"]["requests"] == order["requests"]

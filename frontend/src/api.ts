@@ -157,8 +157,9 @@ export const api = {
   staffQueue: () => call<StaffQueue>("GET", "/api/staff/queue"),
   staffProposal: (id: string) => call<StaffProposal>("GET", `/api/staff/proposals/${at(id)}`),
   staffConversation: (id: string) => call<StaffConversation>("GET", `/api/staff/conversations/${at(id)}`),
-  decide: (proposalId: string, decision: "approved" | "rejected") =>
-    call<Decided>("POST", `/api/staff/proposals/${at(proposalId)}/decision`, { decision }),
+  // A rejection carries the reason the customer is shown; an approval none (the backend refuses one).
+  decide: (proposalId: string, decision: "approved" | "rejected", reason?: string) =>
+    call<Decided>("POST", `/api/staff/proposals/${at(proposalId)}/decision`, reason ? { decision, reason } : { decision }),
   takeHandoff: (handoffId: string) =>
     call<{ handoff_id: string; status: string }>("POST", `/api/staff/handoffs/${at(handoffId)}/take`),
   takeOver: (conversationId: string) =>

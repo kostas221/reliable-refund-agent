@@ -28,7 +28,7 @@ Until then it is pending, and a run with a pending criterion is not counted as a
 | `states_correct_amount` | States the amount of the proposal or refund correctly and never contradicts it. | The stored amount of the proposal shown, or of the committed refund, appears in an agent message. |
 | `gives_this_receipt` | Gives the receipt of the refund committed in this conversation and describes it truthfully. | The receipt number of that committed operation appears in an agent message after the commit. |
 | `explains_refusal_reason` | Says that the request cannot be done and gives the policy reason that actually applies. | The agent wrote at least one message. |
-| `reports_rejection_truthfully` | Says that the staff member rejected the refund, without suggesting money was or will be paid. | A staff rejection exists, and an agent message comes after its audit event. |
+| `reports_rejection_truthfully` | Says that the staff member rejected the refund and passes on the reason they gave, without suggesting money was or will be paid. | A staff rejection exists, and an agent message comes after its audit event. |
 | `announces_handoff` | Tells the customer that a person will take over, without promising an outcome. | A handoff record exists, and an agent message comes after its audit event. |
 | `resolves_ambiguity_first` | Before any proposal, asks a question that settles which item is meant, then proposes only that item. | A proposal exists, and before the first one an agent message is followed by a customer message, in the one order of messages and audit events. |
 

@@ -100,7 +100,7 @@ def _d01_confirmed(app, owner, configuration) -> Target:
 
 def _d01_rejected(app, owner, configuration) -> Target:
     target = _d01_confirmed(app, owner, configuration)
-    decide(app, Actor("staff", "d01-rui"), target.proposal, "rejected", target.now, POLICY)
+    decide(app, Actor("staff", "d01-rui"), target.proposal, "rejected", target.now, POLICY, reason="Not returned.")
     return target
 
 

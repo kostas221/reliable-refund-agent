@@ -30,6 +30,7 @@ export function card(status: ProposalStatus, extra: Partial<ProposalCard> = {}):
     created_at: "2026-09-12T10:00:00Z",
     expires_at: "2026-09-15T10:00:00Z",
     receipt: null,
+    rejection_reason: null,
     ...extra,
   };
 }

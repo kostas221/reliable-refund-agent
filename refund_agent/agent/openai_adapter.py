@@ -151,17 +151,17 @@ class OpenAIResponses:
                 # A rate limit refuses the request before any work; after a timeout, a lost connection or a server
                 # error nobody knows what was billed, so the worst case is counted.
                 unknown = kind != "rate_limit"
-                self._settle(kind, worst if unknown else 0.0, uncertain=unknown)
+                self._settle(kind, worst if unknown else 0.0, worst, uncertain=unknown)
                 if attempt == self.retries:
                     raise ModelError(kind, retryable=True, detail=str(error)) from error
                 self.retries_used += 1
                 time.sleep(2**attempt)
                 continue
             except openai.APIStatusError as error:  # bad request, authentication, permission, not found
-                self._settle("bad_request", 0.0)
+                self._settle("bad_request", 0.0, worst)
                 raise ModelError("bad_request", retryable=False, detail=f"{error.status_code}: {error}") from error
             spent = self._reported_cost(response)
-            self._settle("answered", worst if spent is None else spent, uncertain=spent is None)
+            self._settle("answered", worst if spent is None else spent, worst, uncertain=spent is None)
             return response
         raise AssertionError("unreachable")
 
@@ -175,10 +175,10 @@ class OpenAIResponses:
         except AttributeError:  # no usage, or not the usual shape: the charge is unknown
             return None
 
-    def _settle(self, outcome: str, usd: float, *, uncertain: bool = False) -> None:
+    def _settle(self, outcome: str, usd: float, reserved: float, *, uncertain: bool = False) -> None:
         self.last_attempts.append({"outcome": outcome, "usd": usd, "uncertain": uncertain})
         if self.budget is not None:
-            self.budget.settle(self.role, usd, uncertain=uncertain)
+            self.budget.settle(self.role, usd, uncertain=uncertain, reserved=reserved)
 
 
 def parse(response: Any) -> ModelTurn:

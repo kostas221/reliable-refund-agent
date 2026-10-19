@@ -64,6 +64,23 @@ def test_every_fixture_loads_under_all_constraints(db, scenario_id):
         ("DELETE FROM agent_notices", "permission denied"),
         ("UPDATE agent_notices SET decision = 'approved'", "permission denied"),
         ("UPDATE agent_notices SET proposal_id = 'd03-r1'", "permission denied"),
+        # A rejection carries its reason for the customer and an approval none; neither changes afterwards.
+        (
+            "INSERT INTO staff_decisions (id, proposal_id, staff_id, decision, content_hash, decided_at) "
+            "VALUES ('x', 'd03-r1', 'd03-rui', 'rejected', 'h', now())",
+            "staff_decisions_reason",
+        ),
+        (
+            "INSERT INTO staff_decisions (id, proposal_id, staff_id, decision, content_hash, decided_at, reason) "
+            "VALUES ('x', 'd03-r1', 'd03-rui', 'rejected', 'h', now(), ' ')",
+            "staff_decisions_reason",
+        ),
+        (
+            "INSERT INTO staff_decisions (id, proposal_id, staff_id, decision, content_hash, decided_at, reason) "
+            "VALUES ('x', 'd03-r1', 'd03-rui', 'approved', 'h', now(), 'Fine.')",
+            "staff_decisions_reason",
+        ),
+        ("UPDATE staff_decisions SET reason = 'Changed.'", "permission denied"),
     ],
 )
 def test_application_role_is_refused(db, statement, error):

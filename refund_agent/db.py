@@ -19,7 +19,9 @@ from sqlalchemy import Engine, create_engine, text
 
 from refund_agent.policy import REPO_ROOT
 
-HOST = os.environ.get("REFUND_DB_HOST", "localhost")
+# The address docker-compose.yml publishes the database on, and only there. "localhost" would try IPv6 (::1) first
+# on Windows and wait about three seconds a connection before falling back (2026-10-19).
+HOST = os.environ.get("REFUND_DB_HOST", "127.0.0.1")
 PORT = int(os.environ.get("REFUND_DB_PORT", "5433"))
 ROLES = {
     "admin": ("postgres", "postgres"),

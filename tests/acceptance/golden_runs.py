@@ -66,7 +66,9 @@ class Conversation:
         confirm(self.app, Actor("customer", self.customer_id), proposal, "confirmed", self.tick(), POLICY)
 
     def staff(self, proposal: str, decision: str) -> None:
-        decide(self.app, Actor("staff", self.staff_id), proposal, decision, self.tick(), POLICY)
+        """As the scripted staff member: a rejection gives the scenario's reason."""
+        reason = self.scenario.staff.note if decision == "rejected" else None
+        decide(self.app, Actor("staff", self.staff_id), proposal, decision, self.tick(), POLICY, reason=reason)
 
     def execute(self, proposal: str, key: str) -> str:
         receipt = execute(
@@ -113,7 +115,10 @@ def d04(app: Engine) -> None:
     c.agent("I can refund R$ 189,90 for the wireless earbuds. Please confirm on the card below.")
     c.confirm(proposal)
     c.staff(proposal, "rejected")
-    c.agent("A staff member reviewed the request and rejected it, so no refund will be made for the earbuds.")
+    c.agent(
+        "A staff member reviewed the request and rejected it, because the returned earbuds are a different model from "
+        "the one sold. No refund will be made for them."
+    )
     c.customer("All right, thanks for letting me know.")
 
 

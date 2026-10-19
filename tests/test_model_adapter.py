@@ -77,4 +77,4 @@ def test_the_log_holds_each_request_in_full(tmp_path):
 def test_the_instructions_name_only_real_tools():
     named = set(re.findall(r"`([a-z_]+)`", INSTRUCTIONS.text))
     assert named and named <= set(TOOLS)
-    assert INSTRUCTIONS.version == "agent-v2" and len(INSTRUCTIONS.sha256) == 64
+    assert INSTRUCTIONS.version == "agent-v3" and len(INSTRUCTIONS.sha256) == 64

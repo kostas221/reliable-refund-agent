@@ -142,6 +142,7 @@ function Orders({ orders, problem, onAsk }: { orders?: Order[]; problem: string;
                       <span className="muted">{formatTime(request.created_at)}</span> {requestLabel(request)}
                       {request.amount_minor !== null && ` · ${formatMoney(request.amount_minor, order.currency)}`}
                       <span className="muted"> · {request.unit_ids.join(", ")}</span>
+                      {request.rejection_reason && <span> · Reason: {request.rejection_reason}</span>}
                     </li>
                   ))}
                 </ul>

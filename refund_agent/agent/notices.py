@@ -3,7 +3,9 @@ nothing, and execute_refund still checks the database.
 
 The first pilot showed why the wording matters. A notice that said only "approved by a staff member" left the agent
 unsure whether the customer had confirmed, and once it asked the customer to confirm again instead of paying (D09).
-A staff member decides only on a request the customer has confirmed, so the notice says both.
+A staff member decides only on a request the customer has confirmed, so the notice says both. A rejection's notice
+also gives the staff member's reason, so the agent can pass it on (dialogue audit of 2026-10-18: without it the
+customer learned only that the request was rejected).
 
 A staff decision stores its notice in the same transaction (table agent_notices), and deliver_pending() hands the
 stored notices to the agent. The server calls it after a decision, when it starts and every few seconds, so a server
@@ -30,12 +32,13 @@ MAX_ATTEMPTS = 3  # a delivery that keeps failing stops here, so a failing model
 log = logging.getLogger("refund_agent.notices")
 
 
-def staff_decision(proposal_id: str, decision: Literal["approved", "rejected"]) -> str:
+def staff_decision(proposal_id: str, decision: Literal["approved", "rejected"], reason: str | None = None) -> str:
     if decision == "approved":
         return (
             f"The customer confirmed request {proposal_id} and a staff member approved it, so it is ready to be paid."
         )
-    return f"The customer confirmed request {proposal_id}, but a staff member rejected it, so nothing will be paid."
+    rejected = f"The customer confirmed request {proposal_id}, but a staff member rejected it, so nothing will be paid."
+    return f'{rejected} The staff member gave this reason for the customer: "{reason}"' if reason else rejected
 
 
 def deliver_pending(
@@ -48,10 +51,11 @@ def deliver_pending(
         pending = (
             conn.execute(
                 text(
-                    "SELECT id, conversation_id, proposal_id, decision FROM agent_notices "
-                    "WHERE delivered_at IS NULL AND attempts < :most "
-                    "AND (CAST(:conversation AS text) IS NULL OR conversation_id = :conversation) "
-                    "ORDER BY created_at, id"
+                    "SELECT n.id, n.conversation_id, n.proposal_id, n.decision, d.reason FROM agent_notices n "
+                    "LEFT JOIN staff_decisions d ON d.proposal_id = n.proposal_id "
+                    "WHERE n.delivered_at IS NULL AND n.attempts < :most "
+                    "AND (CAST(:conversation AS text) IS NULL OR n.conversation_id = :conversation) "
+                    "ORDER BY n.created_at, n.id"
                 ),
                 {"most": MAX_ATTEMPTS, "conversation": conversation_id},
             )
@@ -61,7 +65,7 @@ def deliver_pending(
     delivered = 0
     for notice in pending:
         try:
-            event = staff_decision(notice["proposal_id"], notice["decision"])
+            event = staff_decision(notice["proposal_id"], notice["decision"], notice["reason"])
             agent.notify(notice["conversation_id"], event, notice_id=notice["id"])
         except BudgetExceeded:
             raise  # a paid run's stop, not a failed delivery: the notice stays pending and the run ends

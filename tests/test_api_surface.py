@@ -1,8 +1,9 @@
 """The shape of the HTTP layer, without a database: which doors exist and what they accept.
 
 No door proposes or executes a refund, and the server refuses an agent in configuration C, so the lab configuration
-cannot be chosen or reached over HTTP (plan section 10.5). Request bodies accept only the sign-in fields, decisions and
-the chat text, and every change except signing in needs the CSRF header.
+cannot be chosen or reached over HTTP (plan section 10.5). Request bodies accept only the sign-in fields, decisions,
+the chat text and, on a staff decision only, a rejection's reason; every change except signing in needs the CSRF
+header.
 """
 
 import ast
@@ -41,11 +42,18 @@ def test_no_door_proposes_or_executes_a_refund():
     assert not imported & {"execute", "propose"}, "the doors must not reach the agent's tools"
 
 
-def test_request_bodies_accept_only_sign_in_fields_decisions_and_chat_text():
+ANY_BODY = {"email", "password", "decision", "text"}
+# The reason a staff member gives the customer for a rejection (migrations/sql/0006_rejection_reason.sql): text for
+# the customer, checked by decide(), never an amount, an actor or a status, and accepted on the staff decision only.
+ONE_BODY = {"reason": "DecisionBody"}
+
+
+def test_request_bodies_accept_only_sign_in_fields_decisions_rejection_reasons_and_chat_text():
     for name, schema in SPEC["components"]["schemas"].items():
         if name.endswith("Body"):
             assert schema.get("additionalProperties") is False, name
-            assert set(schema["properties"]) <= {"email", "password", "decision", "text"}, name
+            extra = set(schema["properties"]) - ANY_BODY
+            assert all(ONE_BODY.get(field) == name for field in extra), (name, sorted(extra))
 
 
 def test_every_change_except_signing_in_needs_the_csrf_header():

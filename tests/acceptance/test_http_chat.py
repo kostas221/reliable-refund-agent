@@ -2,6 +2,7 @@
 decision wakes the agent after its answer is sent.
 """
 
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -118,12 +119,39 @@ def test_a_rejection_wakes_the_agent_too(shop):
     davi.post(f"/api/conversations/{conversation}/messages", {"text": s.scenario.customer.opening_message})
     proposal = conversation_of(s, conversation)["proposals"][0]["proposal_id"]
     davi.post(f"/api/proposals/{proposal}/confirmation", {"decision": "confirmed"})
-    rui.post(f"/api/staff/proposals/{proposal}/decision", {"decision": "rejected"})
+    reason = s.scenario.staff.note
+    rui.post(f"/api/staff/proposals/{proposal}/decision", {"decision": "rejected", "reason": reason})
     assert said(s, conversation)[-1] == (
         "agent",
         "A staff member reviewed the request and rejected it, so no refund will be made.",
     )
     assert rows(s.engine, "SELECT count(*) FROM refund_operations") == [(0,)]
+    # The customer sees why, on the card and in the order's requests; so does the agent, through the same reads.
+    assert conversation_of(s, conversation)["proposals"][0]["rejection_reason"] == reason
+    (order,) = davi.get("/api/orders").json()
+    assert [r["rejection_reason"] for r in order["requests"]] == [reason]
+
+
+@pytest.mark.parametrize(
+    ("body", "problem"),
+    [
+        ({"decision": "rejected"}, "a rejection needs a reason"),
+        ({"decision": "rejected", "reason": "   "}, "a rejection needs a reason"),
+        ({"decision": "rejected", "reason": "x" * 501}, "a rejection needs a reason"),
+        ({"decision": "approved", "reason": "Looks fine."}, "an approval takes no reason"),
+    ],
+)
+def test_a_rejection_needs_a_reason_and_an_approval_takes_none(shop, body, problem):
+    s = shop("D04", [Call("propose_refund", {"order_id": "d04-o1", "unit_ids": ["d04-o1-u1"]}), Say("Confirm it.")])
+    davi, rui = s.browser("d04-davi"), s.browser("d04-rui")
+    conversation = davi.post("/api/conversations").json()["conversation_id"]
+    davi.post(f"/api/conversations/{conversation}/messages", {"text": s.scenario.customer.opening_message})
+    proposal = conversation_of(s, conversation)["proposals"][0]["proposal_id"]
+    davi.post(f"/api/proposals/{proposal}/confirmation", {"decision": "confirmed"})
+    answer = rui.post(f"/api/staff/proposals/{proposal}/decision", body)
+    assert answer.status_code == 422 and problem in json.dumps(answer.json()), answer.json()
+    assert rows(s.engine, "SELECT count(*) FROM staff_decisions") == [(0,)]
+    assert rows(s.engine, "SELECT status FROM proposals") == [("awaiting_staff_approval",)]
 
 
 def test_only_the_conversations_customer_can_talk_to_its_agent(shop):

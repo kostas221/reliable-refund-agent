@@ -38,6 +38,7 @@ export interface RequestSummary {
   unit_ids: string[];
   created_at: string;
   receipt_number: string | null;
+  rejection_reason: string | null; // what the staff member told the customer, only for a rejection
 }
 
 export interface Order {
@@ -82,6 +83,7 @@ export interface ProposalCard {
   created_at: string;
   expires_at: string;
   receipt: Receipt | null; // only once a refund is committed
+  rejection_reason: string | null; // what the staff member told the customer, only for a rejection
 }
 
 export interface Message {
@@ -137,9 +139,19 @@ export interface QueuedHandoff {
   };
 }
 
+// A staff decision the assistant has not been told of, after a failed delivery; listed until one succeeds.
+export interface UntoldDecision {
+  proposal_id: string;
+  conversation_id: string;
+  decision: "approved" | "rejected";
+  attempts: number;
+  last_error: string;
+}
+
 export interface StaffQueue {
   awaiting_approval: StaffProposal[];
   open_handoffs: QueuedHandoff[];
+  untold_decisions: UntoldDecision[];
 }
 
 export interface HistoryEvent {

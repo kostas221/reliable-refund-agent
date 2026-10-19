@@ -85,8 +85,8 @@ MOCK = {
             Call("propose_refund", {"order_id": "d04-o1", "unit_ids": ["d04-o1-u1"]}),
             _offer("the wireless earbuds"),
             Say(
-                "A staff member reviewed your request and rejected it, so no refund will be made for the earbuds. "
-                "I'm sorry I could not help more."
+                "A staff member reviewed your request and rejected it, because the returned earbuds are a different "
+                "model from the one sold, so no refund will be made for them. I'm sorry I could not help more."
             ),
         ),
     ),

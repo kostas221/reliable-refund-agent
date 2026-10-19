@@ -28,6 +28,7 @@ from refund_agent.states import LAB_TRANSITIONS, OPEN, TRANSITIONS, Status
 
 Configuration = Literal["A", "C"]
 OPEN_STATUSES = [status.value for status in OPEN]
+MAX_REASON = 500  # characters of a rejection reason, as the CHECK of staff_decisions allows
 
 
 @dataclass(frozen=True)
@@ -540,9 +541,12 @@ def decide(
     decision: Literal["approved", "rejected"],
     now: datetime,
     policy: Policy,
+    reason: str | None = None,
 ) -> str:
-    """The staff member's approval or rejection. An approval never overrides the policy (INV-5)."""
+    """The staff member's approval or rejection. An approval never overrides the policy (INV-5). A rejection carries
+    the reason the staff member gives the customer, an approval none (migrations/sql/0006_rejection_reason.sql)."""
     pending: Refused | None = None
+    reason = (reason or "").strip() or None
     try:
         with engine.begin() as conn:
             _, proposal = _lock_proposal(conn, proposal_id)
@@ -551,6 +555,12 @@ def decide(
                 raise Refused("staff_role")
             if proposal is None or proposal["status"] != Status.AWAITING_STAFF_APPROVAL:
                 raise Refused("invalid_transition", "the proposal is not awaiting a staff decision")
+            if decision == "rejected" and (reason is None or len(reason) > MAX_REASON):
+                raise Refused(
+                    "valid_values", f"a rejection needs a reason for the customer, 1 to {MAX_REASON} characters"
+                )
+            if decision == "approved" and reason is not None:
+                raise Refused("valid_values", "an approval takes no reason")
             change = _out_of_date(conn, proposal, now, policy)
             if change:
                 _close(conn, proposal, change, now)
@@ -583,8 +593,9 @@ def decide(
                 decision_id = _new_id("dec")
                 conn.execute(
                     text(
-                        "INSERT INTO staff_decisions (id, proposal_id, staff_id, decision, content_hash, decided_at) "
-                        "VALUES (:id, :proposal, :staff, :decision, :hash, :now)"
+                        "INSERT INTO staff_decisions "
+                        "(id, proposal_id, staff_id, decision, content_hash, decided_at, reason) "
+                        "VALUES (:id, :proposal, :staff, :decision, :hash, :now, :reason)"
                     ),
                     {
                         "id": decision_id,
@@ -593,6 +604,7 @@ def decide(
                         "decision": decision,
                         "hash": proposal["content_hash"],
                         "now": now,
+                        "reason": reason,
                     },
                 )
                 # The agent must be told, even if the server stops right after this commit: the notice commits with

@@ -129,11 +129,15 @@ class Agent:
     def notify(self, conversation_id: str, event: str, notice_id: str | None = None) -> list[dict]:
         """A backend event, such as an approval. Only text for the model: it proves nothing. It waits for a run in
         progress instead of being lost, and wakes nobody once a person has taken over. A notice with an ID is applied
-        once: delivered again, after a crash between this run and the mark of its delivery, it changes nothing."""
+        once: delivered again, after a crash between this run and the mark of its delivery, it changes nothing. If
+        the run it started stopped before its end (the model failed), delivering it again finishes that run, so a
+        notice is never acknowledged with its work undone (review of 2026-10-19, R1)."""
         with self._turn(conversation_id, wait=True):
             if self._conversation(conversation_id)["control"] == "human_controlled":
                 return []
             if notice_id and any(m.get("notice_id") == notice_id for m in self.messages(conversation_id)):
+                if self.graph.get_state(self._config(conversation_id)).next:
+                    return self._run(conversation_id, None)
                 return []
             message = {"role": "event", "text": event} | ({"notice_id": notice_id} if notice_id else {})
             return self._run(conversation_id, {"messages": [message]})

@@ -28,8 +28,10 @@ from refund_agent.agent.costs import BudgetExceeded
 from refund_agent.policy import REPO_ROOT
 from refund_agent.scenarios import format_brl
 
-# Version 2 widens when to cite (docs/pilot/results.md, second pilot); version 1 stays for the runs made with it.
-INSTRUCTIONS_PATH = REPO_ROOT / "prompts" / "agent-v2.md"
+# Version 2 widened when to cite (docs/pilot/results.md, second pilot). Version 3, after the dialogue audit of the
+# runs before the freeze: ask which item the customer wants refunded, not which one was returned (D09), and pass on a
+# rejection's reason. Earlier versions stay for the runs made with them.
+INSTRUCTIONS_PATH = REPO_ROOT / "prompts" / "agent-v3.md"
 
 
 @dataclass(frozen=True)

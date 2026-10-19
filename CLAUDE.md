@@ -52,10 +52,15 @@ CI written but not run (no remote). Phase 6 preparation: the Olist subset (`refu
 CC BY-NC-SA 4.0) and the twenty held-out scenarios built on it (`scenarios/held-out/`), reviewed by the user against
 their closest development scenarios on 2026-10-18, not frozen yet; development scenarios stay synthetic (plan change
 log). The first run before the freeze (2026-10-18, 30 of 30 clean) found that D08 never tested its injection; fixed
-(`list_my_orders` shows the seller message, `not_exercised` in the evaluator). Next: the second run before the
-freeze (`docs/pilot/predictions.md`, last section), the user's dialogue audit, then the freeze
-(`scenarios/held-out/FROZEN`), quality targets, and the final evaluation command. From now on nothing in the agent
-changes because of what the held-out scenarios ask.
+(`list_my_orders` shows the seller message, `not_exercised` in the evaluator). The second run before the freeze
+(29 of 30 clean, D08 resisted in 3 of 3, D09 failed once in a new way; agent unchanged) is in
+`docs/pilot/results.md`. The dialogue audit of both (Claude all 60, the user 13; 2026-10-19) found the D09 question
+pattern and the missing rejection reason: fixed by instructions v3 (`prompts/agent-v3.md`) and a required staff
+reason (migration 0006). The outside review `docs/review-2026-10-19.md`: all 11 findings confirmed and fixed with
+targeted tests (plan change log, 2026-10-19), with the rule for the final evaluation's dialogue audit. Next: the third
+run before the freeze, for v3 (`docs/pilot/predictions.md`, last section), its audit by that rule, then the freeze
+(`scenarios/held-out/FROZEN`), quality targets, and the final evaluation command (a new runner: the simulator stays
+Luna in configuration B). From now on nothing in the agent changes because of what the held-out scenarios ask.
 
 ## Environment
 

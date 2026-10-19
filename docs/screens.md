@@ -39,7 +39,7 @@ browser holds one session: to see both screens at once, use a second browser or 
 
 ## The staff console
 
-- **The queue**: requests waiting for approval (amount, customer, expiry) and cases handed to a person.
+- **The queue**: requests waiting for approval (amount, customer, expiry) and cases handed to a person. Since 2026-10-19 also any staff decision the assistant has not been told of after a failed delivery, with the attempts and the last error, until a delivery succeeds; after the last attempt it stays there for a person to take over (review of 2026-10-19, R1).
 - **A request**: "Checked by the backend" (customer, order, units, amounts, state, when the customer confirmed, policy
   version) in one box, and "Not verified" text in another, dashed and labelled with its writer: the assistant's
   summary and the seller's message, as plain text. The approve button names the amount the backend computed.
@@ -79,7 +79,9 @@ browser holds one session: to see both screens at once, use a second browser or 
     approval pays once;
   - a confirmation whose answer is lost on the way back (an uncertain HTTP result): the page says it does not know,
     then shows the stored state; Confirm pressed again in a second, stale tab is refused ("This changed in the
-    meantime"), one confirmation stays, and the approval pays once.
+    meantime"), one confirmation stays, and the approval pays once;
+  - a rejection (added 2026-10-19): the Reject button stays disabled until the staff member writes a reason for the
+    customer, and the customer's card then shows "Rejected" with that reason, stored with the decision; no refund.
 
   The tests build the screens first and serve them with the API from one test server, on a copy of the template
   database, with the scripted agent: `REQUIRE_DB=1 uv run pytest tests/browser` (about a minute). Ten bugs planted
@@ -98,15 +100,18 @@ browser holds one session: to see both screens at once, use a second browser or 
 | D01 | Confirm stored, then the stale Confirm button pressed (an answer lost) | One confirmation; the second attempt refused in the audit log; the card read again |
 | D01 | A request waiting for approval; the server stopped and started with `--keep` | While down, the last state with a notice; after, the same state in both screens, still signed in; approval gave the receipt |
 | D08 | The seller's message claims a manager approved R$ 184,80 | 184,80 only in the seller's "Not verified" box; the approve button and the payment R$ 159,90 |
-| D04 | The staff member rejects | "Rejected" in both screens, the agent tells the customer; no operation |
+| D04 | The staff member rejects | "Rejected" in both screens, the agent tells the customer; no operation. Since 2026-10-19 a rejection also needs a reason, shown on the card (browser test) |
 | D05 | A late request, then "I want a person"; then a new conversation and the button | Refusal with "Time limit `refund-policy/v1/window`" and no amount; the agent's handoff; a later message recorded, unanswered; the console tells the assistant's record from the button's |
 | D08 | A case taken; a conversation taken over | Queue emptied; "handled by a person"; the history shows the staff member's handoff |
 
 ## Limits
 
+- Overlapping reads of one screen (the timer's and one after a button) keep only the newest answer, so an older one arriving last cannot step the screen back (review of 2026-10-19, R8; `frontend/src/polling.test.ts`). The list of untold decisions is not covered by a browser test; its read is tested in `tests/acceptance/test_agent_notices.py`.
+
 - The checks by hand drove the page with scripts inside it, because the browser pane was not displayed: forms were
   submitted and buttons clicked by code, so the keyboard and the mouse were not tested. Since 2026-10-18 the browser
-  tests type and click the refund, the restart and a lost answer; rejected and expired cards stay unit tests.
+  tests type and click the refund, the restart, a lost answer and a rejection with its reason; expired cards stay
+  unit tests. The ten planted bugs above were run before the rejection test existed.
 - An expired card was not seen live (it needs 72 hours of demo time). Its words and its missing confirm button are
   unit tests, and the backend's display of expiry is tested in `test_http.py`.
 - The queue's list does not mark a handoff the assistant recorded on the customer's behalf; the case itself does.

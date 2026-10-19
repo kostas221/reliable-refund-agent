@@ -7,6 +7,10 @@ an answer that turns out unusable was still billed; an attempt whose charge is u
 a server error, an answer without usage) counts its worst case, kept apart as uncertain (outside review of
 2026-10-15). It holds within one process, where requests run one at a time. The provider's own usage page remains
 the record of what was billed.
+
+The worst case is an upper bound, not an average (review of 2026-10-19, R6): no token is shorter than one byte of
+UTF-8 text, so the input counts one token per byte of the request, plus a margin for the provider's own framing. An
+attempt whose reported cost still exceeds what was reserved for it is recorded, and no request is sent after it.
 """
 
 from __future__ import annotations
@@ -32,9 +36,13 @@ def cost_usd(model: str, input_tokens: int, cached_tokens: int, output_tokens: i
     return (fresh * price_input + cached_tokens * price_cached + output_tokens * price_output) / 1_000_000
 
 
+FRAMING_TOKENS = 256  # the provider's own markers around instructions, messages and tools, generously
+
+
 def estimated_tokens(text: str) -> int:
-    """A deliberately high estimate: about three characters per token, where English averages about four."""
-    return len(text) // 3 + 1
+    """An upper bound on the tokens of this text: one per byte of UTF-8, where English averages about four bytes a
+    token, plus the framing margin."""
+    return len(text.encode("utf-8")) + FRAMING_TOKENS
 
 
 @dataclass
@@ -44,15 +52,20 @@ class Budget:
     requests: int = 0  # attempts sent, retries included
     uncertain_usd: float = 0.0  # worst cases counted for attempts whose charge is unknown
     by_role: dict[str, float] = field(default_factory=dict)  # agent, simulator: spent separately (plan section 12)
+    overrun: str | None = None  # an attempt cost more than its reserved worst case: nothing more is sent
 
     def reserve(self, worst_case_usd: float) -> None:
+        if self.overrun:
+            raise BudgetExceeded(f"no request is sent after one that cost more than its worst case: {self.overrun}")
         if self.spent_usd + worst_case_usd > self.limit_usd:
             raise BudgetExceeded(
                 f"spent ${self.spent_usd:.4f}; the next request could cost up to ${worst_case_usd:.4f}, "
                 f"over the limit of ${self.limit_usd:.2f}"
             )
 
-    def settle(self, role: str, usd: float, *, uncertain: bool = False) -> None:
+    def settle(self, role: str, usd: float, *, uncertain: bool = False, reserved: float | None = None) -> None:
+        if reserved is not None and usd > reserved:
+            self.overrun = f"an attempt cost ${usd:.6f}, more than the ${reserved:.6f} reserved for it"
         self.spent_usd += usd
         self.requests += 1
         if uncertain:

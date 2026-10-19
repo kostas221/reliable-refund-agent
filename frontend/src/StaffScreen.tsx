@@ -80,6 +80,28 @@ export function StaffScreen() {
                 ))}
               </ul>
             </div>
+            {queue.data.untold_decisions.length > 0 && (
+              <div>
+                <h3>Decisions the assistant has not been told of ({queue.data.untold_decisions.length})</h3>
+                <p className="muted">Its delivery failed; it is tried again a few times, then stops. Take over if needed.</p>
+                <ul className="queue">
+                  {queue.data.untold_decisions.map((untold) => (
+                    <li key={untold.proposal_id}>
+                      <button
+                        type="button"
+                        className="row"
+                        onClick={() => setSelected({ kind: "conversation", id: untold.conversation_id })}
+                      >
+                        <strong>{untold.decision === "approved" ? "Approved" : "Rejected"}</strong> · {untold.proposal_id}
+                        <span className="muted">
+                          {untold.attempts} attempt{untold.attempts === 1 ? "" : "s"} · {untold.last_error}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div>
               <h3>Handed to a person ({queue.data.open_handoffs.length})</h3>
               {queue.data.open_handoffs.length === 0 && <p className="muted">No open cases.</p>}
@@ -151,12 +173,14 @@ function ProposalDetail(props: { proposalId: string; onOpenConversation: (id: st
   const found = usePolling<StaffProposal>(() => api.staffProposal(proposalId), DETAIL_EVERY_MS, proposalId);
   const [acting, setActing] = useState(false);
   const [notice, setNotice] = useState("");
+  const [reason, setReason] = useState(""); // a rejection's reason, shown to the customer and passed on by the agent
 
   async function decide(decision: "approved" | "rejected") {
     setActing(true);
     setNotice("");
     try {
-      await api.decide(proposalId, decision);
+      await api.decide(proposalId, decision, decision === "rejected" ? reason.trim() : undefined);
+      setReason("");
     } catch (error) {
       setNotice(sentence(error)); // e.g. it expired or the customer cancelled: the card shows the stored state
     } finally {
@@ -195,7 +219,20 @@ function ProposalDetail(props: { proposalId: string; onOpenConversation: (id: st
               <button type="button" disabled={acting} onClick={() => decide("approved")}>
                 Approve refund of {formatMoney(trusted.amount_minor, trusted.currency)}
               </button>
-              <button type="button" className="danger" disabled={acting} onClick={() => decide("rejected")}>
+              <label htmlFor="rejection-reason">Reason for the customer, needed to reject</label>
+              <textarea
+                id="rejection-reason"
+                rows={2}
+                maxLength={500}
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+              />
+              <button
+                type="button"
+                className="danger"
+                disabled={acting || reason.trim() === ""}
+                onClick={() => decide("rejected")}
+              >
                 Reject
               </button>
             </div>

@@ -61,6 +61,9 @@ class MessageBody(_Body):
 
 class DecisionBody(_Body):
     decision: Literal["approved", "rejected"]
+    reason: str | None = Field(
+        default=None, max_length=2000
+    )  # a rejection's reason for the customer; checked by decide
 
 
 def _real_time() -> datetime:
@@ -284,7 +287,7 @@ def create_app(
 
     @app.post("/api/staff/proposals/{proposal_id}/decision")
     def decide_proposal(proposal_id: str, body: DecisionBody, user: Changing, background: BackgroundTasks) -> dict:
-        status = decide(engine, staff(user), proposal_id, body.decision, clock(), policy)
+        status = decide(engine, staff(user), proposal_id, body.decision, clock(), policy, reason=body.reason)
         if agent is not None and status in ("approved", "rejected"):
             # The decision stored its notice; it is delivered after the answer is sent, or later if this fails.
             with engine.connect() as conn:

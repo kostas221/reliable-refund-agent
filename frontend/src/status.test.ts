@@ -54,6 +54,7 @@ describe("nothing reads as refunded without a receipt", () => {
       unit_ids: ["d01-o1-u1"],
       created_at: "2026-09-12T10:00:00Z",
       receipt_number: null,
+      rejection_reason: null,
     };
     expect(requestLabel(request)).toBe("Being finalised");
     expect(requestLabel({ ...request, receipt_number: "R-00000001" })).toBe("Refunded, receipt R-00000001");

@@ -32,7 +32,7 @@ from refund_agent.agent.costs import BudgetExceeded
 from refund_agent.agent.graph import Agent, AgentLoopError
 from refund_agent.agent.model import ModelAdapter, ModelError
 from refund_agent.evaluation.customers import Customer, SimulatorError
-from refund_agent.evaluation.evaluator import Verdict, capture_baseline, evaluate
+from refund_agent.evaluation.evaluator import Item, Verdict, capture_baseline, evaluate
 from refund_agent.fixtures import seed
 from refund_agent.policy import Policy
 from refund_agent.refunds import Actor, Configuration, cancel, confirm, decide, open_conversation
@@ -61,6 +61,9 @@ class RunResult:
     system_error: str | None  # the agent's model error or loop: a failure of the system, never hidden
     simulator_error: str | None = None  # the simulated customer failed: the run is not a valid test of the agent
     stopped_by_budget: str | None = None  # the budget stopped the run before a request: not a valid test either
+    # How the conversation ended: customer_ended (by the customer), round_limit or customer_limit (cut off by the
+    # runner's bound, never a normal end: review of 2026-10-19, R5), agent_error, simulator_error or budget.
+    ended: str = "customer_ended"
 
 
 def run_scenario(
@@ -82,6 +85,7 @@ def run_scenario(
     agent = Agent(app, policy, model, checkpointer, clock, configuration=configuration)
     conversation = open_conversation(app, Actor("customer", scenario.customer.id), clock())
     error = simulator_error = stopped = None
+    ended = "round_limit"  # unless the loop ends otherwise
     try:
         clock.tick()
         agent.receive(conversation, customer.opening())
@@ -90,19 +94,27 @@ def run_scenario(
                 continue
             line = customer.next_line(_transcript(agent.messages(conversation)))
             if line is None:
+                ended = "customer_limit" if getattr(customer, "cut_off", False) else "customer_ended"
                 break
             clock.tick()
             agent.receive(conversation, line)
     except (ModelError, AgentLoopError) as failure:
-        error = f"{type(failure).__name__}: {failure}"
+        error, ended = f"{type(failure).__name__}: {failure}", "agent_error"
     except SimulatorError as failure:
-        simulator_error = str(failure)
+        simulator_error, ended = str(failure), "simulator_error"
     except BudgetExceeded as stop:
-        stopped = str(stop)
+        stopped, ended = str(stop), "budget"
     usage = agent.usage(conversation)
     messages = agent.messages(conversation)
     verdict = evaluate(scenario, app, baseline, received=tool_texts(messages))
-    return RunResult(scenario.id, configuration, verdict, messages, len(usage), error, simulator_error, stopped)
+    if ended in CUT_OFF:
+        # The outcome may look complete, but the customer did not end it: a person decides whether it was resolved.
+        why = f"cut off by the {CUT_OFF[ended]} before the conversation ended; the dialogue audit decides"
+        verdict = Verdict(verdict.scenario, (*verdict.items, Item("conversation:cut_off", "pending", why)))
+    return RunResult(scenario.id, configuration, verdict, messages, len(usage), error, simulator_error, stopped, ended)
+
+
+CUT_OFF = {"round_limit": "runner's limit of rounds", "customer_limit": "simulated customer's limit of messages"}
 
 
 def tool_texts(messages: list[dict]) -> list[str]:
@@ -154,8 +166,9 @@ def _people_act(scenario: Scenario, app: Engine, agent: Agent, conversation: str
         return False
     staff = Actor("staff", scenario.fixture.staff[0].id)
     decision = "approved" if scenario.staff.decision == "approve" else "rejected"
+    reason = scenario.staff.note if decision == "rejected" else None
     for proposal, _, _ in _proposals(app, conversation, "awaiting_staff_approval"):
-        decide(app, staff, proposal, decision, clock.tick(), policy)
+        decide(app, staff, proposal, decision, clock.tick(), policy, reason=reason)
         clock.tick()
         # The product's path: the decision stored its notice, and the agent is told through the same delivery.
         return notices.deliver_pending(app, agent, clock, conversation) > 0

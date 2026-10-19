@@ -67,12 +67,14 @@ class SimulatedCustomer:
         self.scenario, self.model, self.max_lines = scenario, model, max_lines
         self.instructions = simulator_instructions(scenario)
         self.said = 0
+        self.cut_off = False  # True once max_lines stopped it: not an end the customer chose
 
     def opening(self) -> str:
         return self.scenario.customer.opening_message
 
     def next_line(self, transcript: Sequence[tuple[str, str]]) -> str | None:
         if self.said >= self.max_lines:
+            self.cut_off = True
             return None
         # Seen from the customer's side: the agent is the one writing in, and the customer's own lines are answers.
         messages = [

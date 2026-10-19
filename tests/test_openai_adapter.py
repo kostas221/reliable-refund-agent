@@ -14,7 +14,7 @@ from openai.types.responses import (
 )
 
 from refund_agent.agent import openai_adapter
-from refund_agent.agent.costs import Budget, BudgetExceeded, cost_usd
+from refund_agent.agent.costs import Budget, BudgetExceeded, cost_usd, estimated_tokens
 from refund_agent.agent.model import ModelError
 from refund_agent.agent.openai_adapter import OpenAIResponses, parse, to_input
 from refund_agent.agent.tools import tool_definitions
@@ -243,3 +243,25 @@ def test_the_request_log_holds_every_attempt_and_a_budget_stop(tmp_path):
     assert [a["outcome"] for a in answered["attempts"]] == ["timeout", "answered"]
     assert stopped["error"]["kind"] == "budget_exceeded"
     assert [a["outcome"] for a in stopped["attempts"]] == ["timeout"]  # what was tried before the stop
+
+
+# The worst case is a bound (review of 2026-10-19, R6)
+
+
+@pytest.mark.parametrize("text", ["a" * 300, "€" * 300, "R$ 49,90; d01-o1-u1; " * 20, '{"a": [1, 2, 3]}' * 30])
+def test_the_input_estimate_is_at_least_one_token_per_byte(text):
+    # About three characters a token was an average: text of symbols, IDs or other alphabets can need more.
+    assert estimated_tokens(text) >= len(text.encode("utf-8"))
+
+
+def test_after_an_attempt_that_cost_more_than_its_reservation_nothing_more_is_sent():
+    reported = (10_000_000, 0, 0, 0)  # far more input than the request could hold: $1.00 at Luna's price
+    client = FakeClient(FakeResponse([message("Hello!")], usage=reported), FakeResponse([message("Again")]))
+    budget = Budget(limit_usd=5.0)
+    adapter = OpenAIResponses("gpt-6-luna", "low", client=client, budget=budget)
+    assert adapter.respond("", HI, TOOLS).text == "Hello!"
+    assert budget.spent_usd == pytest.approx(1.0)  # counted as reported
+    assert "more than the" in budget.overrun
+    with pytest.raises(BudgetExceeded, match="cost more than its worst case"):
+        adapter.respond("", HI, TOOLS)
+    assert len(client.requests) == 1

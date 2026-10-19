@@ -98,6 +98,28 @@ def test_the_manifest_fingerprints_the_files_that_decide_a_run():
     assert manifest.fingerprint(hashes) == manifest.fingerprint(dict(reversed(list(hashes.items()))))
 
 
+SETUP = (
+    "refund_agent/db.py",
+    "migrations/env.py",
+    "migrations/versions/0006_rejection_reason.py",
+    "alembic.ini",
+    "docker/initdb/01-roles.sql",
+    "pyproject.toml",
+    "scenarios/held-out/H01-one-item-of-multi-seller-order.toml",
+)
+
+
+@pytest.mark.parametrize("path", SETUP)
+def test_a_change_to_the_code_that_sets_the_database_up_changes_the_fingerprint(tmp_path, path):
+    # Review of 2026-10-19, R10: these files decided what a run ran on, yet a change to them left it the same.
+    for one in SETUP:
+        (tmp_path / one).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / one).write_bytes((manifest.REPO_ROOT / one).read_bytes())
+    before = manifest.fingerprint(manifest.file_hashes(tmp_path))
+    (tmp_path / path).write_bytes((tmp_path / path).read_bytes() + b"\n# changed\n")
+    assert manifest.fingerprint(manifest.file_hashes(tmp_path)) != before
+
+
 def test_tries_per_scenario_scale_the_worst_case_and_stay_within_bounds(capsys):
     assert pilot.main(["--dry-run"]) == 0
     one = capsys.readouterr().out

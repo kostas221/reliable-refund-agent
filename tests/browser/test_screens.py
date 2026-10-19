@@ -190,3 +190,47 @@ def test_a_confirmation_whose_answer_is_lost_counts_once(serve, browser):
     shown = the_receipt(card)
     assert refunds(server) == [(shown, 4990, ["d01-o1-u1"])]
     assert errors == []
+
+
+def staff_decisions(server: Server) -> list[tuple]:
+    """Every stored staff decision with its reason."""
+    owner = database.engine("owner", server.name)
+    try:
+        with owner.connect() as conn:
+            found = conn.execute(text("SELECT decision, reason FROM staff_decisions")).all()
+    finally:
+        owner.dispose()
+    return [tuple(row) for row in found]
+
+
+def test_a_rejection_needs_a_reason_and_the_customer_is_shown_it(serve, browser):
+    server = serve("D04")  # Davi returned earbuds that cost R$ 189,90; the staff member finds another model
+    reason = "The returned earbuds are a different model from the one sold."
+    customer, staff, errors = two_people(browser)
+    sign_in(customer, server.url, "davi.nunes@example.test")
+    expect(customer.get_by_role("heading", name="Your orders")).to_be_visible()
+    message = customer.get_by_label("Message")
+    message.press_sequentially(
+        "Hi, I returned the wireless earbuds because they kept disconnecting. I'd like a refund."
+    )
+    message.press("Enter")
+    confirm = customer.get_by_role("button", name="Confirm refund of R$ 189,90")
+    expect(confirm).to_be_visible(timeout=AGENT_TIME_MS)
+    confirm.click()
+    card = customer.get_by_role("article", name=re.compile(r"^Refund request "))
+    expect(card.get_by_text("Waiting for staff approval", exact=True)).to_be_visible()
+
+    sign_in(staff, server.url, "rui.costa@shop.example.test")
+    staff.get_by_role("button", name=re.compile(r"R\$ 189,90 · Davi Nunes")).click()
+    reject = staff.get_by_role("button", name="Reject")
+    expect(reject).to_be_disabled()  # no reason, no rejection
+    staff.get_by_label("Reason for the customer, needed to reject").press_sequentially(reason)
+    expect(reject).to_be_enabled()
+    reject.click()
+
+    # The customer's card says it was rejected and why, at the screen's next read; nothing was paid.
+    expect(card.get_by_text("Rejected", exact=True)).to_be_visible(timeout=AGENT_TIME_MS)
+    expect(card.locator("p.reason")).to_have_text(f"The staff member's reason: {reason}")
+    assert staff_decisions(server) == [("rejected", reason)]
+    assert refunds(server) == []
+    assert errors == []

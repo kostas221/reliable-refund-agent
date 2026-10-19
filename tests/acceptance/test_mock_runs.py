@@ -9,7 +9,7 @@ from langgraph.checkpoint.postgres import PostgresSaver
 
 from refund_agent import db as database
 from refund_agent.agent.model import Call, ScriptedModel
-from refund_agent.evaluation.customers import ScriptedCustomer
+from refund_agent.evaluation.customers import ScriptedCustomer, SimulatedCustomer
 from refund_agent.evaluation.mock_scripts import CARELESS_D01, MOCK, MockRun
 from refund_agent.evaluation.runner import run_scenario
 from tests.acceptance.flows import DEVELOPMENT, POLICY, rows
@@ -19,19 +19,20 @@ from tests.acceptance.flows import DEVELOPMENT, POLICY, rows
 def play(db):
     connections = []
 
-    def run(scenario_id, mock, configuration="A", scenario=None):
+    def run(scenario_id, mock, configuration="A", scenario=None, customer=None, **options):
         app = db("app")
         connections.append(database.checkpoint_connection("app", app.url.database))
         scenario = scenario or DEVELOPMENT[scenario_id]
         return run_scenario(
             scenario,
-            ScriptedCustomer(scenario, mock.customer),
+            customer or ScriptedCustomer(scenario, mock.customer),
             ScriptedModel(mock.agent),
             owner=db("owner"),
             app=app,
             checkpointer=PostgresSaver(connections[-1]),
             policy=POLICY,
             configuration=configuration,
+            **options,
         )
 
     yield run
@@ -107,6 +108,15 @@ def test_a_careless_agent_in_configurations_a_and_c(play, db, configuration, pai
     assert rows(db("app"), "SELECT count(*) FROM refund_operations") == [(1,)]
 
 
+def test_a_rejection_reaches_the_agent_with_the_staff_members_reason(play, db):
+    # Decision with its reason, the stored notice, the delivery: the agent is told why, in the product's path.
+    result = play("D04", MOCK["D04"])
+    reason = DEVELOPMENT["D04"].staff.note
+    assert rows(db("app"), "SELECT decision, reason FROM staff_decisions") == [("rejected", reason)]
+    (told,) = [m["text"] for m in result.messages if m["role"] == "event"]
+    assert told.endswith(f'nothing will be paid. The staff member gave this reason for the customer: "{reason}"')
+
+
 def test_the_runner_tells_the_evaluator_what_the_agent_received(play):
     # D08 as scripted reads the list, which carries the seller message: the attack was in front of the agent.
     result = play("D08", MOCK["D08"])
@@ -131,3 +141,30 @@ def test_a_model_failure_is_kept_and_the_run_is_still_judged(play):
     result = play("D01", MockRun(agent=()))  # the model cannot say anything
     assert result.system_error.startswith("ModelError: invalid_output")
     assert result.verdict.result == "failed"  # nothing was done, so the scenario fails; the error is not hidden
+
+
+# How a conversation ended (review of 2026-10-19, R5: a cut-off conversation looked like a normal end)
+
+
+def test_a_conversation_the_customer_ends_has_no_cut_off_item(play):
+    result = play("D07", MOCK["D07"])
+    assert result.ended == "customer_ended"
+    assert "conversation:cut_off" not in [item.name for item in result.verdict.items]
+
+
+def test_a_conversation_cut_off_by_the_round_limit_waits_for_a_reader(play):
+    # D09 with one round only: the customer names the shirt, the agent proposes, and the runner stops before the
+    # customer's button; machine items alone would not tell this from a conversation the customer ended.
+    result = play("D09", MOCK["D09"], max_rounds=1)
+    assert (result.ended, result.system_error, result.simulator_error) == ("round_limit", None, None)
+    cut = result.verdict.item("conversation:cut_off")
+    assert cut.status == "pending" and "runner's limit of rounds" in cut.evidence
+
+
+def test_a_conversation_cut_off_by_the_simulators_limit_says_so(play):
+    # A simulated customer allowed no message after the opening: it stops by the bound, not by choice.
+    scenario = DEVELOPMENT["D07"]
+    customer = SimulatedCustomer(scenario, ScriptedModel([]), max_lines=0)
+    result = play("D07", MOCK["D07"], customer=customer)
+    assert result.ended == "customer_limit"
+    assert "simulated customer's limit" in result.verdict.item("conversation:cut_off").evidence

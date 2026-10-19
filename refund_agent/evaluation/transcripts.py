@@ -1,9 +1,12 @@
 """Readable transcripts of a run, for the dialogue audit (plan section 9):
 `uv run python -m refund_agent.evaluation.transcripts runs/pilot-...`
 
-Writes transcripts.md into the run folder: for each conversation, what the customer and the agent said, each tool
-call with the essential part of its answer, the backend's notices, and the evaluator's items, with the pending ones
-listed for the reader to mark. Text from the conversation is quoted as it was; nothing is summarized.
+Writes transcripts.md into the run folder: for each scenario, the simulated customer's instructions as sent and the
+staff member's scripted decision; for each conversation, what the customer and the agent said, each tool call with
+the essential part of its answer and, folded under it, the whole answer, the backend's notices, and the evaluator's
+items, with the pending ones listed for the reader to mark. Text written by others that the agent read (a seller's
+message, a rejection's reason) is shown in full. Text from the conversation is quoted as it was; nothing is
+summarized (review of 2026-10-19: the reader could not see the seller's message, nor what the customer knew).
 """
 
 from __future__ import annotations
@@ -11,6 +14,9 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+
+from refund_agent.evaluation.customers import simulator_instructions
+from refund_agent.scenarios import Scenario, load_split
 
 _ANSWER_KEYS = ("ok", "refused", "error", "status", "outcome", "amount_minor", "policy_citations", "explanation")
 
@@ -22,9 +28,50 @@ def _tool_answer(name: str, content: str) -> str:
         short["receipt"] = answer["receipt"]["receipt_number"]
     if "sections" in answer:
         short["sections"] = [section["citation"] for section in answer["sections"]]
-    if "orders" in answer:
-        short["orders"] = {o["order_id"]: [u["unit_id"] for u in o["units"]] for o in answer["orders"]}
-    return f"- `{name}` answered: `{json.dumps(short, ensure_ascii=False)}`"
+    orders = answer.get("orders", []) + ([answer["order"]] if "order" in answer else [])
+    if orders:
+        short["orders"] = {o["order_id"]: [u["unit_id"] for u in o["units"]] for o in orders}
+        sellers = {o["order_id"]: o["seller_message"]["untrusted_text"] for o in orders if "seller_message" in o}
+        if sellers:
+            short["seller_messages"] = sellers
+    if "request" in answer:
+        request = answer["request"]  # runs saved before 2026-10-19 have no rejection_reason
+        short["request"] = {key: request[key] for key in ("status", "rejection_reason") if key in request}
+    whole = json.dumps(answer, indent=2, ensure_ascii=False)
+    return "\n".join(
+        [
+            f"- `{name}` answered: `{json.dumps(short, ensure_ascii=False)}`",
+            "",
+            "  <details><summary>full answer</summary>",
+            "",
+            "  ```json",
+            *(f"  {line}" for line in whole.splitlines()),
+            "  ```",
+            "",
+            "  </details>",
+        ]
+    )
+
+
+def render_role(scenario: Scenario) -> list[str]:
+    """What the simulated customer was told, as sent, and what the scripted staff member decides."""
+    staff = scenario.staff.decision + (f', with the reason "{scenario.staff.note}"' if scenario.staff.note else "")
+    return [
+        f"## {scenario.id}: the simulated customer's instructions",
+        "",
+        f"Opening message, sent as written: {scenario.customer.opening_message}",
+        "",
+        f"Staff member, scripted: {staff}.",
+        "",
+        "<details><summary>instructions</summary>",
+        "",
+        "```text",
+        *simulator_instructions(scenario).splitlines(),
+        "```",
+        "",
+        "</details>",
+        "",
+    ]
 
 
 def render_conversation(result: dict) -> list[str]:
@@ -70,8 +117,14 @@ def render_run(folder: Path) -> str:
         f"fingerprint {manifest['fingerprint'][:12]}.",
         "",
     ]
+    scenarios = {s.id: s for split in ("development", "held_out") for s in load_split(split)}
+    shown: set[str] = set()
     for result_file in sorted(folder.glob("**/result.json")):  # D01/result.json, or D01/try1/result.json
-        lines += render_conversation(json.loads(result_file.read_text(encoding="utf-8")))
+        result = json.loads(result_file.read_text(encoding="utf-8"))
+        if result["scenario"] not in shown and result["scenario"] in scenarios:
+            shown.add(result["scenario"])
+            lines += render_role(scenarios[result["scenario"]])
+        lines += render_conversation(result)
     return "\n".join(lines)
 
 

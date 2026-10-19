@@ -25,7 +25,7 @@ fictional shop, 3-5 synthetic customers and one staff member.
 3. The backend computes eligibility and amount and stores an immutable proposal. An ineligible request gets the
    policy reason (or a handoff for an exception) and no refund.
 4. The customer confirms with a button on the proposal card. A "yes" typed in chat is not a confirmation.
-5. A staff member approves or rejects it from the queue.
+5. A staff member approves or rejects it from the queue; a rejection gives the customer its reason.
 6. `execute_refund(proposal_id)` asks the backend to execute; it commits one simulated refund and a receipt.
 7. The customer sees the final state and its reason: refunded with receipt, rejected, cancelled or expired.
 
