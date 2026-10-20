@@ -385,3 +385,80 @@ try 2, D02 try 1, D05 tries 1 to 3), read blind from Claude's Greek translation.
   agent hands off on its own would now be written knowing the held-out set, which has a case where such a handoff is
   required. It is reported as a known weakness, for the quality targets and for the next version.
 - The development set is not run again. Next: the freeze of the held-out set.
+
+## v1.1 step 1: the whole policy in the instructions
+
+`runs/pilot-20261020T110559Z-gpt-6-luna-none`, 2026-10-20, commit `29445e6` (clean tree): configuration A,
+`gpt-6-luna` with reasoning `none`, instructions v4 (version 3 with the whole policy v1 appended), the tools of v1;
+the simulated customer unchanged. 30 development scenarios, 3 tries each: 90 conversations, $0.0345 ($0.0266 the
+agent, $0.0079 the simulated customer). Predictions: [predictions.md](predictions.md), "v1.1 step 1".
+
+### Result
+
+Claude read all 90; the user's share is described under "Who read". Success counts every item, as in the final
+evaluation.
+
+| | Step 1 | Before, on the same scenarios |
+|---|---|---|
+| D11 to D30, the copies of H01 to H20 | 36 of 60 | 41 of 60 (A in the final run of v1) |
+| D01 to D10 | 28 of 30 | 29 of 30 (third run before the freeze) |
+| Paired by scenario, all 30 | -6.7 points (95% interval -15.6 to +1.1) | |
+| Better / same / worse | 2 / 22 / 6 scenarios | |
+| Unauthorized or duplicate refunds | 0 of 90 | |
+| Agent cost per resolved case | $0.00042 | $0.00062 (final run of v1) |
+
+`python -m refund_agent.evaluation.report compare` writes the comparison into the run's folder, scenario by
+scenario.
+
+### What changed, and why
+
+- **Citations rose a little.** In D11 to D30 the agent cited 19 of the 27 required sections, against 17 in v1, and
+  every section was now in view. Of the 8 it did not cite, 6 are answers to a question for information: when the
+  money reaches a card (D14, the payout section, 3 of 3) and when a refund already paid comes (D20, the section on
+  refunding each unit once, 3 of 3). The instructions ask for a citation when the agent says what a rule requires,
+  and the agent does not treat these answers as one.
+- **Handoffs rose more.** Handoffs the scenarios forbid, begun by the agent, went from 8 to 13 in D11 to D30. With
+  the whole policy in view, the agent applied each sentence of policy v1 that sends a case to a person, also where
+  it does not fit:
+  - D15, 0 of 3, against 3 of 3 before: "my controller has not arrived yet, where is it?", about an order shipped
+    five days before, was taken for "a delivery that never arrived". The handoff came at once, and the refund the
+    customer then wanted was never reached.
+  - D21 and D23: "any request for an exception goes to a staff member".
+  - D24, 3 of 3: "in every other case a staff member takes the case", now with no proposal at all.
+- **Net effect.** Visibility gained 2 conversations, and the handoffs lost 6; D17 lost 1 more, probably by chance
+  (the clarifying question was missing in 2 of 3 before, 3 of 3 now).
+- **One improvement in the reasons.** In D19 the agent gave the deciding reason, an order not yet delivered, in 3
+  of 3, against 1 of 3 in v1, but then handed off unasked.
+
+### Predictions against results
+
+| # | Prediction | Result | |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate refund | 0 of 90 | right |
+| 2 | 22 to 27 of the 27 required citations of D11 to D30 | 19 | wrong |
+| 3 | 44 to 50 of 60 in D11 to D30 | 36 | wrong |
+| 4 | 7 to 12 forbidden handoffs begun by the agent, with the risk of a rise stated | 13 | wrong, though the stated risk came true and was underestimated |
+| 5 | 27 to 30 of 30 in D01 to D10 | 28 | right |
+| 6 | +5 to +15 points against v1 on D11 to D30 | -8.3 (95% interval -21.7 to +3.3) | wrong |
+| 7 | Under $0.15 | $0.0345 | right |
+
+### What follows
+
+- Visibility alone is not enough, and with policy v1 it hurts: the cause is the policy's text, not the agent's view
+  of it.
+- The order of the v1.1 cycle changes (plan change log, 2026-10-20): policy v2 comes before the read-only
+  assessment, which would otherwise be measured under handoffs that hide its effect.
+- The whole policy stays in the instructions, with v2, and the next instructions ask for a citation whenever an
+  answer rests on the policy. If it still does not help under v2, the policy search comes back.
+
+### Who read
+
+Claude read all 90 (`audit-claude.toml`) and failed nothing beyond the machine's 26 failures. Under the rule for
+development runs agreed on 2026-10-20, the user reads 10 of the 29 conversations Claude or the machine failed or
+noted, in Greek, numbered without Claude's verdicts (`user-review/`):
+
+- the 4 whose outcome a reader's judgment can change;
+- one example of each of the 6 patterns of failure.
+
+In the other 19 the failure is the machine's and no reader can change it. The user's verdicts are added here when
+they are in.

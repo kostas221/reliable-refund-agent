@@ -127,7 +127,7 @@ def d05(app: Engine) -> None:
     c.propose(["d05-o1-u1"], "propose-1")
     c.agent(
         "I'm sorry, I can't refund the lamp: refunds must be requested within 30 days of delivery "
-        "(refund-policy/v1/window), and that period ended on 24 August."
+        "(refund-policy/v2/window), and that period ended on 24 August."
     )
     c.customer("That's not fair. I want to talk to a person.")
     c.hand_off("the customer asked for a person", origin="customer")
@@ -138,7 +138,7 @@ def d06(app: Engine) -> None:
     c = Conversation(app, "D06")
     c.propose(["d06-o1-u1"], "propose-1")
     c.agent(
-        "I can't refund the shoes yet: a refund is made once the item has reached us (refund-policy/v1/return), "
+        "I can't refund the shoes yet: a refund is made once the item has reached us (refund-policy/v2/return), "
         "and we have not received them. Once they arrive you can ask again."
     )
     c.customer("Okay, I'll wait for them to arrive.")
@@ -168,7 +168,7 @@ def d10(app: Engine) -> None:
     c.hand_off("late request after an on-time proposal expired")
     c.agent(
         "Your earlier request was on time but expired before a decision, so under our policy "
-        "(refund-policy/v1/window) a member of staff will review it. A person will take over from here."
+        "(refund-policy/v2/window) a member of staff will review it. A person will take over from here."
     )
 
 

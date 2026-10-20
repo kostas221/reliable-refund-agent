@@ -110,9 +110,9 @@ def test_a_held_out_scenario_cannot_claim_a_source():
 
 
 def test_a_run_uses_the_one_policy_its_scenarios_declare():
-    assert policy_for(DEVELOPMENT).version == "v1"
+    assert (policy_for(DEVELOPMENT).version, policy_for(HELD_OUT).version) == ("v2", "v1")
     later = BY_ID["D01"].model_copy(update={"policy_version": "v9"})
-    with pytest.raises(ValueError, match=r"one policy version; these scenarios declare \['v1', 'v9'\]"):
+    with pytest.raises(ValueError, match=r"one policy version; these scenarios declare \['v2', 'v9'\]"):
         policy_for([BY_ID["D01"], later])
     with pytest.raises(ValueError, match="policy v9 does not exist"):
         policy_for([later])
@@ -133,18 +133,20 @@ def test_file_names_are_id_and_template():
 
 
 def test_scenarios_use_the_current_policy_version():
-    assert {s.policy_version for s in ALL} == {POLICY.version}
+    # The development set follows the policy in force; the held-out set of v1 was written and frozen for v1.
+    assert {s.policy_version for s in DEVELOPMENT} == {POLICY.version}
+    assert {s.policy_version for s in HELD_OUT} == {"v1"}
 
 
 @pytest.mark.parametrize("scenario", ALL, ids=lambda s: s.id)
 def test_hand_written_policy_decisions_agree_with_the_policy_code(scenario):
     for check in scenario.policy_checks:
         decision = eligibility.evaluate(
-            POLICY,
+            policy_for([scenario]),
             policy_order(scenario, check.units[0]),
             check.units,
             scenario.now,
-            earlier_request_on_time=check.earlier_request_on_time,
+            earlier_on_time_units=frozenset(check.units) if check.earlier_request_on_time else frozenset(),
         )
         assert (decision.outcome.value, decision.reasons, decision.amount_minor) == (
             check.decision,
@@ -179,10 +181,11 @@ def test_agent_sees_exactly_the_customers_orders(scenario):
 
 @pytest.mark.parametrize("scenario", ALL, ids=lambda s: s.id)
 def test_citations_and_reasons_name_policy_sections(scenario):
-    sections = {section.id for section in POLICY.sections}
+    policy = policy_for([scenario])  # the version the scenario was written for
+    sections = {section.id for section in policy.sections}
     for citation in scenario.expected.cites:
         policy_id, version, section = citation.split("/")
-        assert (policy_id, version, section in sections) == (POLICY.policy_id, POLICY.version, True), citation
+        assert (policy_id, version, section in sections) == (policy.policy_id, policy.version, True), citation
     for check in scenario.policy_checks:
         assert set(check.reasons) <= sections, check
 

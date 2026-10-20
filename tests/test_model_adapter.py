@@ -9,6 +9,7 @@ from refund_agent.agent.model import Call, ModelError, RecordingAdapter, Say, Sc
 from refund_agent.agent.tools import TOOLS, tool_definitions
 from refund_agent.evaluation.diagnostics import shown_sections
 from refund_agent.policy import REPO_ROOT, load_policy
+from refund_agent.refunds import HANDOFF_REASONS
 
 INSTRUCTIONS = load_instructions(policy=load_policy())
 TOOL_LIST = tool_definitions()
@@ -82,10 +83,19 @@ def test_the_log_holds_each_request_in_full(tmp_path):
     assert failed["error"]["kind"] == "invalid_output"  # a failure is logged too, then raised
 
 
-def test_the_instructions_name_only_real_tools():
+def test_the_instructions_name_only_real_tools_and_handoff_reasons():
     named = set(re.findall(r"`([a-z_]+)`", INSTRUCTIONS.text))
-    assert named and named <= set(TOOLS)
-    assert INSTRUCTIONS.version == "agent-v4" and len(INSTRUCTIONS.sha256) == 64
+    assert named and named <= set(TOOLS) | {"reason_code", *HANDOFF_REASONS}
+    assert set(HANDOFF_REASONS) <= named  # every reason the backend accepts is explained to the agent
+    assert INSTRUCTIONS.version == "agent-v5" and len(INSTRUCTIONS.sha256) == 64
+
+
+def test_every_citation_the_instructions_quote_exists_in_their_policy():
+    # An example in the instructions' own text must name a section of the policy they are loaded with.
+    policy = load_policy()
+    own_text = INSTRUCTIONS.text.split("The shop's refund policy,")[0]
+    quoted = set(re.findall(r"refund-policy/v[0-9]+/[a-z-]+", own_text))
+    assert quoted and quoted <= {policy.citation(s.id) for s in policy.sections}
 
 
 # The whole policy in the instructions (v1.1, step 1)
@@ -101,7 +111,7 @@ def test_the_instructions_hold_every_section_of_the_policy_under_its_id():
 
 
 def test_instructions_that_include_the_policy_need_it():
-    with pytest.raises(ValueError, match="agent-v4.md includes the policy"):
+    with pytest.raises(ValueError, match="agent-v5.md includes the policy"):
         load_instructions()
 
 

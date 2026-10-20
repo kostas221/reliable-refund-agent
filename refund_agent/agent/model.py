@@ -31,9 +31,11 @@ from refund_agent.scenarios import format_brl
 # Version 2 widened when to cite (docs/pilot/results.md, second pilot). Version 3, after the dialogue audit of the
 # runs before the freeze: ask which item the customer wants refunded, not which one was returned (D09), and pass on a
 # rejection's reason. Version 4 (v1.1, step 1): the whole policy at the end, because in the final run of v1 the agent
-# never cited a section its policy search had not shown it (docs/final/results.md). Earlier versions stay for the
-# runs made with them.
-INSTRUCTIONS_PATH = REPO_ROOT / "prompts" / "agent-v4.md"
+# never cited a section its policy search had not shown it (docs/final/results.md). Version 5 (step 3), with policy
+# v2: cite whenever an answer rests on the policy, hand off only in a case the policy names with its reason code, and
+# the lifecycle rules of the policy v2 specification (docs/pilot/results.md, "v1.1 step 1"). Earlier versions stay
+# for the runs made with them.
+INSTRUCTIONS_PATH = REPO_ROOT / "prompts" / "agent-v5.md"
 
 
 @dataclass(frozen=True)

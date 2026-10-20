@@ -4,14 +4,17 @@ Each call goes through call_tool, as the conversation graph will call it, with J
 """
 
 import json
+from dataclasses import replace
+from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy import text
 
 from refund_agent.agent.policy_search import WordSearch
 from refund_agent.agent.tools import UNTRUSTED, ToolContext, call_tool
 from refund_agent.fixtures import seed
 from refund_agent.refunds import Actor, confirm, decide, open_conversation
-from tests.acceptance.flows import DEVELOPMENT, POLICY, SCENARIOS, proposed, rows
+from tests.acceptance.flows import DEVELOPMENT, POLICY, SCENARIOS, policy_of, proposed, rows
 
 
 def agent_for(db, scenario_id, configuration="A"):
@@ -45,13 +48,14 @@ def test_every_tool_answers_on_every_fixture(db, scenario_id):
     a second customer): every read, and a proposal for each unit alone, own or not, answers with a result or a
     refusal, never an error."""
     scenario = SCENARIOS[scenario_id]
-    seed(db("owner"), scenario, POLICY)
+    policy = policy_of(scenario)
+    seed(db("owner"), scenario, policy)
     app = db("app")
     customer = scenario.customer.id
 
     def tools() -> ToolContext:
         conversation = open_conversation(app, Actor("customer", customer), scenario.now)
-        return ToolContext(app, POLICY, WordSearch(POLICY), lambda: scenario.now, customer, conversation)
+        return ToolContext(app, policy, WordSearch(policy), lambda: scenario.now, customer, conversation)
 
     listed = call(tools(), "list_my_orders")
     assert sorted(o["order_id"] for o in listed["orders"]) == sorted(scenario.agent_visible_orders)
@@ -153,7 +157,7 @@ def test_a_refused_proposal_cites_the_policy_and_promises_no_amount(db):
     ctx = agent_for(db, "D05")
     result = call(ctx, "propose_refund", order_id="d05-o1", unit_ids=["d05-o1-u1"])
     assert (result["outcome"], result["status"], result["amount_minor"]) == ("refused", "ineligible", None)
-    assert result["policy_citations"] == ["refund-policy/v1/window"]
+    assert result["policy_citations"] == ["refund-policy/v2/window"]
 
 
 # Execution
@@ -192,7 +196,7 @@ def test_after_a_handoff_the_agent_changes_nothing(db):
         ctx,
         "request_handoff",
         reason="The customer wants a person to review the late request.",
-        customer_asked=True,
+        reason_code="customer_asked",
         customer_goal="A refund for the brass desk lamp.",
         confirmed_facts="The lamp was received back on 30 August.",
         decision_needed="Whether to make an exception to the time limit.",
@@ -207,6 +211,125 @@ def test_after_a_handoff_the_agent_changes_nothing(db):
         "A person has taken over this conversation. Do not act on it any more.",
     )
     assert rows(ctx.engine, "SELECT count(*) FROM proposals") == [(0,)]
+
+
+# The agent hands off only for a case the policy names (policy v2, section exceptions; v1.1 step 3)
+
+
+def handoff(ctx, code, order_id="", call_id="hand-1", units=()):
+    return call(
+        ctx,
+        "request_handoff",
+        call_id,
+        reason_code=code,
+        order_id=order_id,
+        unit_ids=list(units),
+        reason="A test of the handoff check.",
+        customer_goal="",
+        confirmed_facts="",
+        decision_needed="",
+    )
+
+
+def control(ctx):
+    return rows(ctx.engine, f"SELECT control FROM conversations WHERE id = '{ctx.conversation_id}'")
+
+
+def test_a_delivery_dispute_needs_an_order_recorded_as_delivered(db):
+    ctx = agent_for(db, "D15")  # h05-o1 was delivered; h05-o2, the controller, is still on its way
+    refused = handoff(ctx, "delivery_disputed", "h05-o2")
+    assert (refused["ok"], refused["refused"]) == (False, "handoff_reason")
+    assert "not recorded as delivered" in refused["explanation"]
+    # An order on its way is answered with its status, and cancelling it is offered to a person (eligible-orders).
+    assert "offer a person for that (refund-policy/v2/eligible-orders)" in refused["explanation"]
+    assert control(ctx) == [("agent",)]  # nothing changed, and the refusal is in the audit log
+    assert rows(ctx.engine, "SELECT outcome, reason FROM audit_events WHERE event = 'hand_off'") == [
+        ("rejected", "handoff_reason")
+    ]
+    assert handoff(ctx, "delivery_disputed", "h05-o1", "hand-2")["ok"] is True
+    assert control(ctx) == [("human_controlled",)]
+
+
+def test_a_decision_of_the_shop_must_have_been_made_in_this_conversation(db):
+    ctx = agent_for(db, "D10")
+    assert handoff(ctx, "shop_decided")["refused"] == "handoff_reason"
+    proposal = call(ctx, "propose_refund", "p-1", order_id="d10-o1", unit_ids=["d10-o1-u1"])
+    assert proposal["outcome"] == "needs_person"
+    # The result names the code, so a decision of the shop is not handed off as the customer's request.
+    assert "reason_code shop_decided" in proposal["next_step"]
+    assert handoff(ctx, "shop_decided", call_id="hand-2")["ok"] is True
+    reason = "shop_decided: A test of the handoff check."  # the staff member sees the case named
+    assert rows(ctx.engine, "SELECT origin, reason FROM handoffs") == [("agent", reason)]
+
+
+def test_a_decision_of_the_shop_is_the_latest_of_the_conversation_on_the_order_as_it_is(db):
+    # An earlier referral is not standing permission: the request in front of the agent is the latest decision.
+    ctx = agent_for(db, "D02")  # delivered 8 September 12:00, so the deadline is 8 October 12:00
+    bowl, plate = "d02-o1-u1", "d02-o1-u2"
+    assert call(ctx, "propose_refund", "p-1", order_id="d02-o1", unit_ids=[bowl])["outcome"] == "eligible"
+    late = replace(ctx, clock=lambda: datetime(2026, 10, 9, 12, 0, tzinfo=UTC))  # the bowl's proposal lapsed
+    assert call(late, "propose_refund", "p-2", order_id="d02-o1", unit_ids=[bowl])["outcome"] == "needs_person"
+    assert call(late, "propose_refund", "p-3", order_id="d02-o1", unit_ids=[plate])["outcome"] == "refused"
+    refused = handoff(late, "shop_decided")
+    assert refused["refused"] == "handoff_reason"
+    assert "For a refund request, call propose_refund and follow its result." in refused["explanation"]
+    assert call(late, "propose_refund", "p-4", order_id="d02-o1", unit_ids=[bowl])["outcome"] == "needs_person"
+    with db("owner").begin() as conn:  # for example, a corrected return record
+        conn.execute(text("UPDATE orders SET material_version = material_version + 1 WHERE id = 'd02-o1'"))
+    assert handoff(late, "shop_decided", call_id="hand-2")["refused"] == "handoff_reason"  # decided on the old order
+    assert call(late, "propose_refund", "p-5", order_id="d02-o1", unit_ids=[bowl])["outcome"] == "needs_person"
+    assert handoff(late, "shop_decided", call_id="hand-3")["ok"] is True
+
+
+def test_a_refused_handoff_keeps_the_refund_under_way_and_says_what_to_do_instead(db):
+    ctx = agent_for(db, "D01")
+    proposal = call(ctx, "propose_refund", "p-1", order_id="d01-o1", unit_ids=["d01-o1-u1"])
+    assert proposal["outcome"] == "eligible"
+    refused = handoff(ctx, "shop_decided")
+    assert refused["refused"] == "handoff_reason"
+    # No offer of a person after a refusal (policy section exceptions); a clear request for one is still honoured.
+    assert "offer a person" not in refused["explanation"]
+    assert "without offering a person" in refused["explanation"]
+    assert "customer_asked only when the customer clearly asks" in refused["explanation"]
+    assert control(ctx) == [("agent",)]
+    status = f"SELECT status FROM proposals WHERE id = '{proposal['proposal_id']}'"
+    assert rows(ctx.engine, status) == [("awaiting_customer_confirmation",)]
+
+
+def test_a_return_dispute_needs_named_units_the_records_do_not_show_received(db):
+    ctx = agent_for(db, "D22")  # h12-o1: the duvet set has not arrived back
+    assert handoff(ctx, "return_disputed", "h12-o1", units=["h12-o1-u1"])["ok"] is True
+
+
+def test_a_return_dispute_is_about_the_named_units_not_others_of_the_order(db):
+    ctx = agent_for(db, "D02")  # the bowl and the plate arrived back; the napkins did not
+    bowl, napkins = "d02-o1-u1", "d02-o1-u3"
+    refused = handoff(ctx, "return_disputed", "d02-o1", units=[bowl])
+    assert refused["refused"] == "handoff_reason"
+    assert f"the records show {bowl} received back or already refunded" in refused["explanation"]
+    assert "A unit received back is requested with propose_refund" in refused["explanation"]
+    assert handoff(ctx, "return_disputed", "d02-o1", "hand-2", units=[napkins, bowl])["refused"] == "handoff_reason"
+    assert handoff(ctx, "return_disputed", "d02-o1", "hand-3", units=[napkins])["ok"] is True
+
+
+def test_a_return_dispute_names_the_customers_order_and_its_units(db):
+    ctx = agent_for(db, "D01")  # d01-o1: the mug arrived back
+    assert handoff(ctx, "return_disputed", "d01-o1", units=["d01-o1-u1"])["refused"] == "handoff_reason"
+    assert "name the customer's order" in handoff(ctx, "return_disputed", "", "hand-2")["explanation"]
+    for units in ([], ["d01-o1-u9"], ["d02-o1-u3"]):  # none, unknown, or not of this order
+        refused = handoff(ctx, "return_disputed", "d01-o1", "hand-3", units=units)
+        assert "name the units of that order the customer says were sent" in refused["explanation"]
+
+
+def test_a_dispute_names_an_order_of_the_signed_in_customer(db):
+    ctx = agent_for(db, "D07")  # d07-o2 is Hugo's
+    assert "name the customer's order" in handoff(ctx, "delivery_disputed", "d07-o2")["explanation"]
+
+
+def test_what_only_the_conversation_shows_stays_the_agents_claim(db):
+    ctx = agent_for(db, "D01")
+    assert handoff(ctx, "shipping_refund")["ok"] is True
+    assert rows(ctx.engine, "SELECT origin FROM handoffs") == [("agent",)]
 
 
 # The model's mistakes

@@ -2,14 +2,14 @@
 failure cases 3, 4, 10 and 12 of plan section 13). Expected values are written by hand.
 """
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 
 from refund_agent.fixtures import seed
-from refund_agent.refunds import Actor, cancel, confirm, decide, execute, propose
+from refund_agent.refunds import Actor, cancel, confirm, decide, execute, hand_off, propose
 from tests.acceptance.flows import DEVELOPMENT, POLICY, approved, attempt, home, proposed, refused_check, rows
 
 NOW = DEVELOPMENT["D01"].now
@@ -194,3 +194,26 @@ def test_an_approval_cannot_pay_for_another_proposal(db):
             {"plate": plate, "approval": bowl_approval},
         )
     assert rows(app, "SELECT count(*) FROM refund_operations") == [(0,)]
+
+
+# The time limit's referral for an earlier on-time proposal (policy section window; plan change log, 2026-10-20)
+
+
+def test_a_late_request_goes_to_a_person_only_for_units_whose_on_time_proposal_lapsed(db):
+    app = seeded(db, "D02")  # delivered 8 September 12:00, so the deadline is 8 October 12:00
+    bowl, plate = "d02-o1-u1", "d02-o1-u2"
+    proposed(app, "d02-bia", "d02-o1", [bowl], "bowl", NOW)  # left alone: it lapses after 72 hours, still open
+    replaced, _ = proposed(app, "d02-bia", "d02-o1", [plate], "plate", NOW)
+    proposed(app, "d02-bia", "d02-o1", [bowl], "bowl-instead", NOW, replaced)  # the customer replaced the plate
+    handed, _ = proposed(app, "d02-bia", "d02-o1", [plate], "plate-again", NOW)
+    hand_off(app, Actor("agent", "d02-bia"), handed, "the customer asked for a person", NOW, origin="customer")
+    late = datetime(2026, 10, 9, 12, 0, tzinfo=UTC)  # a day after the deadline
+    decisions = {
+        name: proposed(app, "d02-bia", "d02-o1", units, f"late-{name}", late)[1]
+        for name, units in (("bowl", [bowl]), ("plate", [plate]), ("both", [bowl, plate]))
+    }
+    assert {name: (p.outcome, p.reasons) for name, p in decisions.items()} == {
+        "bowl": ("needs_person", ("window",)),
+        "plate": ("refused", ("window",)),  # replaced by the customer, then closed by a handoff: neither counts
+        "both": ("refused", ("window",)),  # the plate has no such proposal
+    }

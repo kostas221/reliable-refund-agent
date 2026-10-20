@@ -14,7 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal
@@ -256,20 +256,30 @@ def _policy_order(conn: Connection, order_id: str, now: datetime) -> eligibility
     )
 
 
-def _earlier_request_on_time(conn: Connection, policy: Policy, delivered_at: datetime | None, units: list[str]) -> bool:
-    """An earlier proposal for any of these units was created in time and then expired or was invalidated."""
+def _earlier_on_time_units(
+    conn: Connection, policy: Policy, delivered_at: datetime | None, units: list[str], now: datetime
+) -> frozenset[str]:
+    """The units that had an earlier proposal created in time that then expired, or stopped being valid because the
+    order or the policy changed, before it was paid (policy sections window and validity). A proposal that expired
+    while nobody touched it is still open in the table, so its time counts, not only its status. A proposal the
+    customer replaced, cancelled or had rejected, or that a handoff closed, does not count."""
     if delivered_at is None:
-        return False
-    return bool(
-        conn.execute(
-            text(
-                "SELECT EXISTS (SELECT 1 FROM proposals p JOIN proposal_units pu ON pu.proposal_id = p.id "
-                "WHERE pu.order_unit_id = ANY(:units) AND p.status IN ('expired', 'invalidated') "
-                "AND p.created_at <= :deadline)"
-            ),
-            {"units": units, "deadline": eligibility.refund_deadline(policy, delivered_at)},
-        ).scalar_one()
-    )
+        return frozenset()
+    found = conn.execute(
+        text(
+            "SELECT DISTINCT pu.order_unit_id FROM proposals p JOIN proposal_units pu ON pu.proposal_id = p.id "
+            "WHERE pu.order_unit_id = ANY(:units) AND p.created_at <= :deadline AND ("
+            "p.status = 'expired' OR (p.status = 'invalidated' AND p.status_reason = 'order_or_policy_changed') "
+            "OR (p.status = ANY(:open) AND p.expires_at <= :now))"
+        ),
+        {
+            "units": units,
+            "deadline": eligibility.refund_deadline(policy, delivered_at),
+            "open": OPEN_STATUSES,
+            "now": now,
+        },
+    ).scalars()
+    return frozenset(found)
 
 
 def _result(proposal: RowMapping) -> ProposalResult:
@@ -372,8 +382,8 @@ def propose(
                     open_proposal = None
 
             policy_order = _policy_order(conn, order_id, now)
-            earlier = _earlier_request_on_time(conn, policy, order["delivered_at"], list(unit_ids))
-            decision = eligibility.evaluate(policy, policy_order, tuple(unit_ids), now, earlier_request_on_time=earlier)
+            earlier = _earlier_on_time_units(conn, policy, order["delivered_at"], list(unit_ids), now)
+            decision = eligibility.evaluate(policy, policy_order, tuple(unit_ids), now, earlier_on_time_units=earlier)
             eligible = decision.outcome is eligibility.Outcome.ELIGIBLE
             if eligible and open_proposal is not None:
                 if open_proposal["status"] != Status.AWAITING_CUSTOMER_CONFIRMATION:
@@ -802,6 +812,107 @@ def hand_off(
                 details={"handoff_id": handoff_id, "origin": recorded_origin, "reason": reason},
             )
             return handoff_id
+    except Refused as refusal:
+        _record_rejection(engine, now, actor, "hand_off", refusal, conversation_id=conversation_id)
+        raise
+
+
+# The cases in which the agent may hand a conversation to a person (policy v2, section exceptions).
+HANDOFF_REASONS = ("customer_asked", "shop_decided", "return_disputed", "delivery_disputed", "shipping_refund")
+_NEEDS_ORDER = ("return_disputed", "delivery_disputed")
+
+
+def check_handoff_reason(
+    engine: Engine,
+    actor: Actor,
+    conversation_id: str,
+    reason: str,
+    now: datetime,
+    policy: Policy,
+    order_id: str | None = None,
+    unit_ids: Sequence[str] = (),
+) -> None:
+    """Before the agent hands off, the backend checks the reason it names against its own data (plan change log,
+    2026-10-20, v1.1 step 3). It can see three of the five cases, each about the request in front of it: the latest
+    decision of this conversation, on the order and policy as they are now, is that a staff member takes the case;
+    the named units of the named order are neither received back nor refunded; the named order is recorded as
+    delivered. A customer's request for a person, or to refund shipping, is in the conversation's words and stays
+    the agent's claim. A refusal says what to do instead and is recorded like any other; the customer's button and a
+    staff member's takeover never come here."""
+    try:
+        with engine.connect() as conn:
+            conversation = _one(conn, "SELECT customer_id FROM conversations WHERE id = :id", id=conversation_id)
+            if actor.kind != "agent" or conversation is None or conversation["customer_id"] != actor.user_id:
+                raise Refused("actor_owns")
+            if reason not in HANDOFF_REASONS:
+                raise Refused("valid_values", f"the reason is one of {', '.join(HANDOFF_REASONS)}")
+            order = None
+            if reason in _NEEDS_ORDER:
+                order = order_id and _one(
+                    conn, "SELECT id, status, customer_id FROM orders WHERE id = :id", id=order_id
+                )
+                if not order or order["customer_id"] != actor.user_id:
+                    raise Refused("handoff_reason", "name the customer's order the dispute is about")
+            holds, unmet, then = True, "", ""
+            if reason == "shop_decided":
+                # The request in front of the agent, not any earlier one: the conversation's latest decision.
+                latest = _one(
+                    conn,
+                    "SELECT * FROM proposals WHERE conversation_id = :id "
+                    "ORDER BY created_at DESC, created_xact DESC LIMIT 1",
+                    id=conversation_id,
+                )
+                holds = (
+                    latest is not None
+                    and (latest["status"], latest["status_reason"]) == ("ineligible", "needs_person")
+                    and _out_of_date(conn, latest, now, policy) is None
+                )
+                unmet = (
+                    "the latest refund decision of this conversation, on the order and policy as they are now, is not "
+                    "that a staff member takes the case"
+                )
+                then = "For a refund request, call propose_refund and follow its result."
+            elif reason == "return_disputed":
+                units = list(dict.fromkeys(unit_ids))
+                found = (
+                    conn.execute(
+                        text(
+                            "SELECT u.id, (u.received_back_at IS NOT NULL AND u.received_back_at <= :now) AS received, "
+                            "EXISTS (SELECT 1 FROM ledger_lines l WHERE l.order_unit_id = u.id) AS refunded "
+                            "FROM order_units u WHERE u.order_id = :order AND u.id = ANY(:units) ORDER BY u.id"
+                        ),
+                        {"now": now, "order": order["id"], "units": units},
+                    )
+                    .mappings()
+                    .all()
+                )
+                if not units or len(found) != len(units):
+                    raise Refused("handoff_reason", "name the units of that order the customer says were sent")
+                if order["status"] != "delivered":
+                    holds, unmet = False, "that order is not recorded as delivered"
+                    then = f"Tell the customer its status ({policy.citation('eligible-orders')})."
+                else:
+                    settled = [unit["id"] for unit in found if unit["received"] or unit["refunded"]]
+                    holds = not settled
+                    unmet = f"the records show {', '.join(settled)} received back or already refunded"
+                    then = (
+                        "A unit received back is requested with propose_refund; a refunded unit is reported with its "
+                        f"receipt ({policy.citation('remaining')})."
+                    )
+            elif reason == "delivery_disputed":
+                holds = order["status"] == "delivered"
+                unmet = "that order is not recorded as delivered, so it is on its way, not disputed"
+                then = (
+                    "Tell the customer its status; cancelling it or changing its delivery is outside this process, so "
+                    f"offer a person for that ({policy.citation('eligible-orders')})."
+                )
+            if not holds:
+                raise Refused(
+                    "handoff_reason",
+                    f"{unmet}. {then} If a rule refuses the request, give its reason and what the policy allows, "
+                    "without offering a person. Hand off with customer_asked only when the customer clearly asks for "
+                    "a person.",
+                )
     except Refused as refusal:
         _record_rejection(engine, now, actor, "hand_off", refusal, conversation_id=conversation_id)
         raise

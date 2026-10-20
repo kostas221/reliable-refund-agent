@@ -10,6 +10,8 @@ from refund_agent.fixtures import seed
 from refund_agent.policy import POLICY_PATH, RENDERED_PATH, Policy, load_policy, load_policy_version, render_markdown
 from refund_agent.scenarios import load_split
 
+V1_PATH = POLICY_PATH.parent / "refund-policy-v1.toml"
+
 
 def raw_policy() -> dict:
     return tomllib.loads(POLICY_PATH.read_text(encoding="utf-8"))
@@ -26,7 +28,7 @@ def raw_with_text(section_id: str, old: str, new: str) -> dict:
 def test_policy_loads():
     policy = load_policy()
     assert policy.currency == "BRL"
-    assert policy.citation("window") == "refund-policy/v1/window"
+    assert policy.citation("window") == "refund-policy/v2/window"  # the policy in force
 
 
 def test_texts_take_numbers_from_rules():
@@ -95,7 +97,7 @@ def test_wrong_type_is_rejected_not_converted(wrong):
 
 
 def test_frozen_version_with_changed_content_does_not_load(tmp_path):
-    text = POLICY_PATH.read_text(encoding="utf-8").replace("is on time.", "is late.")
+    text = V1_PATH.read_text(encoding="utf-8").replace("is on time.", "is late.")  # v1 is frozen
     path = tmp_path / "policy.toml"
     path.write_text(text, encoding="utf-8")
     with pytest.raises(ValueError, match="frozen"):
@@ -103,10 +105,10 @@ def test_frozen_version_with_changed_content_does_not_load(tmp_path):
 
 
 def test_changed_content_loads_under_a_new_version(tmp_path):
-    text = POLICY_PATH.read_text(encoding="utf-8").replace("is on time.", "is late.")
+    text = V1_PATH.read_text(encoding="utf-8").replace("is on time.", "is late.")
     path = tmp_path / "policy.toml"
-    path.write_text(text.replace('version = "v1"', 'version = "v2"'), encoding="utf-8")
-    assert load_policy(path).version == "v2"
+    path.write_text(text.replace('version = "v1"', 'version = "v9"'), encoding="utf-8")  # a version not frozen
+    assert load_policy(path).version == "v9"
 
 
 def test_hash_ignores_comments_wrapping_and_line_endings(tmp_path):
@@ -121,17 +123,30 @@ def test_hash_ignores_comments_wrapping_and_line_endings(tmp_path):
 
 
 def test_a_version_is_loaded_by_its_name():
-    assert load_policy_version("v1") == load_policy()
+    assert load_policy_version("v2") == load_policy()  # the policy in force
+    assert load_policy_version("v1") == load_policy(V1_PATH)
 
 
 def test_a_file_that_declares_another_version_is_refused(tmp_path, monkeypatch):
     monkeypatch.setattr(policy_module, "POLICY_PATH", tmp_path / "refund-policy-v1.toml")
     (tmp_path / "refund-policy-v7.toml").write_text(POLICY_PATH.read_text(encoding="utf-8"), encoding="utf-8")
-    with pytest.raises(ValueError, match="refund-policy-v7.toml declares version v1, not v7"):
+    with pytest.raises(ValueError, match="refund-policy-v7.toml declares version v2, not v7"):
         load_policy_version("v7")
 
 
 def test_a_scenario_is_never_loaded_with_another_version():
     scenario = next(s for s in load_split("development") if s.id == "D01")
-    with pytest.raises(ValueError, match="D01 is written for policy v9, not v1"):
+    with pytest.raises(ValueError, match="D01 is written for policy v9, not v2"):
         seed(None, scenario.model_copy(update={"policy_version": "v9"}), load_policy())  # before any database work
+
+
+def test_version_one_still_loads_as_it_was_frozen():
+    v1 = load_policy_version("v1")
+    assert (v1.version, v1.content_hash()) == ("v1", policy_module.FROZEN_VERSIONS["v1"])
+    assert v1.citation("window") == "refund-policy/v1/window"
+
+
+def test_the_policy_in_force_is_frozen():
+    # A version is frozen before its first run, so a run's policy hash always names one text.
+    policy = load_policy()
+    assert policy_module.FROZEN_VERSIONS[policy.version] == policy.content_hash()

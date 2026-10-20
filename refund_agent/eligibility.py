@@ -20,16 +20,19 @@ PAYMENT_METHODS = frozenset({"credit_card", "boleto", "voucher", "debit_card"})
 ENFORCED_BY = {
     "scope": "the currency check of valid_values; the UTC check of every function here",
     "eligible-orders": "evaluate()",
-    "window": "evaluate() with refund_deadline()",
+    "window": "evaluate() with refund_deadline(), and the earlier on-time units the backend finds for each request",
     "return": "evaluate()",
-    "amount": "split_paid() once when the order is recorded; evaluate() adds up the units' paid amounts",
+    "amount": "split_paid() once when the order is recorded; evaluate() adds up the units' paid amounts and refuses a "
+    "unit with nothing paid",
     "remaining": "evaluate(); at execution a unique constraint allows one ledger line per unit",
     "shipping": "amounts never include shipping; a request for shipping goes to a person through the agent",
     "payment": "evaluate() with single_valid_payment()",
-    "approval": "the state machine checks customer_confirmed and staff_approved",
+    "approval": "the state machine checks customer_confirmed and staff_approved; cancel() takes only the customer's "
+    "button; decide() refuses a rejection without a reason",
     "validity": "proposal_expires_at() and proposal_active(); the state machine check proposal_current",
     "payout": "a summary of the sections above, enforced by the checks of the execute transition",
-    "exceptions": "the agent's request_handoff tool, and every needs_person decision",
+    "exceptions": "every needs_person decision; check_handoff_reason() before the agent's request_handoff; "
+    "hand_off() closes the conversation's open proposal",
 }
 
 
@@ -126,12 +129,14 @@ def evaluate(
     unit_ids: tuple[str, ...],
     at: datetime,
     *,
-    earlier_request_on_time: bool = False,
+    earlier_on_time_units: frozenset[str] = frozenset(),
 ) -> Decision:
     """The policy decision for refunding these units of the order, requested at the moment `at`.
 
-    earlier_request_on_time: the backend found an earlier proposal for any of these units that was created
-    within the window and then expired or was invalidated before it was paid.
+    earlier_on_time_units: the units for which the backend found an earlier proposal created within the window
+    that then expired, or stopped being valid because the order or the policy changed, before it was paid (policy
+    sections window and validity). A late request goes to a person only when every requested unit has one: each
+    unit is judged on its own history (plan change log, 2026-10-20).
 
     A refusal wins over a referral to a person: nobody needs to review a request the policy refuses anyway.
     Invalid input (no units, repeated units, units of another order) is an error, not a policy decision.
@@ -153,11 +158,13 @@ def evaluate(
     elif not _delivery_time_plausible(order, at):
         needs_person.append("eligible-orders")
     elif at > refund_deadline(policy, order.delivered_at):
-        (needs_person if earlier_request_on_time else refused).append("window")
+        (needs_person if set(unit_ids) <= earlier_on_time_units else refused).append("window")
     if any(unit.refunded for unit in requested):
         refused.append("remaining")
     if not all(unit.received_back for unit in requested):
         refused.append("return")
+    if any(unit.paid_minor == 0 for unit in requested):
+        refused.append("amount")  # nothing was paid, so nothing is refunded, and no ledger line can be zero
     if not single_valid_payment(order):
         needs_person.append("payment")
 

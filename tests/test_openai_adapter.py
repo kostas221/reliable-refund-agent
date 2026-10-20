@@ -292,3 +292,18 @@ def test_the_worst_case_holds_even_if_every_input_token_is_written_to_the_cache(
     request = adapter.request("", HI, TOOLS)
     tokens = estimated_tokens(json.dumps(request, ensure_ascii=False))
     assert adapter.worst_case_usd(request) == pytest.approx(cost_usd("gpt-6.1-sol", tokens, 0, 4000, tokens))
+
+
+def test_every_argument_of_every_tool_reaches_the_model_with_a_type():
+    # Strict mode refuses a property without a type, and the strict schema keeps no anyOf: an optional "str | None"
+    # argument would fail every request of a paid run (found before the run of v1.1 step 3).
+    def untyped(schema, path):
+        for name, prop in schema.get("properties", {}).items():
+            if "type" not in prop:
+                yield f"{path}.{name}"
+            yield from untyped(prop, f"{path}.{name}")
+        if "items" in schema:
+            yield from untyped(schema["items"], f"{path}[]")
+
+    missing = [p for tool in TOOLS for p in untyped(openai_adapter.strict_schema(tool["parameters"]), tool["name"])]
+    assert missing == []

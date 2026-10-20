@@ -57,7 +57,7 @@ def test_a_scripted_conversation_refunds_the_mug_through_the_real_tools(db, tmp_
     proposal_id = json.loads(messages[-2]["content"])["proposal_id"]
     assert rows(app, "SELECT status, amount_minor FROM proposals") == [("awaiting_customer_confirmation", 4990)]
     policy = json.loads(messages[4]["content"])
-    assert policy["sections"][0]["citation"] == "refund-policy/v1/return"
+    assert policy["sections"][0]["citation"] == "refund-policy/v2/return"
 
     # The customer's button and the staff decision happen outside the agent; the agent is then told.
     confirm(app, Actor("customer", "d01-ana"), proposal_id, "confirmed", D01.now, POLICY)

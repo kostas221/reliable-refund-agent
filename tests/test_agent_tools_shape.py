@@ -4,9 +4,11 @@ import pytest
 
 from refund_agent.agent.policy_search import WordSearch
 from refund_agent.agent.tools import tool_definitions
-from refund_agent.policy import load_policy
+from refund_agent.policy import load_policy_version
 
-POLICY = load_policy()
+# The word search is tested on the text it was tuned on, policy v1; from v1.1 the whole policy is in the agent's
+# instructions, and the search is replaced in its step 2 (plan change log, 2026-10-20).
+POLICY = load_policy_version("v1")
 SEARCH = WordSearch(POLICY)
 # Fields that would let the model decide what only the backend or a person may decide.
 FORBIDDEN_ARGUMENTS = {

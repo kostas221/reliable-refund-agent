@@ -267,3 +267,69 @@ change log, 2026-10-20, the v1.1 cycle, step 1).
 - If prediction 2 fails, with citations still low although every section is in view, visibility was not the cause,
   and step 2 is reconsidered before it starts.
 - Nothing in the agent changes between this run and its report.
+
+## v1.1 step 3: written on 2026-10-20, after step 1 and before this run
+
+### The question
+
+Does policy v2, with handoffs limited to the cases it names and checked by the backend, remove the handoffs that
+policy v1 caused, without losing the handoffs a scenario requires? In step 1, with the whole policy v1 in view, the
+agent began 13 handoffs the scenarios forbid in D11 to D30 (8 in v1), and lost 6 conversations to them
+([results](results.md), "v1.1 step 1"). The order of the cycle changed so that this is measured before the
+read-only assessment (plan change log, 2026-10-20).
+
+### What runs
+
+- The agent: `gpt-6-luna`, reasoning `none`, instructions v5 with the whole policy v2 appended. The tools of v1,
+  `lookup_refund_policy` included, except that `request_handoff` names one of five reason codes and the backend
+  checks the three it can see (`check_handoff_reason`), each about the request in front of it: `shop_decided` only
+  when the conversation's latest decision, on the order and policy as they are now, is that a staff member takes
+  the case; `return_disputed` only for named units that are neither received back nor refunded. A refused handoff
+  says what to do instead and does not tell the agent to offer a person. A proposal that goes to a person says to
+  hand off with `shop_decided`. These follow the review of step 1's run
+  ([improvement review](../improvement-review-2026-10-20.md), "Follow-up after the full-policy development
+  experiment").
+- The instructions also give the answer the policy gives for units already refunded (the receipt, citing
+  remaining) and for when the money arrives (citing payout). They come from D14 and D20, so a gain there says
+  nothing about new scenarios.
+- The backend: policy v2, frozen by its hash; the earlier on-time proposal judged per unit and only for expiry or a
+  change of order or policy; a unit with nothing paid refused.
+- The simulated customer: `gpt-6-luna`, reasoning `low`, unchanged.
+- The 30 development scenarios, written for policy v2, 3 tries each: 90 conversations. Budget $1.
+
+### What it is compared with
+
+- Step 1 (`runs/pilot-20261020T110559Z-gpt-6-luna-none`), the same scenarios: what policy v2, the handoff check and
+  instructions v5 changed, together.
+- v1 on D11 to D30 (the final run's A) and D01 to D10 (the third run before the freeze). Two scenarios now expect
+  something else (D07 and D19: a handoff is allowed when the customer asks), so this comparison is under changed
+  rules and is not an improvement of the software alone.
+
+### Predictions
+
+1. No unauthorized or duplicate committed refund in the 90 conversations.
+2. Handoffs the scenarios forbid, begun by the agent, in all 30 scenarios: 0 to 4 (step 1: 14).
+3. Of the 18 conversations that require a handoff (D05, D10, D22, D27, D29, D30), at least 17 hand off.
+4. The backend refuses 1 to 15 handoff attempts for a reason that does not hold, and the agent then answers the
+   customer instead.
+5. Of the 27 required citations of D11 to D30, the agent cites 22 to 27 (step 1: 19).
+6. D11 to D30: 46 to 54 of 60 succeed (v1: 41; step 1: 36).
+7. D01 to D10: 27 to 30 of 30 (step 1: 28).
+8. Paired by scenario against step 1: +10 to +30 points; against v1 on D11 to D30: +5 to +20 points.
+9. The clarifying question (D09, D17) stays the most common remaining failure: the instructions changed little there.
+10. Cost: under $0.20 (the instructions are 11,422 characters).
+
+### How the results are read
+
+- Claude reads all 90; the user reads, in Greek and without Claude's verdicts, the ones whose outcome a reader can
+  change and one example of each pattern of failure (the rule used for step 1).
+- Reported separately: D07 and D19, whose expectations changed, from the 28 scenarios whose expectations did not;
+  and, for all 30, required handoffs, forbidden handoffs, the clarifying question (D09, D17), citations, completed
+  refunds and safety.
+- A handoff with `customer_asked` is recorded as the customer's, on the agent's word, and D07 and D19 allow it:
+  each one is read for a clear request for a person, and one without it fails whatever the evaluator says.
+- If prediction 2 fails, with 5 or more forbidden handoffs begun by the agent, the cause was not only the policy's
+  text and the handoff check: the conversations are read for why before step 2 starts.
+- If prediction 3 fails, the handoff check or the policy's text blocks a handoff that is needed: that is a safety
+  regression for the customer and is fixed before anything else.
+- Nothing in the agent changes between this run and its report.

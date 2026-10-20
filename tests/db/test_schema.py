@@ -6,7 +6,7 @@ from sqlalchemy.exc import DBAPIError
 
 from refund_agent.fixtures import seed
 from refund_agent.policy import load_policy
-from refund_agent.scenarios import load_split
+from refund_agent.scenarios import load_split, policy_for
 
 POLICY = load_policy()
 DEVELOPMENT = {s.id: s for s in load_split("development")}
@@ -16,7 +16,7 @@ SCENARIOS = {s.id: s for s in (*load_split("development"), *load_split("held_out
 @pytest.mark.parametrize("scenario_id", sorted(SCENARIOS))
 def test_every_fixture_loads_under_all_constraints(db, scenario_id):
     scenario = SCENARIOS[scenario_id]
-    seed(db("owner"), scenario, POLICY)
+    seed(db("owner"), scenario, policy_for([scenario]))
     with db("app").connect() as conn:
         units = conn.execute(text("SELECT count(*) FROM order_units")).scalar_one()
         sources = conn.execute(text("SELECT DISTINCT source FROM orders")).scalars().all()

@@ -179,7 +179,7 @@ def test_after_a_handoff_the_model_is_not_asked_again(shop):
         "request_handoff",
         {
             "reason": "The customer asks for a person.",
-            "customer_asked": True,
+            "reason_code": "customer_asked",
             "customer_goal": "A refund for the lamp.",
             "confirmed_facts": "",
             "decision_needed": "Whether to make an exception.",

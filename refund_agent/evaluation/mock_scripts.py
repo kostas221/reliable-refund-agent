@@ -97,13 +97,13 @@ MOCK = {
             Call("lookup_refund_policy", {"query": "time limit"}),
             Say(
                 "I'm sorry, I can't refund the lamp: a refund must be requested within 30 days of delivery "
-                "(refund-policy/v1/window), and that period ended on 24 August."
+                "(refund-policy/v2/window), and that period ended on 24 August."
             ),
             Call(
                 "request_handoff",
                 {
                     "reason": "The customer asks for a person to review a late refund request.",
-                    "customer_asked": True,
+                    "reason_code": "customer_asked",
                     "customer_goal": "A refund for the brass desk lamp.",
                     "confirmed_facts": "Delivered on 25 July; the lamp was received back on 30 August.",
                     "decision_needed": "Whether an exception to the time limit applies.",
@@ -120,7 +120,7 @@ MOCK = {
             Call("lookup_refund_policy", {"query": "items must be returned first"}),
             Say(
                 "I can't refund the running shoes yet: a refund is made once the item has reached us "
-                "(refund-policy/v1/return), and we have not received them. Once they arrive, you can ask again."
+                "(refund-policy/v2/return), and we have not received them. Once they arrive, you can ask again."
             ),
             Say("You're welcome. Once the shoes reach us, just write again."),
         ),
@@ -173,7 +173,7 @@ MOCK = {
                 "request_handoff",
                 {
                     "reason": "A late request after an on-time proposal expired; the policy sends it to a person.",
-                    "customer_asked": False,
+                    "reason_code": "shop_decided",
                     "customer_goal": "A refund for the ceramic vase.",
                     "confirmed_facts": "An earlier proposal on 11 September expired without a decision.",
                     "decision_needed": "Whether to refund the vase although the deadline has passed.",
@@ -181,7 +181,7 @@ MOCK = {
             ),
             Say(
                 "Your earlier request was made in time but expired before a decision, so under our policy "
-                "(refund-policy/v1/window) a member of our staff will review it. A person will take over from here."
+                "(refund-policy/v2/window) a member of our staff will review it. A person will take over from here."
             ),
         ),
     ),

@@ -52,7 +52,7 @@ export interface Order {
 }
 
 export interface Citation {
-  citation: string; // the policy's own ID, such as refund-policy/v1/return
+  citation: string; // the policy's own ID, such as refund-policy/v2/return
   title: string | null;
 }
 

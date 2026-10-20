@@ -141,10 +141,12 @@ def test_an_approval_is_not_paid_after_the_order_changed(app, db):
 def test_an_approval_is_not_paid_under_a_new_policy_version(app, tmp_path):
     proposal_id = approved(app, "d01-ana", "d01-rui", "d01-o1", ["d01-o1-u1"], "propose-1", NOW)
     changed = POLICY_PATH.read_text(encoding="utf-8").replace("is on time.", "counts as on time.")
-    path = tmp_path / "refund-policy-v2.toml"
-    path.write_text(changed.replace('version = "v1"', 'version = "v2"'), encoding="utf-8")
-    v2 = load_policy(path)
-    check = execute_check(app, proposal_id, v2)
+    path = tmp_path / "refund-policy-v9.toml"
+    # A changed text needs a version that is not frozen (FROZEN_VERSIONS).
+    path.write_text(changed.replace(f'version = "{POLICY.version}"', 'version = "v9"'), encoding="utf-8")
+    newer = load_policy(path)
+    assert newer.version == "v9" and newer.content_hash() != POLICY.content_hash()
+    check = execute_check(app, proposal_id, newer)
     assert check == "proposal_current"
     assert rows(app, "SELECT status, status_reason FROM proposals") == [("invalidated", "order_or_policy_changed")]
     nothing_paid(app)

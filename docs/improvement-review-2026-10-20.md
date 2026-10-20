@@ -556,3 +556,113 @@ Before the final batch, attach the passing implementation evidence to these fami
 declared development comparisons, and freeze the candidate and targets. The next 20 cases remain unused for
 tuning. Any unresolved family is visible in the handoff and release assessment; this review is not a statement
 that every possible future defect has been excluded.
+
+## Follow-up after the full-policy development experiment
+
+20 October 2026. This addendum updates the priorities using
+`runs/pilot-20261020T110559Z-gpt-6-luna-none`. It reviews the current policy v2 candidate separately from the code
+that produced that run. It does not approve a paid run, change the frozen policy, or claim these findings are fixed.
+The change of order already recorded in `docs/plan.md` is appropriate: resolve the policy and handoff behavior
+before measuring the planned read-only assessment.
+
+### What the experiment actually established
+
+The tested change was instructions v4 with the whole **v1** policy visible, with the old tools and simulator.
+It was not a test of policy v2 or of all eight recommendations in this review.
+
+| Measure | Previous runs | Full-policy v1 run |
+|---|---:|---:|
+| Successful conversations, original ten development scenarios | 29/30 | 28/30 |
+| Successful conversations, twenty former held-out scenarios, now development copies | 41/60 | 36/60 |
+| Required citations supplied in those twenty scenarios | 17/27 | 19/27 |
+| Agent-origin handoffs forbidden by those twenty scenarios | 8 | 13 |
+
+Reapplying the saved Claude audit gives 64/90 passed and 26/90 failed, with 0/90 unauthorized or duplicate
+committed refunds. The user's review is still pending; this is not a new independent audit of all ninety
+conversations. The saved paired comparison over thirty scenarios is -6.7 percentage points, with a 95% interval
+from -15.6 to +1.1. The batch was worse; that interval does not establish that full-policy context is generally
+harmful. The traces do establish specific undesirable decisions:
+
+- D15.try1 reads a `shipped` order, then hands off because the customer says it has not arrived. The wording
+  about a delivery that never arrived is applied to an ordinary shipment-status question.
+- D24.try1 treats a request for a new card as a staff-review case and never proposes the otherwise eligible
+  refund.
+- D14.try1 answers the payout-timing question without the required citation. D20.try1 reports the stored receipt
+  correctly, but omits the required remaining-balance citation. Showing a section is not enough to make the model
+  use it.
+- D17.try1 chooses between returned products without asking. That failure needs selection handling; changing
+  the handoff policy does not resolve it.
+
+The earlier expectation that visibility would improve overall success was not met. Keep the full policy for the
+declared v2 comparison, but treat its benefit as an open question. If a prediction fails, inspect which mechanism
+failed; do not infer that visibility, routing or the model alone was the sole cause.
+
+### Candidate findings to resolve before the next paid run
+
+1. **Make refusal recovery agree with the policy and instructions.**
+   `refund_agent/refunds.py`, `check_handoff_reason`, appends "offer a person" to every rejected reason.
+   `prompts/agent-v5.md` says not to offer a person after a policy refusal. A rejected `shop_decided` claim can
+   therefore send the agent back toward the unnecessary escalation the change is meant to prevent. Return a
+   reason-specific recovery instruction: explain a hard refusal and the supported alternative; offer a person
+   for an unsupported service; honor an actual human request. Add a scripted recovery test that preserves an
+   eligible pending proposal after a refused handoff, as well as a language case that checks what the agent says.
+
+2. **Bind handoff evidence to the current subject.**
+   The return-dispute query accepts an order if *any* unrefunded unit has not arrived back. In D02 the bowl and
+   plate have arrived, while the napkins have not; a dispute supposedly about the bowl can pass using the
+   unrelated napkins. The tool currently has no unit selection for this reason. Carry the disputed unit IDs and
+   check their ownership, order and receipt state; clarify if the disputed selection is ambiguous.
+   Likewise, `shop_decided` accepts *any historical* `needs_person` proposal in the conversation. Bind it to the
+   request being discussed and check whether its supporting facts still hold, instead of using unrelated past
+   history as standing permission. When `assess_refund` is introduced, allow an authoritative assessment to
+   support this decision without requiring a dummy proposal just to enable handoff.
+
+   These are gaps found by code inspection, not newly observed v2 model failures or unauthorized payments.
+   Checking order status or missing return records establishes a necessary condition; it does not prove the
+   customer actually made the disputed claim. `customer_asked` and `shipping_refund` still rely on the model's
+   reading of the conversation. Test that reading separately. The estimate that the new guard would reject
+   twelve old handoffs is not evidence of twelve additional successful conversations: the model may choose a
+   different reason, stop, or fail to recover.
+
+3. **Cover record-based answers and selection explicitly.**
+   The new broad citation instruction is useful, but a stored-receipt answer can still be understood as relying
+   only on order records. Specify the expected explanation: report the receipt from the authorized read;
+   explain that those units cannot be refunded again with the `remaining` citation. The policy citation is not
+   evidence that a particular payment happened. Do the equivalent for payout timing, including the distinction
+   between the demo ledger and a bank transfer.
+   Keep ambiguous selection as a separate measured failure: two plausible items require clarification before
+   proposing, while an explicit request for both does not. If it persists in the declared v2 batch, implement
+   the already planned selection state before the new held-out evaluation; more handoff wording will not fix it.
+
+### Verification and the next measurement
+
+The current candidate passed **77/77** free tests in `test_policy.py`, `test_eligibility.py`,
+`test_agent_tools_shape.py` and `test_independence.py`. The first attempt had four temporary-directory errors
+inside the sandbox; the identical selection passed outside that restriction. This selection does not exercise
+the database handoff gaps above or establish that a real model follows the new policy.
+
+Attach evidence to the existing eighteen acceptance families, starting with the distinctions this run exposed:
+
+- shipment-status question versus a delivered-order dispute;
+- return already sent versus a future return, with an unrelated unreturned unit in the same order;
+- a hard-rule exception versus an explicit request for a person;
+- a question about shipping charges versus a request to refund them;
+- a current backend referral versus an unrelated earlier referral;
+- refused handoff followed by correct recovery, without losing a valid pending refund;
+- a historical receipt and payout information with the correct explanation and source;
+- ambiguous item selection versus an explicit multi-item request.
+
+Scripted tests can prove the guard and recovery mechanics; development conversations and paraphrases are needed
+to test interpretation. Include required handoffs as well as forbidden ones: a reduction achieved by blocking
+legitimate requests is a regression.
+
+After the free checks, read a complete logged prompt and confirm the versioned policy, tools and scenario
+expectations match the declared predictions. Then the user can run the already declared v2 development batch.
+Report unchanged-expectation scenarios separately from D07 and D19, whose handoff expectations changed, and show
+required handoffs, forbidden handoffs, clarification, citations, completed refunds and safety separately.
+This measures the combined v2 package, not the individual contribution of each edit. Any later comparison of
+full context versus search must hold the policy and other components fixed.
+
+Keep the numeric limits, customer confirmation, staff approval and payment protections. The proposed change is
+more precise routing and evidence, not easier grading or relaxed financial authorization. Leave the twenty new
+held-out cases unused until the candidate and its development evidence are ready.

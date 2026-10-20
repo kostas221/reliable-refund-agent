@@ -63,16 +63,19 @@ question (2), a simulator fault (1). The evaluator's amount check was fixed afte
 cents) and applied to the saved results; the user's audit share was 69 conversations, read with help from another
 AI model. v1 is labelled as having missed both targets; the held-out set is spent (closing commit b5ae4b1).
 
-The v1.1 cycle (plan change log, 2026-10-20; spec from `docs/improvement-review-2026-10-20.md`, its final
-consistency check approved by the user as the policy v2 specification). Each step is measured on its own against v1,
-paired by scenario (`python -m refund_agent.evaluation.report compare`). Step 0 done: runs load the policy version
-their scenarios declare (`policy_for`, checked in `seed`); H01-H20 copied to development as D11-D30
-(`derived_from`, held-out files unchanged); diagnostics in the report (citations shown or not, handoffs by origin,
-proposals after a receipt), reproducing the v1 counts. Step 1 ready: instructions v4 = v3 plus the whole policy v1,
-same tools; predictions in `docs/pilot/predictions.md`; the user commits and runs the batch (A, 30 scenarios x 3).
-Then: step 2 (read-only `assess_refund` replacing the search, reasons with facts, zero-paid units refused, per-unit
-earlier request, `execute_refund` without a model-chosen ID, receipt instruction), step 3 (policy v2), and on.
-Development runs: Claude reads all, the user reads what Claude fails or notes. Phase 7 (video, code licence,
+The v1.1 cycle (plan change log, 2026-10-20; spec from `docs/improvement-review-2026-10-20.md`, its final consistency
+check approved by the user as the policy v2 specification). Each step is measured on its own against v1, paired by
+scenario (`python -m refund_agent.evaluation.report compare`). Step 0 done: runs load the policy version their scenarios
+declare (`policy_for`, checked in `seed`); H01-H20 copied to development as D11-D30 (`derived_from`, held-out files
+unchanged); diagnostics in the report (citations shown or not, handoffs by origin, proposals after a receipt),
+reproducing the v1 counts. Step 1 done (`runs/pilot-20261020T110559Z-gpt-6-luna-none`, results in
+`docs/pilot/results.md`): the whole policy v1 in view gained 2 conversations and lost 6 to handoffs its text can be read
+to require; the user's reading of 10 conversations is pending, and Claude's verdicts are shown only after it. The order
+changed: policy v2 before the assessment tool. Step 3 ready: policy v2 frozen by its hash after a review with ten fixes;
+handoff only with a `reason_code` that the backend checks where its data can (`check_handoff_reason`); instructions v5;
+development scenarios on v2, held-out on v1; predictions written; the user commits and runs the batch. Then step 2
+(read-only `assess_refund` replacing the search, reasons with facts, `execute_refund` without a model-chosen ID), and
+on. Development runs: Claude reads all, the user reads what Claude fails or notes. Phase 7 (video, code licence,
 external test, CI on a remote) after v1.1.
 
 ## Environment

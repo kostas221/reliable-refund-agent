@@ -10,7 +10,7 @@ split = "development"
 derived_from = "H09"
 category = "ineligible"
 template = "order-not-delivered"
-policy_version = "v1"
+policy_version = "v2"
 now = 2026-10-23T10:00:00Z  # bought 20 Oct, not delivered yet
 agent_visible_orders = ["h09-o1"]
 
@@ -64,6 +64,9 @@ reasons = ["eligible-orders", "return"]
 [expected]
 refund_amount_minor = 0
 last_proposal_status = ["ineligible", "none"]
-handoff = "forbidden"
-cites = ["refund-policy/v1/eligible-orders"]
+# Under policy v2 the agent offers a staff member for cancelling an order in transit and hands off only if
+# the customer accepts (sections eligible-orders and exceptions).
+handoff = "allowed"
+handoff_origins = ["customer"]
+cites = ["refund-policy/v2/eligible-orders"]
 communication = ["explains_refusal_reason"]

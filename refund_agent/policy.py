@@ -1,9 +1,12 @@
 """The demo refund policy, loaded from its single controlled source.
 
-policies/refund-policy-v1.toml holds the rules and the section texts. The backend reads the rules from this
-module, and docs/refund-policy.md is rendered from the same file, so the two cannot disagree.
+Each version has one file, policies/refund-policy-<version>.toml, with the rules and the section texts. The backend
+reads the rules from this module, and docs/refund-policy.md is rendered from the file of the policy in force
+(POLICY_PATH), so the two cannot disagree. A scenario names the version it was written for, and a run loads that
+version (load_policy_version).
 
-After changing the policy, re-render the document with `uv run python -m refund_agent.policy`.
+A released version is frozen by its content hash (FROZEN_VERSIONS): a changed rule or text needs a new version.
+After a new version, re-render the document with `uv run python -m refund_agent.policy`.
 """
 
 from __future__ import annotations
@@ -20,7 +23,8 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-POLICY_PATH = REPO_ROOT / "policies" / "refund-policy-v1.toml"
+# The policy in force; scenarios and runs name the version they were written for (load_policy_version).
+POLICY_PATH = REPO_ROOT / "policies" / "refund-policy-v2.toml"
 RENDERED_PATH = REPO_ROOT / "docs" / "refund-policy.md"
 
 # The order_status values of the Olist dataset.
@@ -35,7 +39,11 @@ _ARRAY = {"strict": False}
 
 # Released versions and the content hash each one is frozen at. load_policy refuses a frozen version whose
 # content changed: a changed rule or text needs a new version, so a version always names one policy.
-FROZEN_VERSIONS = {"v1": "4b13ed244bb199f0538df9aba8ed1af53370dd80c7b15802b4253b01e4ebecde"}
+FROZEN_VERSIONS = {
+    "v1": "4b13ed244bb199f0538df9aba8ed1af53370dd80c7b15802b4253b01e4ebecde",
+    # Approved by the user on 2026-10-20, before its first run.
+    "v2": "49c40ec9f72b3b2e22b7b90b3e8755b1ca1bd0a776436435135cc65931de97b0",
+}
 
 
 class Rules(BaseModel):

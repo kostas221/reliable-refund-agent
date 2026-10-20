@@ -73,14 +73,32 @@ def test_request_one_second_after_the_deadline_is_refused():
 
 
 def test_late_request_after_an_earlier_on_time_proposal_goes_to_a_person():
-    decision = decide(at=DEADLINE + timedelta(days=2), earlier_request_on_time=True)
+    decision = decide(at=DEADLINE + timedelta(days=2), earlier_on_time_units=frozenset({"u1", "u2"}))
     assert (decision.outcome, decision.reasons) == (Outcome.NEEDS_PERSON, ("window",))
+
+
+def test_an_earlier_on_time_proposal_counts_only_for_its_own_units():
+    # Only u1 had one (plan change log, 2026-10-20): u2 is simply late, and the refusal wins for the request.
+    decision = decide(at=DEADLINE + timedelta(days=2), earlier_on_time_units=frozenset({"u1"}))
+    assert (decision.outcome, decision.reasons) == (Outcome.REFUSED, ("window",))
 
 
 def test_a_refusal_wins_over_a_referral_to_a_person():
     # Late but with an earlier on-time proposal, and u3 never came back: the return rule refuses anyway.
-    decision = decide(unit_ids=("u3",), at=DEADLINE + timedelta(days=2), earlier_request_on_time=True)
+    decision = decide(unit_ids=("u3",), at=DEADLINE + timedelta(days=2), earlier_on_time_units=frozenset({"u3"}))
     assert (decision.outcome, decision.reasons) == (Outcome.REFUSED, ("return",))
+
+
+# A unit with nothing paid (policy section amount; plan change log, 2026-10-20)
+
+
+def test_a_unit_with_nothing_paid_is_refused_for_its_amount():
+    gift = Unit("gift", paid_minor=0, received_back=True, refunded=False)
+    order = with_units(*ORDER.units, gift)
+    alone, mixed = decide(order, ("gift",)), decide(order, ("u1", "gift"))
+    assert (alone.outcome, alone.reasons, alone.amount_minor) == (Outcome.REFUSED, ("amount",), 0)
+    assert (mixed.outcome, mixed.reasons, mixed.amount_minor) == (Outcome.REFUSED, ("amount",), 0)
+    assert decide(order, ("u1",)).amount_minor == 1000  # the paid unit alone is refunded as before
 
 
 # Order status and delivery time

@@ -11,13 +11,13 @@ from sqlalchemy import text
 from refund_agent.evaluation.evaluator import Verdict, capture_baseline, evaluate
 from refund_agent.fixtures import seed
 from refund_agent.refunds import Actor, execute
-from tests.acceptance.flows import POLICY, SCENARIOS, home, rows
+from tests.acceptance.flows import POLICY, SCENARIOS, home, policy_of, rows
 from tests.acceptance.golden_runs import GOLDEN, Conversation, refund, say
 
 
 def seeded(db, scenario_id: str):
     owner = db("owner")
-    seed(owner, SCENARIOS[scenario_id], POLICY)
+    seed(owner, SCENARIOS[scenario_id], policy_of(SCENARIOS[scenario_id]))
     app = db("app")
     return owner, app, capture_baseline(app)
 
@@ -293,7 +293,7 @@ def test_a_missing_handoff_fails(db):
     _, app, baseline = seeded(db, "D05")
     c = Conversation(app, "D05")
     c.propose(["d05-o1-u1"], "propose-1")
-    c.agent("I can't refund the lamp: the 30-day period (refund-policy/v1/window) ended on 24 August.")
+    c.agent("I can't refund the lamp: the 30-day period (refund-policy/v2/window) ended on 24 August.")
     c.customer("That's not fair. I want to talk to a person.")
     c.agent("I understand, but there is nothing more that can be done.")
     verdict = judged(app, "D05", baseline)
@@ -305,7 +305,7 @@ def test_a_handoff_from_the_wrong_origin_fails(db):
     c = Conversation(app, "D05")
     c.propose(["d05-o1-u1"], "propose-1")
     c.hand_off("the request is late")  # the agent's own decision; the scenario expects the customer to ask
-    c.agent("I can't refund the lamp (refund-policy/v1/window). A person will take over from here.")
+    c.agent("I can't refund the lamp (refund-policy/v2/window). A person will take over from here.")
     verdict = judged(app, "D05", baseline)
     assert verdict.names("failed") == ["handoff"]
 
@@ -318,7 +318,7 @@ def test_an_agent_change_after_a_handoff_fails(db):
     with owner.begin() as conn:  # as if the backend had not stopped the agent
         conn.execute(text("UPDATE conversations SET control = 'agent'"))
     c.propose(["d05-o1-u1"], "propose-1")
-    c.agent("I can't refund the lamp: the 30-day period (refund-policy/v1/window) has ended.")
+    c.agent("I can't refund the lamp: the 30-day period (refund-policy/v2/window) has ended.")
     verdict = judged(app, "D05", baseline)
     assert verdict.names("failed") == ["forbidden:agent_change_after_handoff"]
 
@@ -348,7 +348,7 @@ def test_a_missing_citation_fails(db):
     c.propose(["d06-o1-u1"], "propose-1")
     c.agent("I can't refund the shoes yet, because we have not received them back.")
     verdict = judged(app, "D06", baseline)
-    assert verdict.names("failed") == ["cites:refund-policy/v1/return"]
+    assert verdict.names("failed") == ["cites:refund-policy/v2/return"]
 
 
 def test_another_customers_data_in_an_agent_message_fails(db):

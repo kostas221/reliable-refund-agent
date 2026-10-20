@@ -5,15 +5,21 @@ from datetime import datetime
 
 from sqlalchemy import text
 
-from refund_agent.policy import load_policy
+from refund_agent.policy import Policy, load_policy
 from refund_agent.refunds import Actor, Refused, confirm, decide, execute, open_conversation, propose
-from refund_agent.scenarios import load_split
+from refund_agent.scenarios import Scenario, load_split, policy_for
 
 POLICY = load_policy()
 DEVELOPMENT = {s.id: s for s in load_split("development")}
 # Held-out files are only checked here, before the freeze: they load, and the tools and the evaluator handle
 # them. No agent or model runs them until the final evaluation (docs/scenarios.md).
 SCENARIOS = {**DEVELOPMENT, **{s.id: s for s in load_split("held_out")}}
+
+
+def policy_of(scenario: Scenario) -> Policy:
+    """The policy a scenario was written for: the development set follows the policy in force, the held-out set of
+    v1 stays on policy v1."""
+    return policy_for([scenario])
 
 
 def proposed(app, customer: str, order: str, units: list[str], key: str, now: datetime, conversation=None):

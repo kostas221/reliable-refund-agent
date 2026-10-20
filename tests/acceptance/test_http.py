@@ -243,7 +243,7 @@ def test_a_card_cites_the_policy_section_behind_a_refusal(db):
     card = fabio.get(f"/api/conversations/{conversation}").json()["proposals"][0]
     assert card["status"] == "ineligible"
     assert card["policy_citations"] == [
-        {"citation": "refund-policy/v1/return", "title": "Items must be returned first"}
+        {"citation": "refund-policy/v2/return", "title": "Items must be returned first"}
     ]
     (request,) = fabio.get("/api/orders").json()[0]["requests"]
     assert (request["status"], request["amount_minor"]) == ("ineligible", None)  # nothing to promise
