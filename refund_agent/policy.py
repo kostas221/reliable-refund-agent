@@ -135,6 +135,18 @@ def load_policy(path: Path = POLICY_PATH) -> Policy:
     return policy
 
 
+def load_policy_version(version: str) -> Policy:
+    """The policy of this version, from policies/refund-policy-<version>.toml. A scenario names the version it was
+    written for, and runs load that one, so a newer default never reinterprets an older scenario."""
+    path = POLICY_PATH.parent / f"refund-policy-{version}.toml"
+    if not path.exists():
+        raise ValueError(f"policy {version} does not exist: no {path.relative_to(REPO_ROOT).as_posix()}")
+    policy = load_policy(path)
+    if policy.version != version:
+        raise ValueError(f"{path.name} declares version {policy.version}, not {version}")
+    return policy
+
+
 def render_markdown(policy: Policy) -> str:
     source = POLICY_PATH.relative_to(REPO_ROOT).as_posix()
     lines = [

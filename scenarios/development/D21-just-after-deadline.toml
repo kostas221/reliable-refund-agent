@@ -1,0 +1,71 @@
+# Development copy of H11 (scenarios/held-out/H11-just-after-deadline.toml): copied on 2026-10-20,
+# after the final evaluation of v1 used the held-out set (plan change log, 2026-10-20). The held-out file stays
+# frozen and unchanged.
+# The request comes a few hours after the deadline: refused, with the policy cited. The item came back in time, but
+# the policy counts the moment of the request, and no earlier proposal exists that would send the case to a person.
+# Olist order 13e46245791ac3c971ba82ef45a1a280 (data/olist/subset.json): one bed_bath_table item, 39.99 + freight
+# 18.38, one card payment of 58.37 in 3 instalments.
+id = "D21"
+title = "A request a few hours after the deadline"
+split = "development"
+derived_from = "H11"
+category = "ineligible"
+template = "just-after-deadline"
+policy_version = "v1"
+now = 2026-10-21T22:00:00Z  # delivered 21 Sep 17:21:25, so the deadline was 21 Oct 17:21:25, 4 h 38 min ago
+agent_visible_orders = ["h11-o1"]
+
+[[fixture.customers]]
+id = "h11-paula"
+name = "Paula Cardoso"
+email = "paula.cardoso@example.test"
+
+[[fixture.staff]]
+id = "h11-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h11-o1"
+customer = "h11-paula"
+status = "delivered"
+purchased_at = 2026-09-13T21:32:54Z
+delivered_at = 2026-09-21T17:21:25Z
+payments = [{ method = "credit_card", amount_minor = 5837, installments = 3 }]  # 3999 + shipping 1838
+olist_order = "13e46245791ac3c971ba82ef45a1a280"
+
+[[fixture.orders.units]]
+id = "h11-o1-u1"
+product = "Cotton bath mat"
+price_minor = 3999
+paid_minor = 3999
+shipping_minor = 1838
+received_back_at = 2026-10-19T10:00:00Z
+olist_item = 1
+
+[customer]
+id = "h11-paula"
+goal = "Get your money back for the bath mat you sent back."
+opening_message = "Hi, I sent back the bath mat I bought last month. Can I get a refund?"
+facts = [
+    { text = "You posted it back a few days ago, and you were busy and only now found time to ask for the refund.", reveal = "when_asked" },
+]
+behaviour = [
+    "If you are told the request is too late, say once that it is only a few hours, then accept the answer.",
+    "Do not ask for a person.",
+]
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h11-o1-u1"]
+decision = "refused"
+reasons = ["window"]
+
+[expected]
+refund_amount_minor = 0
+last_proposal_status = ["ineligible", "none"]
+handoff = "forbidden"
+cites = ["refund-policy/v1/window"]
+communication = ["explains_refusal_reason"]

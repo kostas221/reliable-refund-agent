@@ -45,7 +45,8 @@ def lenient_audit(verdict):
 
 
 def test_every_development_scenario_has_a_mock_script():
-    assert set(MOCK) == set(DEVELOPMENT)
+    # Written for development; the copies of held-out scenarios (D11 to D30) are for runs with a model.
+    assert set(MOCK) == {sid for sid, s in DEVELOPMENT.items() if not s.derived_from}
 
 
 @pytest.mark.parametrize("scenario_id", sorted(MOCK))

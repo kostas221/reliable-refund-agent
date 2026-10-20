@@ -38,8 +38,8 @@ from refund_agent.evaluation import manifest
 from refund_agent.evaluation.customers import SIMULATOR_INSTRUCTIONS, simulator_instructions
 from refund_agent.evaluation.runner import CUT_OFF
 from refund_agent.evaluation.trials import Batch, run_try
-from refund_agent.policy import REPO_ROOT, load_policy
-from refund_agent.scenarios import load_split
+from refund_agent.policy import REPO_ROOT
+from refund_agent.scenarios import load_split, policy_for
 
 PREDICTIONS = REPO_ROOT / "docs" / "pilot" / "predictions.md"
 RUNS = REPO_ROOT / "runs"
@@ -89,10 +89,11 @@ def dry_run(args: argparse.Namespace, scenarios: dict) -> None:
     out = RUNS / "pilot-dry-run"
     out.mkdir(parents=True, exist_ok=True)
     d01 = scenarios["D01"]
+    instructions = load_instructions(policy=policy_for(scenarios.values()))
     agent = OpenAIResponses(args.model, args.reasoning, role="agent")
     simulator = OpenAIResponses(args.model, args.simulator_reasoning, role="simulator")
     first_agent = agent.request(
-        load_instructions().text, [{"role": "customer", "text": d01.customer.opening_message}], tool_definitions()
+        instructions.text, [{"role": "customer", "text": d01.customer.opening_message}], tool_definitions()
     )
     seen_by_simulator = [
         {"role": "agent", "text": d01.customer.opening_message, "tool_calls": [], "continuation": []},
@@ -115,7 +116,7 @@ def dry_run(args: argparse.Namespace, scenarios: dict) -> None:
 
 
 def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str) -> int:
-    policy = load_policy()
+    policy = policy_for(scenarios.values())
     started = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     out = RUNS / f"pilot-{started}-{args.model}-{args.reasoning}"
     out.mkdir(parents=True)
@@ -131,7 +132,7 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
         "prices_usd_per_1m": PRICES[args.model],
         "prices_checked": args.prices_checked.isoformat(),
         "budget_usd": args.budget_usd,
-        "agent_instructions_sha256": load_instructions().sha256,
+        "agent_instructions_sha256": load_instructions(policy=policy).sha256,
         "simulator_instructions": SIMULATOR_INSTRUCTIONS.relative_to(REPO_ROOT).as_posix(),
         "policy_sha256": policy.content_hash(),
         "predictions_commit": predictions_commit,
@@ -202,6 +203,11 @@ def main(argv: list[str] | None = None) -> int:
     scenarios = {s.id: s for s in load_split("development")}
     if args.scenarios:
         scenarios = {i: scenarios[i] for i in args.scenarios.split(",")}
+    try:
+        policy_for(scenarios.values())
+    except ValueError as reason:
+        print(f"Not started: {reason}")
+        return 1
     if args.dry_run:
         dry_run(args, scenarios)
         return 0

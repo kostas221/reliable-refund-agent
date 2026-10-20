@@ -7,8 +7,10 @@ import pytest
 
 from refund_agent.agent.model import Call, ModelError, RecordingAdapter, Say, ScriptedModel, load_instructions
 from refund_agent.agent.tools import TOOLS, tool_definitions
+from refund_agent.evaluation.diagnostics import shown_sections
+from refund_agent.policy import REPO_ROOT, load_policy
 
-INSTRUCTIONS = load_instructions()
+INSTRUCTIONS = load_instructions(policy=load_policy())
 TOOL_LIST = tool_definitions()
 
 
@@ -83,4 +85,27 @@ def test_the_log_holds_each_request_in_full(tmp_path):
 def test_the_instructions_name_only_real_tools():
     named = set(re.findall(r"`([a-z_]+)`", INSTRUCTIONS.text))
     assert named and named <= set(TOOLS)
-    assert INSTRUCTIONS.version == "agent-v3" and len(INSTRUCTIONS.sha256) == 64
+    assert INSTRUCTIONS.version == "agent-v4" and len(INSTRUCTIONS.sha256) == 64
+
+
+# The whole policy in the instructions (v1.1, step 1)
+
+
+def test_the_instructions_hold_every_section_of_the_policy_under_its_id():
+    policy = load_policy()
+    for section in policy.sections:
+        entry = f"{policy.citation(section.id)} ({section.title})\n{policy.rendered_text(section.id).strip()}"
+        assert entry in INSTRUCTIONS.text, section.id
+    assert "{policy" not in INSTRUCTIONS.text  # nothing left unfilled
+    assert shown_sections([], INSTRUCTIONS.text, policy) == {policy.citation(s.id) for s in policy.sections}
+
+
+def test_instructions_that_include_the_policy_need_it():
+    with pytest.raises(ValueError, match="agent-v4.md includes the policy"):
+        load_instructions()
+
+
+def test_earlier_instructions_load_as_they_were():
+    v3 = load_instructions(REPO_ROOT / "prompts" / "agent-v3.md")
+    assert v3.text == (REPO_ROOT / "prompts" / "agent-v3.md").read_text(encoding="utf-8")
+    assert v3.sha256 == "79f5219850395d5cef092b58f09db2aa63e9239760bb1fd5950fa5fba24fdb67"  # the final run of v1

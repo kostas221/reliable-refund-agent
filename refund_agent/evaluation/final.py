@@ -43,9 +43,17 @@ from refund_agent.evaluation import manifest
 from refund_agent.evaluation.customers import SIMULATOR_INSTRUCTIONS, simulator_instructions
 from refund_agent.evaluation.runner import CUT_OFF
 from refund_agent.evaluation.trials import Batch, run_try, write_json
-from refund_agent.policy import REPO_ROOT, load_policy
+from refund_agent.policy import REPO_ROOT
 from refund_agent.refunds import Configuration
-from refund_agent.scenarios import FROZEN, SPLIT_DIRS, FrozenError, check_frozen, file_sha256, load_split
+from refund_agent.scenarios import (
+    FROZEN,
+    SPLIT_DIRS,
+    FrozenError,
+    check_frozen,
+    file_sha256,
+    load_split,
+    policy_for,
+)
 
 
 @dataclass(frozen=True)
@@ -118,7 +126,7 @@ def check_ready(args: argparse.Namespace) -> dict:
     return commits
 
 
-def identity(scenario_ids: list[str], commits: dict, prices_checked: date) -> dict:
+def identity(scenarios: dict, commits: dict, prices_checked: date) -> dict:
     """What the run is: compared on resume, apart from the date the prices were checked."""
     models = sorted({setup.model for setup in (*CONFIGURATIONS.values(), SIMULATOR)})
     return {
@@ -126,13 +134,13 @@ def identity(scenario_ids: list[str], commits: dict, prices_checked: date) -> di
         "configurations": {name: vars(setup) for name, setup in CONFIGURATIONS.items()},
         "simulator": vars(SIMULATOR),
         "repeats": REPEATS,
-        "scenarios": scenario_ids,
+        "scenarios": sorted(scenarios),
         "order": "for each scenario, for each try: A, B, C",
         "prices_usd_per_1m": {model: PRICES[model] for model in models},
         "prices_checked": prices_checked.isoformat(),
-        "agent_instructions_sha256": load_instructions().sha256,
+        "agent_instructions_sha256": load_instructions(policy=policy_for(scenarios.values())).sha256,
         "simulator_instructions": SIMULATOR_INSTRUCTIONS.relative_to(REPO_ROOT).as_posix(),
-        "policy_sha256": load_policy().content_hash(),
+        "policy_sha256": policy_for(scenarios.values()).content_hash(),
         "frozen_sha256": file_sha256(SPLIT_DIRS["held_out"] / FROZEN),
         "retry_policy": "a try with a result or a crash record is never run again; a try cut short runs again",
         **commits,
@@ -180,7 +188,7 @@ def _configuration_manifest(record: dict, name: str) -> dict:
 
 def _open(args: argparse.Namespace, scenarios: dict, commits: dict) -> Path:
     """The run's folder, new or resumed, with its manifests."""
-    record = manifest.build(identity(sorted(scenarios), commits, args.prices_checked))
+    record = manifest.build(identity(scenarios, commits, args.prices_checked))
     if args.resume:
         out = args.resume
         saved = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
@@ -204,7 +212,7 @@ def plan(scenario_ids: list[str]) -> list[tuple[str, int, str]]:
 
 
 def paid_run(args: argparse.Namespace, scenarios: dict, commits: dict) -> int:
-    policy = load_policy()
+    policy = policy_for(scenarios.values())
     out = _open(args, scenarios, commits)
     before, by_role = _spent_before(out)
     budget = Budget(args.budget_usd, spent_usd=before, by_role=by_role)
@@ -280,7 +288,7 @@ def dry_run() -> None:
     total = 0.0
     for name, setup in CONFIGURATIONS.items():
         agent = OpenAIResponses(setup.model, setup.reasoning, role="agent")
-        request = agent.request(load_instructions().text, opening, tool_definitions())
+        request = agent.request(load_instructions(policy=policy_for([d01])).text, opening, tool_definitions())
         write_json(out / f"first-agent-request-{name}.json", request)
         per = 2 * (
             AGENT_REQUESTS * agent.worst_case_usd(request)

@@ -24,7 +24,7 @@ from typing import Annotated, Literal, NamedTuple
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 
-from refund_agent.policy import REPO_ROOT, OrderStatus
+from refund_agent.policy import REPO_ROOT, OrderStatus, Policy, load_policy_version
 
 SCENARIOS_DIR = REPO_ROOT / "scenarios"
 SPLIT_DIRS = {"development": SCENARIOS_DIR / "development", "held_out": SCENARIOS_DIR / "held-out"}
@@ -341,6 +341,9 @@ class Scenario(BaseModel):
     split: Literal["development", "held_out"]
     category: Category
     template: Id
+    # A development copy of a held-out scenario that a final evaluation has already used (plan change log,
+    # 2026-10-20): the source's ID. The held-out file itself never changes.
+    derived_from: str | None = Field(default=None, pattern=r"^H[0-9]{2}$")
     policy_version: str = Field(pattern=r"^v[0-9]+$")
     now: Utc
     fixture: Fixture
@@ -357,6 +360,8 @@ class Scenario(BaseModel):
             raise ValueError(f"{self.id}: development IDs start with D, held-out IDs with H")
         if self.split == "held_out" and any(o.olist_order is None for o in fixture.orders):
             raise ValueError(f"{self.id}: every held-out order copies a real Olist order (data/olist/README.md)")
+        if self.derived_from and self.split != "development":
+            raise ValueError(f"{self.id}: only a development scenario is derived from a held-out one")
 
         ids = [p.id for p in (*fixture.customers, *fixture.staff)]
         ids += [o.id for o in fixture.orders] + [p.id for p in fixture.past_proposals]
@@ -430,6 +435,15 @@ def customer_confirms(customer: Customer, units: Iterable[str], amount_minor: in
     """Whether the test actor presses confirm on a stored proposal with these units and this amount."""
     confirms = customer.confirms
     return confirms is not None and sorted(units) == sorted(confirms.units) and amount_minor == confirms.amount_minor
+
+
+def policy_for(scenarios: Iterable[Scenario]) -> Policy:
+    """The policy a run of these scenarios uses: the version they declare. A run never mixes versions, so that a
+    newer default policy cannot reinterpret scenarios written for an older one."""
+    versions = sorted({s.policy_version for s in scenarios})
+    if len(versions) != 1:
+        raise ValueError(f"a run uses one policy version; these scenarios declare {versions or 'none'}")
+    return load_policy_version(versions[0])
 
 
 def load_scenario(path: Path) -> Scenario:
@@ -510,7 +524,8 @@ def render_markdown() -> str:
         "Do not edit by hand. -->",
         "",
         "How scenarios are judged, who sees what, and the held-out plan are in [scenarios.md](scenarios.md). Every",
-        "scenario also forbids the global events listed at the end.",
+        "scenario also forbids the global events listed at the end. D11 to D30 are copies of the held-out scenarios",
+        "H01 to H20, made after the final evaluation of v1 used them; the held-out files stay frozen.",
         "",
         "| ID | Category | Situation | Staff | Expected end | Handoff | Must cite | Must communicate "
         "| Also forbidden |",
@@ -527,8 +542,9 @@ def render_markdown() -> str:
         cites = ", ".join(f"`{c}`" for c in e.cites) or "-"
         communication = ", ".join(e.communication) or "-"
         forbidden = ", ".join(e.forbidden) or "-"
+        origin = f" (copy of {s.derived_from})" if s.derived_from else ""
         lines.append(
-            f"| [{s.id}](../scenarios/development/{s.id}-{s.template}.toml) | {s.category} | {s.title} | "
+            f"| [{s.id}](../scenarios/development/{s.id}-{s.template}.toml){origin} | {s.category} | {s.title} | "
             f"{s.staff.decision} | {end} | {e.handoff} | {cites} | {communication} | {forbidden} |"
         )
     lines += [
@@ -559,9 +575,50 @@ FREEZE_HEADER = [
 ]
 
 
+def derive(source: Path, new_id: str, note: str) -> Path:
+    """Copy a held-out scenario that a final evaluation used into the development set, under a new ID. Only the
+    ID, the split and the origin change; the fixture, the customer, the staff member and the expectations stay
+    word for word, so a development run of the copy compares with the final run of its source. Never overwrites."""
+    scenario = load_scenario(source)
+    if scenario.split != "held_out":
+        raise ValueError(f"{source.name} is not a held-out scenario")
+    target = SPLIT_DIRS["development"] / f"{new_id}-{scenario.template}.toml"
+    if target.exists():
+        raise ValueError(f"{target.name} exists already")
+    text = source.read_text(encoding="utf-8").replace("\r\n", "\n")
+    for old, new in (
+        (f'id = "{scenario.id}"\n', f'id = "{new_id}"\n'),
+        ('split = "held_out"\n', f'split = "development"\nderived_from = "{scenario.id}"\n'),
+    ):
+        if text.count(old) != 1:
+            raise ValueError(f"{source.name}: expected one line {old.strip()!r}")
+        text = text.replace(old, new)
+    header = f"# Development copy of {scenario.id} ({source.relative_to(REPO_ROOT).as_posix()}): {note}\n"
+    target.write_text(header + text, encoding="utf-8", newline="\n")
+    try:
+        load_scenario(target)  # the copy loads under the strict schema, or nothing is left behind
+    except Exception:
+        target.unlink()
+        raise
+    return target
+
+
+DERIVE_NOTE = (
+    "copied on 2026-10-20,\n# after the final evaluation of v1 used the held-out set (plan change log, 2026-10-20). "
+    "The held-out file stays\n# frozen and unchanged."
+)
+
+
 def main() -> None:
     if sys.argv[1:] == ["freeze"]:
         print(f"wrote {freeze(SPLIT_DIRS['held_out'], FREEZE_HEADER).relative_to(REPO_ROOT).as_posix()}")
+        return
+    if sys.argv[1:2] == ["derive"]:
+        # derive H01 D11 [H02 D12 ...]: pairs of a held-out ID and the new development ID
+        pairs = sys.argv[2:]
+        for held_out_id, new_id in zip(pairs[::2], pairs[1::2], strict=True):
+            (source,) = SPLIT_DIRS["held_out"].glob(f"{held_out_id}-*.toml")
+            print(f"wrote {derive(source, new_id, DERIVE_NOTE).relative_to(REPO_ROOT).as_posix()}")
         return
     RENDERED_PATH.write_text(render_markdown(), encoding="utf-8", newline="\n")
     print(f"wrote {RENDERED_PATH.relative_to(REPO_ROOT).as_posix()}")

@@ -25,24 +25,39 @@ from pathlib import Path
 from typing import Any, Literal, Protocol
 
 from refund_agent.agent.costs import BudgetExceeded
-from refund_agent.policy import REPO_ROOT
+from refund_agent.policy import REPO_ROOT, Policy
 from refund_agent.scenarios import format_brl
 
 # Version 2 widened when to cite (docs/pilot/results.md, second pilot). Version 3, after the dialogue audit of the
 # runs before the freeze: ask which item the customer wants refunded, not which one was returned (D09), and pass on a
-# rejection's reason. Earlier versions stay for the runs made with them.
-INSTRUCTIONS_PATH = REPO_ROOT / "prompts" / "agent-v3.md"
+# rejection's reason. Version 4 (v1.1, step 1): the whole policy at the end, because in the final run of v1 the agent
+# never cited a section its policy search had not shown it (docs/final/results.md). Earlier versions stay for the
+# runs made with them.
+INSTRUCTIONS_PATH = REPO_ROOT / "prompts" / "agent-v4.md"
 
 
 @dataclass(frozen=True)
 class Instructions:
-    text: str
+    text: str  # as the model receives it, the policy filled in
     version: str
-    sha256: str
+    sha256: str  # of that text, so a manifest names the exact instructions, policy included
 
 
-def load_instructions(path: Path = INSTRUCTIONS_PATH) -> Instructions:
+def policy_text(policy: Policy) -> str:
+    """Every section under its citation ID, generated from the policy's one controlled source."""
+    return "\n\n".join(
+        f"{policy.citation(s.id)} ({s.title})\n{policy.rendered_text(s.id).strip()}" for s in policy.sections
+    )
+
+
+def load_instructions(path: Path = INSTRUCTIONS_PATH, policy: Policy | None = None) -> Instructions:
+    """The instructions, with {policy_version} and {policy} filled in from the policy when the file asks for them.
+    A file that asks for the policy is refused without one, so a placeholder never reaches a model."""
     text = path.read_text(encoding="utf-8")
+    if "{policy}" in text:
+        if policy is None:
+            raise ValueError(f"{path.name} includes the policy: give the policy to load it")
+        text = text.replace("{policy_version}", f"version {policy.version}").replace("{policy}", policy_text(policy))
     return Instructions(text, path.stem, hashlib.sha256(text.encode()).hexdigest())
 
 

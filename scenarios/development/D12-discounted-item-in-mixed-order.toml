@@ -1,0 +1,89 @@
+# Development copy of H02 (scenarios/held-out/H02-discounted-item-in-mixed-order.toml): copied on 2026-10-20,
+# after the final evaluation of v1 used the held-out set (plan change log, 2026-10-20). The held-out file stays
+# frozen and unchanged.
+# The refund is the discounted price actually paid, not the list price the customer remembers.
+# Olist order f6ac0ce30d1405684969749ebc798f94 (data/olist/subset.json): two watches_gifts items of one seller,
+# 49.00 + freight 7.78 each, one card payment of 113.56 in 4 instalments. The list price of 69.00 above what was
+# paid for the box is synthetic (data/olist/README.md).
+id = "D12"
+title = "A discounted item: the refund is what was paid"
+split = "development"
+derived_from = "H02"
+category = "eligible"
+template = "discounted-item-in-mixed-order"
+policy_version = "v1"
+now = 2026-10-20T10:00:00Z  # delivered 8 Oct 20:18:37, so the deadline is 7 Nov 20:18:37
+agent_visible_orders = ["h02-o1"]
+
+[[fixture.customers]]
+id = "h02-diego"
+name = "Diego Almeida"
+email = "diego.almeida@example.test"
+
+[[fixture.staff]]
+id = "h02-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h02-o1"
+customer = "h02-diego"
+status = "delivered"
+purchased_at = 2026-10-06T22:13:30Z
+delivered_at = 2026-10-08T20:18:37Z
+payments = [{ method = "credit_card", amount_minor = 11356, installments = 4 }]  # 4900 + 4900 + shipping 778 + 778
+olist_order = "f6ac0ce30d1405684969749ebc798f94"
+
+[[fixture.orders.units]]
+id = "h02-o1-u1"
+product = "Steel wristwatch"
+price_minor = 4900
+paid_minor = 4900
+shipping_minor = 778
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h02-o1-u2"
+product = "Wooden watch box"
+price_minor = 6900  # list price; paid 4900 after a discount of 2000
+paid_minor = 4900
+shipping_minor = 778
+received_back_at = 2026-10-15T14:00:00Z
+olist_item = 2
+
+[customer]
+id = "h02-diego"
+goal = "Get your money back for the wooden watch box you returned."
+opening_message = "Hello, I returned the wooden watch box. It was 69 reais, so I would like the 69 back, please."
+facts = [
+    { text = "The box is listed in the shop at 69 reais.", reveal = "upfront" },
+    { text = "It was on a promotion when you bought it, but you do not remember the discount.", reveal = "when_asked" },
+    { text = "You are keeping the wristwatch from the same order.", reveal = "when_asked" },
+]
+behaviour = [
+    "If you are offered less than 69 reais, ask why once.",
+    "If you are told that the refund is what you actually paid after the discount, accept it and confirm the proposal.",
+]
+confirms = { units = ["h02-o1-u2"], amount_minor = 4900 }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h02-o1-u2"]
+decision = "eligible"
+amount_minor = 4900
+
+[[policy_checks]]
+units = ["h02-o1-u1"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = ["h02-o1-u2"]
+refund_amount_minor = 4900
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+cites = ["refund-policy/v1/amount"]
+communication = ["states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]

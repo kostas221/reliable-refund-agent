@@ -5,7 +5,10 @@ import tomllib
 import pytest
 from pydantic import ValidationError
 
-from refund_agent.policy import POLICY_PATH, RENDERED_PATH, Policy, load_policy, render_markdown
+from refund_agent import policy as policy_module
+from refund_agent.fixtures import seed
+from refund_agent.policy import POLICY_PATH, RENDERED_PATH, Policy, load_policy, load_policy_version, render_markdown
+from refund_agent.scenarios import load_split
 
 
 def raw_policy() -> dict:
@@ -112,3 +115,23 @@ def test_hash_ignores_comments_wrapping_and_line_endings(tmp_path):
     path = tmp_path / "policy.toml"
     path.write_bytes(text.replace("\n", "\r\n").encode("utf-8"))
     assert load_policy(path).content_hash() == load_policy().content_hash()
+
+
+# Versions (plan change log, 2026-10-20): a run loads the version its scenarios declare.
+
+
+def test_a_version_is_loaded_by_its_name():
+    assert load_policy_version("v1") == load_policy()
+
+
+def test_a_file_that_declares_another_version_is_refused(tmp_path, monkeypatch):
+    monkeypatch.setattr(policy_module, "POLICY_PATH", tmp_path / "refund-policy-v1.toml")
+    (tmp_path / "refund-policy-v7.toml").write_text(POLICY_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+    with pytest.raises(ValueError, match="refund-policy-v7.toml declares version v1, not v7"):
+        load_policy_version("v7")
+
+
+def test_a_scenario_is_never_loaded_with_another_version():
+    scenario = next(s for s in load_split("development") if s.id == "D01")
+    with pytest.raises(ValueError, match="D01 is written for policy v9, not v1"):
+        seed(None, scenario.model_copy(update={"policy_version": "v9"}), load_policy())  # before any database work

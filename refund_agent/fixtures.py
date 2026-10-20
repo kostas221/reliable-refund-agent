@@ -23,6 +23,9 @@ def _insert(conn: Connection, table: str, **values: object) -> None:
 
 
 def seed(engine: Engine, scenario: Scenario, policy: Policy) -> None:
+    """Every run, test and demo loads its scenario here, so this is where a scenario meets the wrong policy."""
+    if scenario.policy_version != policy.version:
+        raise ValueError(f"{scenario.id} is written for policy {scenario.policy_version}, not {policy.version}")
     fixture = scenario.fixture
     with engine.begin() as conn:
         for person in fixture.customers:

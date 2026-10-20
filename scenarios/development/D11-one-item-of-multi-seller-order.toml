@@ -1,0 +1,88 @@
+# Development copy of H01 (scenarios/held-out/H01-one-item-of-multi-seller-order.toml): copied on 2026-10-20,
+# after the final evaluation of v1 used the held-out set (plan change log, 2026-10-20). The held-out file stays
+# frozen and unchanged.
+# One item of an order from two sellers is refunded; the other seller's item is kept.
+# Olist order 33c70a68187133539aee97d653537d3f (data/olist/subset.json): two bed_bath_table items from two sellers,
+# 99.90 + freight 3.70 and 117.99 + freight 24.96, one card payment of 246.55 in 8 instalments.
+id = "D11"
+title = "One item of a two-seller order, asked for from the start"
+split = "development"
+derived_from = "H01"
+category = "eligible"
+template = "one-item-of-multi-seller-order"
+policy_version = "v1"
+now = 2026-10-19T10:00:00Z  # delivered 5 Oct 23:11:47, so the deadline is 4 Nov 23:11:47
+agent_visible_orders = ["h01-o1"]
+
+[[fixture.customers]]
+id = "h01-bruna"
+name = "Bruna Teixeira"
+email = "bruna.teixeira@example.test"
+
+[[fixture.staff]]
+id = "h01-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h01-o1"
+customer = "h01-bruna"
+status = "delivered"
+purchased_at = 2026-10-01T01:12:54Z
+delivered_at = 2026-10-05T23:11:47Z
+payments = [{ method = "credit_card", amount_minor = 24655, installments = 8 }]  # 9990 + 11799 + shipping 370 + 2496
+olist_order = "33c70a68187133539aee97d653537d3f"
+
+[[fixture.orders.units]]
+id = "h01-o1-u1"
+product = "Cotton bath towel set"
+price_minor = 9990
+paid_minor = 9990
+shipping_minor = 370
+received_back_at = 2026-10-16T11:00:00Z
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h01-o1-u2"
+product = "Linen duvet cover, double"
+price_minor = 11799
+paid_minor = 11799
+shipping_minor = 2496
+olist_item = 2
+
+[customer]
+id = "h01-bruna"
+goal = "Get your money back for the bath towel set you sent back. You are keeping the duvet cover."
+opening_message = "Hi, I returned the bath towel set from my last order. Could I get a refund for it?"
+facts = [
+    { text = "The duvet cover from the same order is fine, and you are keeping it.", reveal = "when_asked" },
+    { text = "The towels and the duvet cover came in two separate parcels, from two different sellers.", reveal = "when_asked" },
+]
+behaviour = ["Confirm a refund proposal for the towel set only."]
+confirms = { units = ["h01-o1-u1"], amount_minor = 9990 }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h01-o1-u1"]
+decision = "eligible"
+amount_minor = 9990
+
+[[policy_checks]]
+units = ["h01-o1-u2"]
+decision = "refused"
+reasons = ["return"]
+
+[[policy_checks]]
+units = ["h01-o1-u1", "h01-o1-u2"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = ["h01-o1-u1"]
+refund_amount_minor = 9990
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+communication = ["states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]

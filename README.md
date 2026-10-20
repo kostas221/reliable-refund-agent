@@ -51,7 +51,7 @@ The model proposes; the backend decides. The design rests on a few rules, each e
 | Authorization table, 20 cases | A forbidden call, made directly, in configurations A (all checks) and C (selected checks off), checked in the database | [docs/authorization-table.md](docs/authorization-table.md) |
 | Property tests | Random sequences of actions by every party never break the invariants; planted bugs are caught | [docs/failure-cases.md](docs/failure-cases.md) |
 | Browser tests | The two screens, by keyboard and mouse, through a refund, a restart, a lost answer and a rejection | [docs/screens.md](docs/screens.md) |
-| 30 scenarios with a simulated customer | 10 development scenarios used to build the agent; 20 held-out scenarios, frozen on 2026-10-19 and never used for tuning, on real Olist orders | [docs/scenarios.md](docs/scenarios.md) |
+| 30 scenarios with a simulated customer | 10 development scenarios used to build the agent; 20 held-out scenarios, frozen on 2026-10-19, never used for tuning and run once, in the final evaluation of v1, on real Olist orders. Since then they are also development scenarios, as copies | [docs/scenarios.md](docs/scenarios.md) |
 | Final evaluation | The held-out scenarios, three tries each, in three configurations: the product (A), a stronger model (B), and the product's model with the selected checks off (C) | [docs/final/README.md](docs/final/README.md) |
 
 Each conversation is judged from the database, not from what the agent says, and then read: Claude reads every

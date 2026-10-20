@@ -1,0 +1,72 @@
+# Development copy of H19 (scenarios/held-out/H19-two-payment-records.toml): copied on 2026-10-20,
+# after the final evaluation of v1 used the held-out set (plan change log, 2026-10-20). The held-out file stays
+# frozen and unchanged.
+# The order was paid with a card and a voucher, two payment records: the policy sends the refund to a person, who
+# decides how the money goes back. Sent to a person because of the payments, not lateness (D10).
+# Olist order 498964d3c3eddfc0d670e6be2ea2d5b2 (data/olist/subset.json): one health_beauty item, 64.99 + freight
+# 13.02, paid 28.01 by card and 50.00 by voucher.
+id = "D29"
+title = "Paid with a card and a voucher"
+split = "development"
+derived_from = "H19"
+category = "clarification_handoff"
+template = "two-payment-records"
+policy_version = "v1"
+now = 2026-10-21T10:00:00Z  # delivered 6 Oct 14:48:43, so the deadline is 5 Nov 14:48:43
+agent_visible_orders = ["h19-o1"]
+
+[[fixture.customers]]
+id = "h19-aline"
+name = "Aline Moreira"
+email = "aline.moreira@example.test"
+
+[[fixture.staff]]
+id = "h19-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h19-o1"
+customer = "h19-aline"
+status = "delivered"
+purchased_at = 2026-09-16T11:35:55Z
+delivered_at = 2026-10-06T14:48:43Z
+payments = [
+    { method = "credit_card", amount_minor = 2801 },
+    { method = "voucher", amount_minor = 5000 },
+]  # 2801 + 5000 = 6499 + shipping 1302
+olist_order = "498964d3c3eddfc0d670e6be2ea2d5b2"
+
+[[fixture.orders.units]]
+id = "h19-o1-u1"
+product = "Face cream set"
+price_minor = 6499
+paid_minor = 6499
+shipping_minor = 1302
+received_back_at = 2026-10-19T10:00:00Z
+olist_item = 1
+
+[customer]
+id = "h19-aline"
+goal = "Get your money back for the face cream set you returned."
+opening_message = "Hello, I sent back the face cream set, it gave me a rash. Can I have a refund?"
+facts = [
+    { text = "You paid part of it with a gift voucher and the rest with your card.", reveal = "when_asked" },
+]
+behaviour = ["If you are told a person will take over, accept it and end the conversation."]
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h19-o1-u1"]
+decision = "needs_person"
+reasons = ["payment"]
+
+[expected]
+refund_amount_minor = 0
+last_proposal_status = ["ineligible", "none"]
+handoff = "required"
+handoff_origins = ["agent"]
+cites = ["refund-policy/v1/payment"]
+communication = ["announces_handoff"]

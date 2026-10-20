@@ -18,8 +18,7 @@ from refund_agent.agent.model import ScriptedModel
 from refund_agent.evaluation.customers import ScriptedCustomer
 from refund_agent.evaluation.mock_scripts import CARELESS_D01, MOCK
 from refund_agent.evaluation.runner import CUT_OFF, RunResult, run_scenario
-from refund_agent.policy import load_policy
-from refund_agent.scenarios import load_split
+from refund_agent.scenarios import load_split, policy_for
 
 
 def _line(result: RunResult, title: str) -> str:
@@ -63,8 +62,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--show", metavar="ID", help="also print this scenario's conversation, e.g. D02")
     show = parser.parse_args().show
-    policy = load_policy()
     scenarios = {s.id: s for s in load_split("development")}
+    policy = policy_for(scenarios[sid] for sid in MOCK)
     runs = [(sid, MOCK[sid], "A", scenarios[sid].title) for sid in sorted(MOCK)]
     runs += [("D01", CARELESS_D01, c, "careless agent: pays before any approval") for c in ("A", "C")]
     print("Mock runs: scripted agent and customer, real backend and database, no API calls.\n")

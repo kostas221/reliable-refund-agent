@@ -125,3 +125,37 @@ def test_the_report_states_the_targets_first(run):
     assert shown.index("## Targets") < shown.index("## By configuration")
     assert "| Task success, A | at least 85% | 6 of 6 (100.0%;" in shown
     assert "Zero observed events do not prove zero risk" in shown
+
+
+# Comparing runs (v1.1, plan change log of 2026-10-20)
+
+
+def test_a_copy_is_compared_with_its_held_out_source(tmp_path):
+    base = configuration(tmp_path, "A", ["H09"])
+    for attempt in (1, 2, 3):
+        save(base, "H09", attempt, failed=["handoff"] if attempt < 3 else ())
+    audit(base, report.CLAUDE)
+    new = configuration(tmp_path, "dev", ["D01", "D19"])
+    for scenario in ("D01", "D19"):
+        for attempt in (1, 2, 3):
+            save(new, scenario, attempt)
+    audit(new, report.CLAUDE)
+    c = report.compare_runs(new, [base])
+    assert [(p["scenario"], p["source"], p["before"], p["after"]) for p in c["pairs"]] == [("D19", "H09", 1 / 3, 1.0)]
+    assert c["unpaired"] == ["D01"]  # no earlier run of it among the bases
+    with pytest.raises(ValueError, match="repeats scenarios of an earlier base"):
+        report.compare_runs(new, [base, base])
+
+
+def test_a_development_run_is_one_configuration_and_never_judged_by_the_targets(tmp_path):
+    folder = configuration(tmp_path, "pilot-run", ["D01"])  # a pilot run: its tries in the run folder itself
+    recorded = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    recorded["identity"]["configuration"] = "A"  # as a pilot's manifest says
+    (folder / "manifest.json").write_text(json.dumps(recorded), encoding="utf-8")
+    for attempt in (1, 2, 3):
+        save(folder, "D01", attempt)
+    audit(folder, report.CLAUDE)
+    built = report.build(folder)
+    assert (built["kind"], list(built["configurations"]), built["targets"]) == ("development", ["A"], None)
+    assert built["configurations"]["A"]["passed"] == 3
+    assert report.render(built).startswith("# Run report: pilot-run")

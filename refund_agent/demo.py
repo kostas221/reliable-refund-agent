@@ -13,9 +13,8 @@ from sqlalchemy import text
 
 from refund_agent import db as database
 from refund_agent.fixtures import seed
-from refund_agent.policy import load_policy
 from refund_agent.refunds import Actor, Refused, confirm, decide, execute, open_conversation, propose
-from refund_agent.scenarios import format_brl, load_split
+from refund_agent.scenarios import format_brl, load_split, policy_for
 
 NAME = "refund_demo"
 
@@ -25,8 +24,8 @@ def step(title: str) -> None:
 
 
 def main() -> None:
-    policy = load_policy()
     scenario = next(s for s in load_split("development") if s.id == "D01")
+    policy = policy_for([scenario])
     database.create_database(NAME)
     database.migrate(NAME)
     seed(database.engine("owner", NAME), scenario, policy)

@@ -61,10 +61,19 @@ A's 19: citations of sections the policy word search never showed the agent (8),
 clause can be read to require (5), handoffs with no request (2), a true but not deciding reason (2), no clarifying
 question (2), a simulator fault (1). The evaluator's amount check was fixed after the run (whole amounts without
 cents) and applied to the saved results; the user's audit share was 69 conversations, read with help from another
-AI model. v1 is labelled as having missed both targets; the held-out set is spent. Next: the user commits; then a
-v1.1 cycle, planned in the plan's change log before any work (whole policy instead of the search, policy v2 on when a
-person takes over, reasons from the backend, instructions, the 20 used held-out scenarios become development ones,
-20 new held-out scenarios frozen before the run); phase 7 (video, code licence, external test, CI on a remote).
+AI model. v1 is labelled as having missed both targets; the held-out set is spent (closing commit b5ae4b1).
+
+The v1.1 cycle (plan change log, 2026-10-20; spec from `docs/improvement-review-2026-10-20.md`, its final
+consistency check approved by the user as the policy v2 specification). Each step is measured on its own against v1,
+paired by scenario (`python -m refund_agent.evaluation.report compare`). Step 0 done: runs load the policy version
+their scenarios declare (`policy_for`, checked in `seed`); H01-H20 copied to development as D11-D30
+(`derived_from`, held-out files unchanged); diagnostics in the report (citations shown or not, handoffs by origin,
+proposals after a receipt), reproducing the v1 counts. Step 1 ready: instructions v4 = v3 plus the whole policy v1,
+same tools; predictions in `docs/pilot/predictions.md`; the user commits and runs the batch (A, 30 scenarios x 3).
+Then: step 2 (read-only `assess_refund` replacing the search, reasons with facts, zero-paid units refused, per-unit
+earlier request, `execute_refund` without a model-chosen ID, receipt instruction), step 3 (policy v2), and on.
+Development runs: Claude reads all, the user reads what Claude fails or notes. Phase 7 (video, code licence,
+external test, CI on a remote) after v1.1.
 
 ## Environment
 

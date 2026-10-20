@@ -217,3 +217,53 @@ Does version 3 fix the D09 question and pass on D04's reason, without breaking w
   cause: it is reported, and the freeze waits for a choice between versions 2 and 3, on these numbers.
 - If D09 still asks about the return in 2 or 3 of 3, that is reported; no further change to the instructions is
   made before the freeze, so the set is not tuned until it passes.
+
+## v1.1 step 1: written on 2026-10-20, after the final evaluation of v1 and before this run
+
+### The question
+
+Did v1 miss citations only because the policy search did not show the agent the section it needed? In the final run
+of v1, configuration A cited 17 of the 19 required sections it had been shown and none of the 8 it had never been
+shown ([final results](../final/results.md)). This step shows the agent every section and changes nothing else (plan
+change log, 2026-10-20, the v1.1 cycle, step 1).
+
+### What runs
+
+- The agent: `gpt-6-luna`, reasoning `none`, instructions v4: version 3 with one line changed and the whole policy v1
+  appended, generated from `policies/refund-policy-v1.toml`. The tools are those of v1, `lookup_refund_policy`
+  included.
+- The simulated customer: `gpt-6-luna`, reasoning `low`, unchanged.
+- The 30 development scenarios, 3 tries each: 90 conversations. Budget $1.
+
+### What it is compared with
+
+- D11 to D30 with their sources, H01 to H20, in configuration A of the final run of v1
+  (`runs/final-20261019T201207Z/A`).
+- D01 to D10 with the third run before the freeze (`runs/pilot-20261019T140646Z-gpt-6-luna-none`), which ran
+  instructions v3 on the same scenarios.
+- By `uv run python -m refund_agent.evaluation.report compare`, paired by scenario.
+
+### Predictions
+
+1. No unauthorized or duplicate committed refund in the 90 conversations.
+2. Every required section is shown to the agent, by construction. Of the 27 required citations of D11 to D30, the
+   agent cites 22 to 27; in v1 it cited 17.
+3. D11 to D30: 44 to 50 of 60 conversations succeed (v1: 41). Fixing only the 7 failures that were a citation alone
+   would give 48; the other causes are untouched by this step.
+4. Handoffs the scenarios forbid, begun by the agent, in D11 to D30: 7 to 12 (v1: 8). With the whole policy in view
+   the agent reads "any request for an exception goes to a staff member" in every conversation, so this step may
+   raise them; policy v2, in step 3, is meant to lower them.
+5. D01 to D10: 27 to 30 of 30 (third run before the freeze: 29).
+6. Paired by scenario against v1 on D11 to D30: a difference of +5 to +15 points; with 20 scenarios the 95% interval
+   may include 0.
+7. Cost: the policy adds about 1,100 tokens to each agent request, most of them cached after the first. The agent
+   costs at most $0.001 per conversation, under $0.10 for the 90; with the simulated customer, under $0.15.
+
+### How the results are read
+
+- Claude reads all 90 conversations; the user reads, in Greek and without Claude's verdicts, the ones Claude or the
+  machine failed or noted (the rule for development runs agreed on 2026-10-20; the final evaluation of v1.1 keeps
+  the full rule with its random sample).
+- If prediction 2 fails, with citations still low although every section is in view, visibility was not the cause,
+  and step 2 is reconsidered before it starts.
+- Nothing in the agent changes between this run and its report.

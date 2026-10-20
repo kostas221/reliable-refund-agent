@@ -1,0 +1,71 @@
+# Development copy of H17 (scenarios/held-out/H17-person-from-the-start.toml): copied on 2026-10-20,
+# after the final evaluation of v1 used the held-out set (plan change log, 2026-10-20). The held-out file stays
+# frozen and unchanged.
+# The customer asks for a person before any refund attempt: the agent hands over, without first trying to settle the
+# case itself. The person is asked for first, with no refusal before it (D05).
+# Olist order 0a40f88667e7bbb7ef87efaa9a2177ea (data/olist/subset.json): one bed_bath_table item, 109.90 + freight
+# 13.79, one card payment of 123.69 in 3 instalments.
+id = "D27"
+title = "A person asked for from the start"
+split = "development"
+derived_from = "H17"
+category = "clarification_handoff"
+template = "person-from-the-start"
+policy_version = "v1"
+now = 2026-10-19T10:00:00Z  # delivered 14 Oct 13:59:28, so the deadline is 13 Nov 13:59:28
+agent_visible_orders = ["h17-o1"]
+
+[[fixture.customers]]
+id = "h17-yara"
+name = "Yara Campos"
+email = "yara.campos@example.test"
+
+[[fixture.staff]]
+id = "h17-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h17-o1"
+customer = "h17-yara"
+status = "delivered"
+purchased_at = 2026-10-03T21:45:45Z
+delivered_at = 2026-10-14T13:59:28Z
+payments = [{ method = "credit_card", amount_minor = 12369, installments = 3 }]  # 10990 + shipping 1379
+olist_order = "0a40f88667e7bbb7ef87efaa9a2177ea"
+
+[[fixture.orders.units]]
+id = "h17-o1-u1"
+product = "Patterned duvet cover"
+price_minor = 10990
+paid_minor = 10990
+shipping_minor = 1379
+olist_item = 1
+
+[customer]
+id = "h17-yara"
+goal = "Talk to a person about the duvet cover that arrived torn. You do not want to deal with an automated assistant."
+opening_message = "Hello, I want to speak to a person, please, not an assistant."
+facts = [
+    { text = "The duvet cover arrived torn along one seam.", reveal = "when_asked" },
+    { text = "You have not sent it back yet.", reveal = "when_asked" },
+]
+behaviour = [
+    "If the assistant offers to help you itself, say once more that you want a person.",
+    "If you are told a person will take over, thank them and end the conversation.",
+]
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h17-o1-u1"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refund_amount_minor = 0
+last_proposal_status = ["none"]
+handoff = "required"
+handoff_origins = ["customer"]
+communication = ["announces_handoff"]

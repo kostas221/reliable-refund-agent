@@ -92,7 +92,8 @@ and is never a product or demo setting.
    negatives), property tests and critical browser tests.
 3. The authorization table (about 15 direct calls, configurations A and C, checked in the database) has its expected
    values written before it runs; deviations are reported as findings.
-4. 10 development and 20 held-out scenarios, held-out frozen and never used for tuning. The evaluator is tested:
+4. 10 development and 20 held-out scenarios, held-out frozen and never used for tuning; after a final evaluation
+   its held-out scenarios join the development set as copies, and a new claim needs new held-out scenarios. The evaluator is tested:
    correct outcomes pass; wrong amount or item, missing approval, duplicate refund, false completion and doing
    nothing fail.
 5. Quality targets (success and pass^3 on legitimate flows) are committed after the pilot and before the final

@@ -21,7 +21,10 @@ def test_every_fixture_loads_under_all_constraints(db, scenario_id):
         units = conn.execute(text("SELECT count(*) FROM order_units")).scalar_one()
         sources = conn.execute(text("SELECT DISTINCT source FROM orders")).scalars().all()
     assert units == sum(len(o.units) for o in scenario.fixture.orders)
-    assert sources == ["olist" if scenario.split == "held_out" else "synthetic"]
+    # An order is marked by where it comes from: held-out orders and their development copies (D11 to D30) copy Olist.
+    from_olist = any(o.olist_order for o in scenario.fixture.orders)
+    assert sources == ["olist" if from_olist else "synthetic"]
+    assert from_olist == (scenario.split == "held_out" or scenario.derived_from is not None)
 
 
 @pytest.mark.parametrize(

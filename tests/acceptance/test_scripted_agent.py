@@ -14,7 +14,7 @@ from refund_agent.refunds import Actor, confirm, decide, open_conversation
 from tests.acceptance.flows import DEVELOPMENT, POLICY, rows
 
 D01 = DEVELOPMENT["D01"]
-INSTRUCTIONS = load_instructions()
+INSTRUCTIONS = load_instructions(policy=POLICY)
 
 ANA_MUG = [
     Call("list_my_orders"),

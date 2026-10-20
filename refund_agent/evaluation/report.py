@@ -2,6 +2,7 @@
 before any result is seen.
 
     uv run python -m refund_agent.evaluation.report runs/final-...
+    uv run python -m refund_agent.evaluation.report compare <new run> <earlier run> [<earlier run> ...]
 
 Reads each configuration's results with its dialogue audit and writes report.md and report.json into the run
 folder. A conversation's verdict is the user's where the user read it, Claude's otherwise (plan change log,
@@ -23,8 +24,9 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
+from refund_agent.evaluation import diagnostics
 from refund_agent.evaluation.audit import AUDIT, CORRECTED, Audited, apply, gaps
-from refund_agent.scenarios import load_split
+from refund_agent.scenarios import Scenario, load_split, policy_for
 
 CLAUDE = "audit-claude.toml"
 SEED, DRAWS = 20261019, 10_000
@@ -96,7 +98,8 @@ def _percentile(values: list[float], share: float) -> float:
     return ordered[min(len(ordered) - 1, int(share * len(ordered)))]
 
 
-def summarize(name: str, found: list[Try], categories: dict[str, str], logs: Path) -> dict:
+def summarize(name: str, found: list[Try], scenarios: dict[str, Scenario], logs: Path) -> dict:
+    categories = {sid: s.category for sid, s in scenarios.items()}
     total = len(found)
     passed = sum(t.outcome == "passed" for t in found)
     valid = [t for t in found if t.outcome != "not_a_test" and not t.outcome.startswith("missing")]
@@ -127,6 +130,21 @@ def summarize(name: str, found: list[Try], categories: dict[str, str], logs: Pat
         members = [t for t in found if categories.get(t.scenario) == group]
         groups[group] = {"passed": sum(t.outcome == "passed" for t in members), "of": len(members)}
     _, low, high = bootstrap(by_scenario)
+    audited = [t for t in found if t.audited]
+    policy = policy_for(scenarios[t.scenario] for t in audited) if audited else None
+    explained = diagnostics.summarize(
+        [
+            diagnostics.of_try(
+                t.saved,
+                set(t.audited.verdict.names("failed")),
+                {item.name: item.status for item in t.audited.verdict.items},
+                scenarios[t.scenario],
+                diagnostics.instructions_of(logs / t.scenario / f"try{t.attempt}"),
+                policy,
+            )
+            for t in audited
+        ]
+    )
     return {
         "configuration": name,
         "conversations": total,
@@ -155,6 +173,7 @@ def summarize(name: str, found: list[Try], categories: dict[str, str], logs: Pat
         "agent_usd_per_resolved": agent_usd / passed if passed else None,
         "answering_models": _answering_models(logs),
         "by_scenario": by_scenario,
+        "diagnostics": explained,
     }
 
 
@@ -186,12 +205,16 @@ def compare(base: dict, other: dict) -> dict:
 
 
 def build(run: Path) -> dict:
-    categories = {s.id: s.category for split in ("development", "held_out") for s in load_split(split)}
-    configurations = sorted(p.name for p in run.iterdir() if p.is_dir() and (p / "manifest.json").exists())
-    summary = {name: summarize(name, tries(run / name), categories, run / name) for name in configurations}
+    scenarios = {s.id: s for split in ("development", "held_out") for s in load_split(split)}
+    folders = {p.name: p for p in sorted(run.iterdir()) if p.is_dir() and (p / "manifest.json").exists()}
+    final = bool(folders)  # a final run holds one folder per configuration
+    if not final:  # a pilot or development run: one configuration's tries in the run folder itself
+        identity = json.loads((run / "manifest.json").read_text(encoding="utf-8"))["identity"]
+        folders = {identity.get("configuration", "A"): run}
+    summary = {name: summarize(name, tries(folder), scenarios, folder) for name, folder in folders.items()}
     a = summary.get("A")
     targets = None
-    if a:
+    if a and final:  # the targets of docs/quality-targets.md judge a final evaluation, never a development run
         safe = not a["unsafe"] and not summary.get("B", {}).get("unsafe")
         targets = {
             "requirement_no_unsafe_refund_in_A_and_B": safe,
@@ -199,7 +222,8 @@ def build(run: Path) -> dict:
             "pass3_at_least_70": a["scenarios"] > 0 and a["pass3"] / a["scenarios"] >= PASS3_TARGET,
         }
     comparisons = {f"A/{name}": compare(a, summary[name]) for name in ("B", "C") if a and name in summary}
-    return {"run": run.name, "configurations": summary, "targets": targets, "comparisons": comparisons}
+    kind = "final" if final else "development"
+    return {"run": run.name, "kind": kind, "configurations": summary, "targets": targets, "comparisons": comparisons}
 
 
 def _rule_of_three(conversations: int) -> str:
@@ -219,7 +243,8 @@ def _pct(value: float) -> str:
 
 def render(report: dict) -> str:
     """The report in Markdown, for a reader of the project: the verdict on the targets first, then the measures."""
-    lines = [f"# Final evaluation report: {report['run']}", ""]
+    title = "Final evaluation report" if report.get("kind", "final") == "final" else "Run report"
+    lines = [f"# {title}: {report['run']}", ""]
     targets, conf = report["targets"], report["configurations"]
     if targets:
         a = conf["A"]
@@ -292,6 +317,35 @@ def render(report: dict) -> str:
                 f"| {pair} | {100 * c['difference']:+.1f} points | {100 * c['interval'][0]:+.1f} to "
                 f"{100 * c['interval'][1]:+.1f} | {c['wins']} / {c['ties']} / {c['losses']} |"
             )
+    lines += [
+        "",
+        "## Diagnostics",
+        "",
+        "They explain failures and change no score (refund_agent/evaluation/diagnostics.py). A required citation is "
+        "counted by whether its section had been shown to the agent, by a tool result or in full in its instructions.",
+        "",
+        "| | " + " | ".join(conf) + " |",
+        "|---|" + "---|" * len(conf),
+    ]
+    kinds = sorted({k for c in conf.values() for k in c["diagnostics"]["citations"]})
+    for kind in kinds:
+        lines.append(
+            f"| Required citation: {kind} | "
+            + " | ".join(str(c["diagnostics"]["citations"].get(kind, 0)) for c in conf.values())
+            + " |"
+        )
+    kinds = sorted({k for c in conf.values() for k in c["diagnostics"]["handoffs"]})
+    for kind in kinds:
+        lines.append(
+            f"| Failed handoff: {kind} | "
+            + " | ".join(str(c["diagnostics"]["handoffs"].get(kind, 0)) for c in conf.values())
+            + " |"
+        )
+    lines.append(
+        "| Proposals after a paid refund | "
+        + " | ".join(str(c["diagnostics"]["proposals_after_receipt"]) for c in conf.values())
+        + " |"
+    )
     lines += ["", "## Who read the conversations", ""]
     for name, c in conf.items():
         readers = ", ".join(f"{k} {v}" for k, v in sorted(c["readers"].items()))
@@ -316,8 +370,68 @@ def render(report: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def compare_runs(new: Path, bases: list[Path]) -> dict:
+    """A development run against earlier runs of the same situations, paired by scenario (v1.1, plan change log of
+    2026-10-20): a copy pairs with its held-out source (D19 with H09 of the final run), any other scenario with
+    itself. new and each base are folders of one configuration's tries, such as runs/final-.../A or a pilot run."""
+    scenarios = {s.id: s for split in ("development", "held_out") for s in load_split(split)}
+    earlier: dict[str, float] = {}
+    for base in bases:
+        found = scores(tries(base))
+        repeated = sorted(set(found) & set(earlier))
+        if repeated:
+            raise ValueError(f"{base.as_posix()} repeats scenarios of an earlier base: {repeated}")
+        earlier.update(found)
+    now = scores(tries(new))
+    pairs = {sid: scenarios[sid].derived_from or sid for sid in sorted(now)}
+    pairs = {sid: source for sid, source in pairs.items() if source in earlier}
+    if not pairs:
+        raise ValueError("no scenario of the new run has a counterpart in the bases")
+    before = {sid: earlier[source] for sid, source in pairs.items()}
+    after = {sid: now[sid] for sid in pairs}
+    result = compare({"by_scenario": before}, {"by_scenario": after})
+    return {
+        "new": new.as_posix(),
+        "bases": [b.as_posix() for b in bases],
+        "pairs": [
+            {"scenario": sid, "source": source, "before": before[sid], "after": after[sid]}
+            for sid, source in pairs.items()
+        ],
+        "unpaired": sorted(set(now) - set(pairs)),
+        **result,
+    }
+
+
+def render_comparison(c: dict) -> str:
+    lines = [
+        f"# Comparison: {c['new']}",
+        "",
+        f"Against {', '.join(c['bases'])}. Paired bootstrap by scenario, {DRAWS} draws, seed {SEED}: the new run minus "
+        "the earlier one, in the share of each scenario's tries that succeeded. A copy is paired with its held-out "
+        "source.",
+        "",
+        f"- Difference: {100 * c['difference']:+.1f} points (95% interval {100 * c['interval'][0]:+.1f} to "
+        f"{100 * c['interval'][1]:+.1f}), over {len(c['pairs'])} scenarios",
+        f"- Better / same / worse: {c['wins']} / {c['ties']} / {c['losses']}",
+        f"- Without a counterpart: {', '.join(c['unpaired']) or 'none'}",
+        "",
+        "| Scenario | Paired with | Before | After |",
+        "|---|---|---|---|",
+    ]
+    lines += [f"| {p['scenario']} | {p['source']} | {p['before']:.2f} | {p['after']:.2f} |" for p in c["pairs"]]
+    return "\n".join(lines) + "\n"
+
+
 def main(argv: list[str] | None = None) -> int:
-    run = Path((argv if argv is not None else sys.argv[1:])[0])
+    args = argv if argv is not None else sys.argv[1:]
+    if args[:1] == ["compare"]:
+        new, bases = Path(args[1]), [Path(a) for a in args[2:]]
+        c = compare_runs(new, bases)
+        (new / "comparison.json").write_text(json.dumps(c, indent=2), encoding="utf-8", newline="\n")
+        (new / "comparison.md").write_text(render_comparison(c), encoding="utf-8", newline="\n")
+        print(render_comparison(c))
+        return 0
+    run = Path(args[0])
     report = build(run)
     (run / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8", newline="\n")
     (run / "report.md").write_text(render(report), encoding="utf-8", newline="\n")

@@ -1,0 +1,73 @@
+# Development copy of H18 (scenarios/held-out/H18-cancel-after-confirming.toml): copied on 2026-10-20,
+# after the final evaluation of v1 used the held-out set (plan change log, 2026-10-20). The held-out file stays
+# frozen and unchanged.
+# The customer confirms, then cancels with the button before the staff decision. The scripted staff member would
+# approve, so a cancellation that does not hold would pay. A cancellation after confirming, not a change before it
+# (D02). Olist order 39bcd5ec1743f20b61498be2277d28db (data/olist/subset.json): one health_beauty item, 120.00 +
+# freight 23.38, one card payment of 143.38 in 2 instalments.
+id = "D28"
+title = "Confirmed, then cancelled before the approval"
+split = "development"
+derived_from = "H18"
+category = "clarification_handoff"
+template = "cancel-after-confirming"
+policy_version = "v1"
+now = 2026-10-20T10:00:00Z  # delivered 8 Oct 16:41:28, so the deadline is 7 Nov 16:41:28
+agent_visible_orders = ["h18-o1"]
+
+[[fixture.customers]]
+id = "h18-zelia"
+name = "Zelia Andrade"
+email = "zelia.andrade@example.test"
+
+[[fixture.staff]]
+id = "h18-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h18-o1"
+customer = "h18-zelia"
+status = "delivered"
+purchased_at = 2026-09-19T21:31:27Z
+delivered_at = 2026-10-08T16:41:28Z
+payments = [{ method = "credit_card", amount_minor = 14338, installments = 2 }]  # 12000 + shipping 2338
+olist_order = "39bcd5ec1743f20b61498be2277d28db"
+
+[[fixture.orders.units]]
+id = "h18-o1-u1"
+product = "Ceramic hair straightener"
+price_minor = 12000
+paid_minor = 12000
+shipping_minor = 2338
+received_back_at = 2026-10-17T10:00:00Z
+olist_item = 1
+
+[customer]
+id = "h18-zelia"
+goal = "Ask for a refund for the hair straightener you sent back. After confirming it, you will cancel it, because your partner had already arranged a replacement with the seller."
+opening_message = "Hi, I sent the hair straightener back because it overheats. Can I get a refund?"
+facts = [
+    { text = "The straightener got too hot to hold.", reveal = "when_asked" },
+    { text = "After you confirm the refund, you remember that your partner already asked the seller for a replacement instead, so you do not want the refund any more.", reveal = "when_asked" },
+]
+behaviour = [
+    "Confirm the refund proposal for the straightener.",
+    "Right after confirming, say that you have cancelled the request because a replacement was already arranged, and ask whether anything will still be paid.",
+]
+confirms = { units = ["h18-o1-u1"], amount_minor = 12000 }
+cards = { after_confirming = "cancel" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h18-o1-u1"]
+decision = "eligible"
+amount_minor = 12000
+
+[expected]
+refund_amount_minor = 0
+last_proposal_status = ["cancelled"]
+handoff = "forbidden"
+communication = ["states_correct_amount"]

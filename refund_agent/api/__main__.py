@@ -28,8 +28,7 @@ from refund_agent.api.app import create_app
 from refund_agent.api.auth import set_password
 from refund_agent.evaluation.mock_scripts import MOCK
 from refund_agent.fixtures import seed
-from refund_agent.policy import load_policy
-from refund_agent.scenarios import load_split
+from refund_agent.scenarios import load_split, policy_for
 
 NAME = "refund_demo_api"
 # For the fictional users of the local demo only.
@@ -41,8 +40,8 @@ def main() -> None:
     parser.add_argument("--scenario", default="D01", choices=sorted(MOCK), help="development scenario to load")
     parser.add_argument("--keep", action="store_true", help="serve the previous run's database instead of a new one")
     args = parser.parse_args()
-    policy = load_policy()
     scenario = next(s for s in load_split("development") if s.id == args.scenario)
+    policy = policy_for([scenario])
     start = kept(scenario.customer.id, scenario.now) if args.keep else None
     if args.keep and start is None:
         sys.exit(f"No demo database of scenario {scenario.id} to keep: run once without --keep.")

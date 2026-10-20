@@ -31,11 +31,14 @@ from refund_agent.scenarios import (
     Scenario,
     check_frozen,
     customer_confirms,
+    derive,
     file_sha256,
     format_brl,
     freeze,
     frozen_hashes,
+    load_scenario,
     load_split,
+    policy_for,
     render_markdown,
     simulator_view,
 )
@@ -46,6 +49,9 @@ DEVELOPMENT = load_split("development")
 HELD_OUT = load_split("held_out")
 ALL = DEVELOPMENT + HELD_OUT
 BY_ID = {s.id: s for s in DEVELOPMENT}
+ORIGINAL = [s for s in DEVELOPMENT if not s.derived_from]  # written for development
+COPIES = [s for s in DEVELOPMENT if s.derived_from]  # copies of held-out scenarios a final evaluation used
+FINAL_RUN = REPO_ROOT / "runs" / "final-20261019T201207Z" / "manifest.json"
 SUBSET = json.loads((REPO_ROOT / "data" / "olist" / "subset.json").read_text(encoding="utf-8"))
 # A list price above what was paid is synthetic, and written in the scenario (data/olist/README.md).
 SYNTHETIC_LIST_PRICE = {"H02"}
@@ -65,12 +71,55 @@ def policy_order(scenario: Scenario, unit_id: str) -> eligibility.Order:
     )
 
 
-def test_ten_development_scenarios_numbered_in_order():
-    assert [s.id for s in DEVELOPMENT] == [f"D{n:02d}" for n in range(1, 11)]
+def test_development_scenarios_numbered_in_order():
+    assert [s.id for s in DEVELOPMENT] == [f"D{n:02d}" for n in range(1, 31)]
+    assert [s.id for s in ORIGINAL] == [f"D{n:02d}" for n in range(1, 11)]
+    assert [(s.id, s.derived_from) for s in COPIES] == [(f"D{n + 10:02d}", f"H{n:02d}") for n in range(1, 21)]
+
+
+def test_a_development_copy_is_its_source_but_for_id_split_and_origin():
+    sources = {s.id: s for s in HELD_OUT}
+    for copy in COPIES:
+        source = sources[copy.derived_from]
+        if copy.policy_version != source.policy_version:
+            continue  # rewritten for a later policy, which the plan's change log records
+        different = {"id", "split", "derived_from"}
+        assert copy.model_dump(exclude=different) == source.model_dump(exclude=different), copy.id
+
+
+def test_only_held_out_scenarios_a_final_evaluation_ran_are_copied():
+    ran = json.loads(FINAL_RUN.read_text(encoding="utf-8"))["identity"]["scenarios"]
+    assert {s.derived_from for s in COPIES} <= set(ran)
+
+
+def test_a_copy_changes_nothing_but_its_identity(tmp_path, monkeypatch):
+    monkeypatch.setitem(SPLIT_DIRS, "development", tmp_path)
+    (source,) = SPLIT_DIRS["held_out"].glob("H09-*.toml")
+    copy = load_scenario(derive(source, "D99", "a test copy."))
+    assert (copy.id, copy.split, copy.derived_from) == ("D99", "development", "H09")
+    with pytest.raises(ValueError, match="exists already"):
+        derive(source, "D99", "a test copy.")
+    with pytest.raises(ValueError, match="not a held-out scenario"):
+        derive(tmp_path / "D99-order-not-delivered.toml", "D98", "a test copy.")
+
+
+def test_a_held_out_scenario_cannot_claim_a_source():
+    data = tomllib.loads(next(SPLIT_DIRS["held_out"].glob("H09-*.toml")).read_text(encoding="utf-8"))
+    with pytest.raises(ValidationError, match="only a development scenario is derived"):
+        Scenario.model_validate({**data, "derived_from": "H01"})
+
+
+def test_a_run_uses_the_one_policy_its_scenarios_declare():
+    assert policy_for(DEVELOPMENT).version == "v1"
+    later = BY_ID["D01"].model_copy(update={"policy_version": "v9"})
+    with pytest.raises(ValueError, match=r"one policy version; these scenarios declare \['v1', 'v9'\]"):
+        policy_for([BY_ID["D01"], later])
+    with pytest.raises(ValueError, match="policy v9 does not exist"):
+        policy_for([later])
 
 
 def test_every_group_is_covered():
-    assert Counter(s.category for s in DEVELOPMENT) == {
+    assert Counter(s.category for s in ORIGINAL) == {
         "eligible": 3,
         "ineligible": 2,
         "attack": 2,
@@ -202,7 +251,8 @@ def test_held_out_plan_has_twenty_scenarios_in_the_planned_groups():
 def test_held_out_templates_are_unique_and_not_shared_with_development():
     templates = [row[2] for row in held_out_plan()]
     assert len(templates) == len(set(templates))
-    assert not set(templates) & {s.template for s in DEVELOPMENT}
+    # A development copy keeps its source's template: the same situation, after its held-out run.
+    assert not set(templates) & {s.template for s in ORIGINAL}
 
 
 def test_every_held_out_scenario_names_its_closest_development_scenario():

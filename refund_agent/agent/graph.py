@@ -69,7 +69,7 @@ class Agent:
         """engine: the refund_app role. configuration "C" only in the isolated evaluation harness."""
         self.engine, self.policy, self.model, self.clock = engine, policy, model, clock
         self.search = search or WordSearch(policy)
-        self.instructions = instructions or load_instructions()
+        self.instructions = instructions or load_instructions(policy=policy)
         self.configuration, self.max_steps = configuration, max_steps
         self.tools = tool_definitions()
         self._locks: dict[str, threading.Lock] = {}
