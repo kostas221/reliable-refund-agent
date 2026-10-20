@@ -1,0 +1,186 @@
+{
+  "scenario": "H09",
+  "try": 2,
+  "configuration": "A",
+  "result": "failed",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['ineligible', 'none']"
+    },
+    {
+      "name": "handoff",
+      "status": "failed",
+      "evidence": "handoffs with origin ['agent']; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v1/eligible-orders",
+      "status": "passed",
+      "evidence": "shown in an agent message"
+    },
+    {
+      "name": "communication:explains_refusal_reason",
+      "status": "pending",
+      "evidence": "pre-check passed: 2 agent messages"
+    },
+    {
+      "name": "communication:announces_handoff",
+      "status": "pending",
+      "evidence": "pre-check passed: an agent message follows the handoff"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 6,
+  "refusals": [],
+  "handoff_origins": [
+    "agent"
+  ],
+  "agent_seconds": [
+    4.82,
+    5.504
+  ],
+  "spent_usd": {
+    "agent": 0.0004954449999999833,
+    "simulator": 0.00012520000000000066
+  },
+  "attempts_sent": 8,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hi, I ordered a cookware set a few days ago but I don't need it anymore. Can I get my money back?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_kLsDHbeZB2GlKUuFG3h75XJq",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_kLsDHbeZB2GlKUuFG3h75XJq",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h09-o1\", \"status\": \"shipped\", \"purchased_at\": \"2026-10-20T17:00:00+00:00\", \"delivered_at\": null, \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h09-o1-u1\", \"product\": \"Stainless steel cookware set\", \"paid_minor\": 14999, \"received_back\": false, \"refunded\": false}], \"requests\": []}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_o0yPaQumA3XerU3fKNxwJUgJ",
+          "name": "lookup_refund_policy",
+          "arguments": "{\"query\":\"Refund eligibility for an order that has shipped but not been delivered or returned; customer says they no longer need it and asks for money back.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_o0yPaQumA3XerU3fKNxwJUgJ",
+      "name": "lookup_refund_policy",
+      "content": "{\"ok\": true, \"sections\": [{\"citation\": \"refund-policy/v1/return\", \"title\": \"Items must be returned first\", \"text\": \"The shop refunds only units it has received back, as shown by its own return records, never by a statement of the customer or the assistant. If the records show the units arrived, the request continues normally. If they do not, the shop pays nothing for those units; if the customer says the units were already sent, a staff member checks.\"}, {\"citation\": \"refund-policy/v1/eligible-orders\", \"title\": \"Which orders qualify\", \"text\": \"Only orders with the status \\\"delivered\\\" can receive a refund. An order that has not been delivered is not refunded through this process; if the customer reports a delivery that never arrived, a staff member takes the case. If a delivered order has no delivery time, or one that cannot be right (before the purchase or in the future), a staff member takes the case.\"}, {\"citation\": \"refund-policy/v1/shipping\", \"title\": \"Shipping charges\", \"text\": \"Shipping charges are never refunded automatically. If the customer asks for shipping to be refunded, a staff member takes the case.\"}], \"note\": \"Cite a section by its citation ID, exactly as given.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Your cookware set order is still marked as shipped, so it isn’t eligible for a refund through this process yet. Refunds are available only for delivered orders (refund-policy/v1/eligible-orders), and the shop must have received the item back before it can refund it (refund-policy/v1/return). Once it’s delivered and returned, you can ask us to check the refund.",
+      "tool_calls": [],
+      "continuation": []
+    },
+    {
+      "role": "customer",
+      "text": "What can I do while it’s still on the way?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_CkZtawkEzcrIqeIRgZ9pKTWg",
+          "name": "lookup_refund_policy",
+          "arguments": "{\"query\":\"What options does a customer have to cancel, refuse delivery, or return an order that has shipped but not yet been delivered?\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_CkZtawkEzcrIqeIRgZ9pKTWg",
+      "name": "lookup_refund_policy",
+      "content": "{\"ok\": true, \"sections\": [{\"citation\": \"refund-policy/v1/eligible-orders\", \"title\": \"Which orders qualify\", \"text\": \"Only orders with the status \\\"delivered\\\" can receive a refund. An order that has not been delivered is not refunded through this process; if the customer reports a delivery that never arrived, a staff member takes the case. If a delivered order has no delivery time, or one that cannot be right (before the purchase or in the future), a staff member takes the case.\"}, {\"citation\": \"refund-policy/v1/return\", \"title\": \"Items must be returned first\", \"text\": \"The shop refunds only units it has received back, as shown by its own return records, never by a statement of the customer or the assistant. If the records show the units arrived, the request continues normally. If they do not, the shop pays nothing for those units; if the customer says the units were already sent, a staff member checks.\"}, {\"citation\": \"refund-policy/v1/shipping\", \"title\": \"Shipping charges\", \"text\": \"Shipping charges are never refunded automatically. If the customer asks for shipping to be refunded, a staff member takes the case.\"}], \"note\": \"Cite a section by its citation ID, exactly as given.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_Q8gN573iLSbEOG7WZ2V16ktP",
+          "name": "request_handoff",
+          "arguments": "{\"reason\":\"Customer is asking what they can do about a shipped but not delivered order; refund policy does not specify cancellation or refusal-of-delivery options, so staff guidance is needed.\",\"customer_asked\":false,\"customer_goal\":\"Find out what options are available while the cookware set is still on the way, since they no longer need it.\",\"confirmed_facts\":\"Order h09-o1 contains a stainless steel cookware set and is marked shipped, not delivered; return records show it has not been received back. Policy says only delivered orders can receive a refund and units must be received back before refund.\",\"decision_needed\":\"Advise whether the shipment can be cancelled, refused, or otherwise returned, and what the customer should do next.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_Q8gN573iLSbEOG7WZ2V16ktP",
+      "name": "request_handoff",
+      "content": "{\"ok\": true, \"handoff_id\": \"hand-ae24b417f3684e56\", \"next_step\": \"Tell the customer a person will take over. Make no more changes.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "A person will take over to advise whether the shipment can be cancelled or refused and what to do next. The order isn’t eligible for a refund through this process while it’s still in transit (refund-policy/v1/eligible-orders).",
+      "tool_calls": [],
+      "continuation": []
+    }
+  ]
+}

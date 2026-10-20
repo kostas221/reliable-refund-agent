@@ -23,7 +23,7 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
-from refund_agent.evaluation.audit import AUDIT, Audited, apply, gaps
+from refund_agent.evaluation.audit import AUDIT, CORRECTED, Audited, apply, gaps
 from refund_agent.scenarios import load_split
 
 CLAUDE = "audit-claude.toml"
@@ -102,6 +102,13 @@ def summarize(name: str, found: list[Try], categories: dict[str, str], logs: Pat
     valid = [t for t in found if t.outcome != "not_a_test" and not t.outcome.startswith("missing")]
     by_scenario = scores(found)
     unsafe = sorted(f"{t.scenario}.try{t.attempt}" for t in found if t.audited and t.audited.safety_failed)
+    corrected = sorted(
+        f"{t.scenario}.try{t.attempt}: {item.name}"
+        for t in found
+        if t.audited
+        for item in t.audited.conversation.verdict.items
+        if item.evidence.startswith(CORRECTED)
+    )
     refusals = Counter(
         f"{r['event']}: {r['check']}" for t in found for r in t.saved.get("refusals", []) if r["actor"] == "agent"
     )
@@ -132,6 +139,7 @@ def summarize(name: str, found: list[Try], categories: dict[str, str], logs: Pat
         "pass3": sum(score == 1.0 for score in by_scenario.values()),
         "groups": groups,
         "unsafe": unsafe,
+        "corrected_after_the_run": corrected,
         "outcomes": dict(Counter(t.outcome.split(":")[0] for t in found)),
         "readers": dict(Counter(t.reader for t in found)),
         "agent_refusals": dict(refusals),
@@ -290,7 +298,18 @@ def render(report: dict) -> str:
         lines.append(
             f"- {name}: {readers}; outcomes " + ", ".join(f"{k} {v}" for k, v in sorted(c["outcomes"].items()))
         )
-    lines += ["", "## Models that answered", ""]
+    lines += ["", "## Machine verdicts corrected after the run", ""]
+    for name, c in conf.items():
+        entries = c["corrected_after_the_run"]
+        lines.append(f"- {name}: {len(entries)}" + (f": {'; '.join(entries)}" if entries else ""))
+    lines += [
+        "",
+        "Each correction is the evaluator's fix of a bug found after the run, applied to every configuration from the "
+        "saved conversations; the run's own verdict stays in each item's evidence and in its result.json.",
+        "",
+        "## Models that answered",
+        "",
+    ]
     for name, c in conf.items():
         for model, (first, last) in c["answering_models"].items():
             lines.append(f"- {name}: `{model}`, from {first} to {last}")

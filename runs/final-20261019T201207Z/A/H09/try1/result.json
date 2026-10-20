@@ -1,0 +1,161 @@
+{
+  "scenario": "H09",
+  "try": 1,
+  "configuration": "A",
+  "result": "failed",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['ineligible', 'none']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v1/eligible-orders",
+      "status": "failed",
+      "evidence": "not shown in any agent message"
+    },
+    {
+      "name": "communication:explains_refusal_reason",
+      "status": "pending",
+      "evidence": "pre-check passed: 2 agent messages"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 5,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    4.324,
+    3.34
+  ],
+  "spent_usd": {
+    "agent": 0.0005019100000000221,
+    "simulator": 0.00016410000000000036
+  },
+  "attempts_sent": 7,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hi, I ordered a cookware set a few days ago but I don't need it anymore. Can I get my money back?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_822KZanUb3yFAUqjIIMObteS",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_822KZanUb3yFAUqjIIMObteS",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h09-o1\", \"status\": \"shipped\", \"purchased_at\": \"2026-10-20T17:00:00+00:00\", \"delivered_at\": null, \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h09-o1-u1\", \"product\": \"Stainless steel cookware set\", \"paid_minor\": 14999, \"received_back\": false, \"refunded\": false}], \"requests\": []}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_hxwThCmqHrXPuA4WcRB05nko",
+          "name": "lookup_refund_policy",
+          "arguments": "{\"query\":\"refund eligibility when customer no longer wants an order; item has not been returned/received back yet, and whether refund can be requested for an unreturned item\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_hxwThCmqHrXPuA4WcRB05nko",
+      "name": "lookup_refund_policy",
+      "content": "{\"ok\": true, \"sections\": [{\"citation\": \"refund-policy/v1/return\", \"title\": \"Items must be returned first\", \"text\": \"The shop refunds only units it has received back, as shown by its own return records, never by a statement of the customer or the assistant. If the records show the units arrived, the request continues normally. If they do not, the shop pays nothing for those units; if the customer says the units were already sent, a staff member checks.\"}, {\"citation\": \"refund-policy/v1/payout\", \"title\": \"When the money is paid\", \"text\": \"The shop pays a refund only when all of these hold: the order qualifies, the request was on time, the units were received back and not refunded before, the order has one valid payment, the customer confirmed, a staff member approved, and the proposal is still valid. The refund is complete only when the customer has a receipt; until then nothing is reported as refunded.\"}, {\"citation\": \"refund-policy/v1/window\", \"title\": \"Time limit\", \"text\": \"A refund must be requested no later than 30 days after the delivery time recorded on the order. Days are exact periods of twenty-four hours, and a request at exactly the deadline is on time. The request time is the moment the shop creates the refund proposal. If an earlier proposal for the same items was created in time but expired or stopped being valid before it was paid, a later request is not refused for being late: a staff member takes the case.\"}], \"note\": \"Cite a section by its citation ID, exactly as given.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "The cookware set hasn’t been recorded as returned, and the shop can only refund it after it has received the item back (refund-policy/v1/return). If you’ve already sent it, a staff member will need to check. Otherwise, once the return is received, I can help you request a refund.",
+      "tool_calls": [],
+      "continuation": []
+    },
+    {
+      "role": "customer",
+      "text": "How can I return it once it arrives?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_tFLxDOAVRdbMxtGdbTePEOJc",
+          "name": "lookup_refund_policy",
+          "arguments": "{\"query\":\"how customer can start or send a return for a shipped order; return instructions, shipping label, process\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_tFLxDOAVRdbMxtGdbTePEOJc",
+      "name": "lookup_refund_policy",
+      "content": "{\"ok\": true, \"sections\": [{\"citation\": \"refund-policy/v1/return\", \"title\": \"Items must be returned first\", \"text\": \"The shop refunds only units it has received back, as shown by its own return records, never by a statement of the customer or the assistant. If the records show the units arrived, the request continues normally. If they do not, the shop pays nothing for those units; if the customer says the units were already sent, a staff member checks.\"}, {\"citation\": \"refund-policy/v1/shipping\", \"title\": \"Shipping charges\", \"text\": \"Shipping charges are never refunded automatically. If the customer asks for shipping to be refunded, a staff member takes the case.\"}, {\"citation\": \"refund-policy/v1/eligible-orders\", \"title\": \"Which orders qualify\", \"text\": \"Only orders with the status \\\"delivered\\\" can receive a refund. An order that has not been delivered is not refunded through this process; if the customer reports a delivery that never arrived, a staff member takes the case. If a delivered order has no delivery time, or one that cannot be right (before the purchase or in the future), a staff member takes the case.\"}], \"note\": \"Cite a section by its citation ID, exactly as given.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "I don’t have the shop’s return shipping instructions or a label process available here. Once the cookware set arrives, please contact the shop for return instructions. A refund can be requested after the shop records that it received the item back (refund-policy/v1/return).",
+      "tool_calls": [],
+      "continuation": []
+    }
+  ]
+}

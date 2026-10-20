@@ -329,11 +329,14 @@ def _place(run: _Run, event: str, proposal_id: str | None = None, handoff_id: st
     return None
 
 
-def _amount_pattern(minor: int) -> re.Pattern[str]:
-    """R$ 1.299,90 as "1.299,90", "1299,90", "1,299.90" or "1299.90", not inside a longer number."""
+def amount_pattern(minor: int) -> re.Pattern[str]:
+    """R$ 1.299,90 as "1.299,90", "1299,90", "1,299.90" or "1299.90", not inside a longer number. A whole amount may
+    also be written without its cents, "R$ 49" for R$ 49,00: the final evaluation of 2026-10-19 found a correct
+    amount judged wrong so, and the pattern was corrected on 2026-10-20 (docs/final, the report)."""
     reais, centavos = divmod(minor, 100)
     digits = f"{reais:,}".replace(",", "[.,]?")
-    return re.compile(rf"(?<![\d.,]){digits}[.,]{centavos:02d}(?!\d)")
+    cents = r"(?:[.,]00)?(?![\d]|[.,]\d)" if centavos == 0 else rf"[.,]{centavos:02d}(?!\d)"
+    return re.compile(rf"(?<![\d.,]){digits}{cents}")
 
 
 def _citation_items(scenario: Scenario, run: _Run) -> list[Item]:
@@ -355,7 +358,7 @@ def _precheck(criterion: str, run: _Run) -> tuple[bool, str]:
         amounts = [o["amount_minor"] for o in run.operations] or ([shown[-1]["amount_minor"]] if shown else [])
         if not amounts:
             return False, "no proposal or refund amount to state"
-        missing = [format_brl(a) for a in amounts if not _agent_said(run, _amount_pattern(a))]
+        missing = [format_brl(a) for a in amounts if not _agent_said(run, amount_pattern(a))]
         return (
             not missing,
             f"not in any agent message: {missing}" if missing else f"{[format_brl(a) for a in amounts]} stated",

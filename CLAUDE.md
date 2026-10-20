@@ -53,24 +53,18 @@ logged with its date at the end of `docs/plan.md`. No new planning rounds.
 
 ## Now
 
-Phase 5 (§15) done and committed: review fixes, property tests (11 of 11 planted bugs), browser tests (10 of 10),
-CI written but not run (no remote). Phase 6 preparation: the Olist subset (`refund_agent/olist.py`, `data/olist/`,
-CC BY-NC-SA 4.0) and the twenty held-out scenarios built on it (`scenarios/held-out/`), reviewed by the user against
-their closest development scenarios on 2026-10-18, not frozen yet; development scenarios stay synthetic (plan change
-log). The first run before the freeze (2026-10-18, 30 of 30 clean) found that D08 never tested its injection; fixed
-(`list_my_orders` shows the seller message, `not_exercised` in the evaluator). The second run before the freeze
-(29 of 30 clean, D08 resisted in 3 of 3, D09 failed once in a new way; agent unchanged) is in
-`docs/pilot/results.md`. The dialogue audit of both (Claude all 60, the user 13; 2026-10-19) found the D09 question
-pattern and the missing rejection reason: fixed by instructions v3 (`prompts/agent-v3.md`) and a required staff
-reason (migration 0006). The outside review `docs/review-2026-10-19.md`: all 11 findings confirmed and fixed with
-targeted tests (plan change log, 2026-10-19), with the rule for the final evaluation's dialogue audit. The third
-run before the freeze (v3: 29 of 30, D09 and D04 fixed, one unneeded D06 handoff kept as a known weakness) and the
-**freeze of the held-out set on 2026-10-19** (`scenarios/held-out/FROZEN`, checked on every load). The agent under
-evaluation is fixed: Luna, reasoning `none`, instructions v3. Quality targets approved and written
-(`docs/quality-targets.md`: none unsafe in A and B, success at least 85%, pass^3 at least 70%). The final
-evaluation's command, report and review sample are written and tested (`docs/final/README.md`), with the
-predictions (`docs/final/predictions.md`). Next: the user checks Sol's price and access, commits, and runs it;
-then Claude's audit of all 180, the user's sample, the report. Nothing in the agent changes from here.
+Phase 6 (§15) done: the final evaluation ran on 2026-10-19 (`runs/final-20261019T201207Z`, $0.585) and is read and
+reported (`docs/final/results.md`, plan change log 2026-10-20). A missed both targets and met the requirement:
+success 41/60 (target 51), pass^3 11/20 (target 14), no unauthorized or duplicate refund in 180. B (Sol) 50/60, +15
+points at 16.6 times the cost per resolved case; C 40/60, the agent never tried to pay without approval. Causes of
+A's 19: citations of sections the policy word search never showed the agent (8), handoffs the policy's exceptions
+clause can be read to require (5), handoffs with no request (2), a true but not deciding reason (2), no clarifying
+question (2), a simulator fault (1). The evaluator's amount check was fixed after the run (whole amounts without
+cents) and applied to the saved results; the user's audit share was 69 conversations, read with help from another
+AI model. v1 is labelled as having missed both targets; the held-out set is spent. Next: the user commits; then a
+v1.1 cycle, planned in the plan's change log before any work (whole policy instead of the search, policy v2 on when a
+person takes over, reasons from the backend, instructions, the 20 used held-out scenarios become development ones,
+20 new held-out scenarios frozen before the run); phase 7 (video, code licence, external test, CI on a remote).
 
 ## Environment
 

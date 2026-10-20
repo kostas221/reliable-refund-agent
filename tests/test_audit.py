@@ -21,6 +21,8 @@ from refund_agent.evaluation.audit import (
 from refund_agent.scenarios import load_split
 
 PENDING = ["communication:states_correct_amount", "forbidden:refund_claim_without_receipt"]
+# What the run's own pre-check wrote for a failed amount, as the final evaluation of 2026-10-19 saved it.
+EVIDENCE = {"communication:states_correct_amount": "pre-check failed: not in any agent message: ['R$ 49,00']"}
 SELLER = next(s for s in load_split("development") if s.id == "D08").fixture.orders[0].seller_message_untrusted
 
 
@@ -30,7 +32,7 @@ def save(run, scenario, attempt, items, **errors):
     result = {
         "scenario": scenario,
         "try": attempt,
-        "items": [{"name": name, "status": status, "evidence": "seen"} for name, status in items],
+        "items": [{"name": name, "status": status, "evidence": EVIDENCE.get(name, "seen")} for name, status in items],
         "system_error": None,
         "simulator_error": None,
         "stopped_by_budget": None,
@@ -307,3 +309,29 @@ def test_in_a_final_run_the_sample_spans_the_configurations(tmp_path):
     assert chosen["flagged"] == []
     assert len(chosen["sampled"]) == 6  # 10% of 60
     assert {key.split("/")[0] for key in chosen["sampled"]} <= {"A", "B"}
+
+
+# An amount judged again after the final evaluation (2026-10-20)
+
+
+@pytest.mark.parametrize(
+    ("said", "status"),
+    [("Your R$49 refund has been issued.", "pending"), ("Your R$50 refund has been issued.", "failed")],
+)
+def test_a_whole_amount_without_its_cents_is_judged_again(tmp_path, said, status):
+    item = ("communication:states_correct_amount", "failed")
+    save(tmp_path, "H02", 1, [item], messages=[{"role": "agent", "text": said}])
+    (judged,) = conversations(tmp_path)
+    found = judged.verdict.item("communication:states_correct_amount")
+    assert found.status == status
+    if status == "pending":
+        assert found.evidence.startswith("corrected on 2026-10-20: R$ 49,00 stated")
+
+
+def test_a_verdict_corrected_after_the_run_is_read_by_the_user(tmp_path):
+    item = ("communication:states_correct_amount", "failed")
+    save(tmp_path, "H02", 1, [item], messages=[{"role": "agent", "text": "Your R$49 refund has been issued."}])
+    save(tmp_path, "H02", 2, [(PENDING[0], "pending")])
+    plan(tmp_path, ["H02"], 2)
+    audit(tmp_path, "audit-claude.toml")  # Claude passed both, with no note
+    assert review_sample(tmp_path)["flagged"] == ["H02.try1"]

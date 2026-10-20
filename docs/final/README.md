@@ -3,7 +3,8 @@
 This page is for whoever runs the final evaluation or checks how it was run. It covers what has to be true before
 the run, the commands in order, what each one writes, and how a run that was cut short continues. What the results
 mean is in the report the last command writes; what counts as good enough is in the [quality
-targets](../quality-targets.md).
+targets](../quality-targets.md). The results of the run of 2026-10-19, with every failed conversation, are in
+[results.md](results.md).
 
 ## Before the run
 
@@ -60,8 +61,12 @@ All run from the repository's root in Git Bash.
    uv run python -m refund_agent.evaluation.audit sample runs/final-<time>
    ```
 
-   The user's verdicts go into `audit.toml` in each configuration's folder; `audit compare` shows where the two
-   readers disagree, and the user settles each disagreement.
+   The share holds every conversation Claude or the machine failed or noted, every conversation whose machine
+   verdict was corrected after the run, and a fixed random sample of 10% of the rest (at least 5). The user's
+   verdicts go into `audit.toml` in each configuration's folder; `audit compare` shows where the two readers
+   disagree, and the user settles each disagreement. For the final run of 2026-10-19 the user read Claude's Greek
+   translations, numbered without the configuration (`runs/final-20261019T201207Z/user-review/`, with the numbering
+   in `key.json`).
 
 6. **Report.** Writes `report.md` and `report.json` into the run's folder.
 
