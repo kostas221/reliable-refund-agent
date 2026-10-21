@@ -372,8 +372,9 @@ def render(report: dict) -> str:
 
 def compare_runs(new: Path, bases: list[Path]) -> dict:
     """A development run against earlier runs of the same situations, paired by scenario (v1.1, plan change log of
-    2026-10-20): a copy pairs with its held-out source (D19 with H09 of the final run), any other scenario with
-    itself. new and each base are folders of one configuration's tries, such as runs/final-.../A or a pilot run."""
+    2026-10-20): a scenario pairs with itself where a base ran it, and a copy otherwise with its held-out source (D19
+    with H09 of the final run). new and each base are folders of one configuration's tries, such as
+    runs/final-.../A or a pilot run."""
     scenarios = {s.id: s for split in ("development", "held_out") for s in load_split(split)}
     earlier: dict[str, float] = {}
     for base in bases:
@@ -383,7 +384,7 @@ def compare_runs(new: Path, bases: list[Path]) -> dict:
             raise ValueError(f"{base.as_posix()} repeats scenarios of an earlier base: {repeated}")
         earlier.update(found)
     now = scores(tries(new))
-    pairs = {sid: scenarios[sid].derived_from or sid for sid in sorted(now)}
+    pairs = {sid: sid if sid in earlier else scenarios[sid].derived_from or sid for sid in sorted(now)}
     pairs = {sid: source for sid, source in pairs.items() if source in earlier}
     if not pairs:
         raise ValueError("no scenario of the new run has a counterpart in the bases")
@@ -407,8 +408,8 @@ def render_comparison(c: dict) -> str:
         f"# Comparison: {c['new']}",
         "",
         f"Against {', '.join(c['bases'])}. Paired bootstrap by scenario, {DRAWS} draws, seed {SEED}: the new run minus "
-        "the earlier one, in the share of each scenario's tries that succeeded. A copy is paired with its held-out "
-        "source.",
+        "the earlier one, in the share of each scenario's tries that succeeded. A scenario is paired with itself "
+        "where a base ran it, and a copy otherwise with its held-out source.",
         "",
         f"- Difference: {100 * c['difference']:+.1f} points (95% interval {100 * c['interval'][0]:+.1f} to "
         f"{100 * c['interval'][1]:+.1f}), over {len(c['pairs'])} scenarios",

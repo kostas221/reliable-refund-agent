@@ -1,0 +1,168 @@
+{
+  "scenario": "D05",
+  "try": 3,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal ineligible, acceptable ['ineligible', 'none']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "handoffs with origin ['customer']; required, origins ['customer']"
+    },
+    {
+      "name": "cites:refund-policy/v2/window",
+      "status": "passed",
+      "evidence": "shown in an agent message"
+    },
+    {
+      "name": "communication:explains_refusal_reason",
+      "status": "pending",
+      "evidence": "pre-check passed: 2 agent messages"
+    },
+    {
+      "name": "communication:announces_handoff",
+      "status": "pending",
+      "evidence": "pre-check passed: an agent message follows the handoff"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 5,
+  "refusals": [],
+  "handoff_origins": [
+    "customer"
+  ],
+  "agent_seconds": [
+    18.974,
+    24.431
+  ],
+  "spent_usd": {
+    "agent": 0.0003402800000000001,
+    "simulator": 9.660000000000007e-05
+  },
+  "attempts_sent": 7,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hello, I sent back the brass desk lamp from my July order. Can I get a refund?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_I1Otdj278VsrKgKjh2BoNWxP",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_I1Otdj278VsrKgKjh2BoNWxP",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"d05-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-07-20T10:00:00+00:00\", \"delivered_at\": \"2026-07-25T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"d05-o1-u1\", \"product\": \"Brass desk lamp\", \"paid_minor\": 12990, \"received_back\": true, \"refunded\": false}], \"requests\": []}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_xtC7i6ZUvIaeNqGG7eie2nUI",
+          "name": "propose_refund",
+          "arguments": "{\"order_id\":\"d05-o1\",\"unit_ids\":[\"d05-o1-u1\"],\"summary_for_staff\":\"Customer requests a refund for the returned brass desk lamp from the July order.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_xtC7i6ZUvIaeNqGG7eie2nUI",
+      "name": "propose_refund",
+      "content": "{\"ok\": true, \"proposal_id\": \"prop-910ed85d0c504481\", \"status\": \"ineligible\", \"outcome\": \"refused\", \"amount_minor\": null, \"currency\": \"BRL\", \"policy_citations\": [\"refund-policy/v2/window\"], \"next_step\": \"Tell the customer it cannot be refunded and why, citing the sections given.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "I’m sorry, but I can’t request a refund because the 30-day refund window has passed since the order’s recorded delivery date (refund-policy/v2/window).",
+      "tool_calls": [],
+      "continuation": []
+    },
+    {
+      "role": "customer",
+      "text": "I was travelling for most of August, so I returned the lamp late. Could I speak to a person, please?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_xZR1tcR7K85hbadT68HCtx9T",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\":\"customer_asked\",\"order_id\":\"\",\"unit_ids\":[],\"reason\":\"The customer explicitly asked to speak to a person.\",\"customer_goal\":\"Speak with a person about the refund for the brass desk lamp.\",\"confirmed_facts\":\"The customer's July order d05-o1 contains a brass desk lamp recorded as received back and not refunded. A refund proposal was refused because it was outside the 30-day window (refund-policy/v2/window).\",\"decision_needed\":\"Take over the conversation and respond to the customer's request to speak with a person.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_xZR1tcR7K85hbadT68HCtx9T",
+      "name": "request_handoff",
+      "content": "{\"ok\": true, \"handoff_id\": \"hand-9db6d26070534441\", \"next_step\": \"Tell the customer a person will take over. Make no more changes.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "A person will take over and follow up with you.",
+      "tool_calls": [],
+      "continuation": []
+    }
+  ]
+}

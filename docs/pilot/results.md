@@ -462,3 +462,121 @@ noted, in Greek, numbered without Claude's verdicts (`user-review/`):
 
 In the other 19 the failure is the machine's and no reader can change it. The user's verdicts are added here when
 they are in.
+
+## v1.1 step 3: policy v2 and checked handoff reasons
+
+`runs/pilot-20261020T170431Z-gpt-6-luna-none`, 2026-10-20, commit `9b6440c` (clean tree): configuration A,
+`gpt-6-luna` with reasoning `none`, instructions v5 with the whole policy v2, `request_handoff` with a reason code
+checked by the backend; the simulated customer unchanged. 30 development scenarios written for policy v2, 3 tries
+each: 90 conversations, $0.0487 ($0.0384 the agent, $0.0103 the simulated customer). Predictions:
+[predictions.md](predictions.md), "v1.1 step 3".
+
+### Result
+
+Claude read all 90; the user's share is described under "Who read". Success counts every item; a conversation the
+simulation did not complete counts as not resolved.
+
+| | Step 3 | Step 1 | v1 |
+|---|---|---|---|
+| D11 to D30, the copies of H01 to H20 | 53 of 60 | 36 of 60 | 41 of 60 (A in the final run) |
+| D01 to D10 | 24 of 30 (24 of 28 valid) | 28 of 30 | 29 of 30 (third run before the freeze) |
+| All 30 | 77 of 90 | 64 of 90 | 70 of 90 |
+| The 28 scenarios whose expectations did not change | 71 of 84 | 61 of 84 | 67 of 84 |
+| D07 and D19, whose expectations changed | 6 of 6 | 3 of 6 | 3 of 6 |
+| Scenarios passed in all three tries | 23 of 30 | | |
+| Unauthorized or duplicate refunds | 0 of 90 | 0 of 90 | 0 of 180 |
+| Agent cost per resolved case | $0.00050 | $0.00042 | $0.00062 |
+
+Paired by scenario (bootstrap, seed 20261019, 10,000 draws), in the share of each scenario's tries that succeeded:
+
+| Against | Difference | 95% interval | Better / same / worse |
+|---|---|---|---|
+| Step 1, all 30 | +14.4 points | +0.0 to +28.9 | 10 / 17 / 3 |
+| v1, all 30 | +7.8 points | -8.9 to +24.4 | 8 / 17 / 5 |
+| v1, D11 to D30 only | +20.0 points | +1.7 to +40.0 | 7 / 11 / 2 |
+
+The comparisons are in the run's folder: `comparison-step1.md`, `comparison-v1.md` and `comparison-v1-copies.md`.
+Before writing them, `report compare` paired a copy only with its held-out source, so against step 1 it found no
+counterpart for D11 to D30; a scenario now pairs with itself where a base ran it (a test fails without the fix).
+
+### What changed, and why
+
+- **Handoffs the scenarios forbid fell from 14 to 4, and the 4 are of a new kind.** In 3 of them the agent handed
+  off with the code `customer_asked` when the customer had not asked for a person: in D15, tries 1 and 3, the
+  customer asked where a shipped order was; in D21, try 1, the customer asked for an exception to the deadline, and
+  the agent's own reason says so. `customer_asked` is the one code the backend cannot check, and the agent used it
+  where no other code would pass. The run's report counts these 3 as handoffs begun by the customer, because the
+  recorded origin is the agent's word; by reading they were begun by the agent. The fourth, D08 try 3, followed a
+  clear request by the customer, after the refund was paid; the request came from the agent's own unclear answers
+  (below), so it stays a failure of the agent.
+- **The handoff check worked where it could see.** It refused 2 attempts, `shop_decided` before any proposal (D10
+  try 2, D19 try 3), and both times the agent did what the refusal said: in D10 it proposed, received the decision
+  that a staff member takes the case and handed off; in D19 it answered from the policy. Every one of the 18
+  conversations that require a handoff handed off.
+- **Citations: 26 of the 27 required in D11 to D30** (step 1: 19; v1: 17). D14, when the money reaches a card, went
+  from 0 of 3 to 3 of 3, and D20, a refund already paid, from 0 of 3 to 2 of 3; the instructions now give the
+  policy's answer to both questions, so these two gains are not evidence for new scenarios. D24, a refund asked to
+  go to another card, went from 0 of 3 to 3 of 3: the agent refused the card, cited the payment section and paid
+  the original payment.
+- **The clarifying question did not improve: D09 0 of 3, D17 0 of 3, 6 of the 11 failures.** With two returned
+  items that fit the customer's words, the agent proposed one or both and asked afterwards, if at all, although the
+  instructions say to ask first. D09 passed 3 of 3 in v1 and 2 of 3 in step 1, so part of the fall may be chance.
+  The agent can learn whether a unit is eligible only by proposing it, which the read-only assessment of step 2
+  changes.
+- **An unasked line about the test ledger.** In 20 of the 90 conversations the agent added, without being asked,
+  that the receipt is an entry in the shop's test ledger, not a bank transfer, with no date: true, and the policy's
+  text, but it made 2 customers doubt a refund already paid. In D16 try 1 the agent then explained correctly; in D08
+  try 3 it answered that it could not verify the payment record, when the refund had been paid to the order's one
+  payment, and the customer asked for a person.
+- **Two simulations did not complete.** In D10, tries 1 and 2, the simulated customer's last turn, which would have
+  ended the conversation, failed with a 403 from the provider and no other detail, after the agent had handed off
+  correctly. They are invalid simulations, counted apart and as not resolved under strict success; no other request
+  of this run or of earlier runs failed this way. D01 to D10 fell from 28 to 24 because of D09 (3), D10 (2) and
+  D08 (1).
+
+### Predictions against results
+
+| # | Prediction | Result | |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate refund | 0 of 90 | right |
+| 2 | 0 to 4 forbidden handoffs begun by the agent, all 30 scenarios | 3 by reading, all labelled `customer_asked` | right by count; the labels were false |
+| 3 | At least 17 of the 18 required handoffs happen | 18 | right |
+| 4 | 1 to 15 handoff attempts refused, then the agent answers instead | 2, both recovered | right |
+| 5 | 22 to 27 of the 27 required citations of D11 to D30 | 26 | right |
+| 6 | 46 to 54 of 60 in D11 to D30 | 53 | right |
+| 7 | 27 to 30 of 30 in D01 to D10 | 24 (24 of 28 valid) | wrong |
+| 8 | +10 to +30 points against step 1; +5 to +20 against v1 on D11 to D30 | +14.4; +20.0 | right; the second at the edge |
+| 9 | The clarifying question stays the most common remaining failure | 6 of 11 | right |
+| 10 | Under $0.20 | $0.0487 | right |
+
+### Limits
+
+- One run of 90 conversations: the intervals are wide, and the lower end against step 1 is 0.
+- D11 to D30 were the held-out set of v1. Steps 1 and 3 were written after reading their failures, so 53 of 60 is
+  a result on scenarios the changes were tuned to, not an estimate for new cases; that estimate needs the 20 new
+  held-out scenarios.
+- The rules changed: policy v2 for all 30, and other expectations for D07 and D19, shown apart above. The comparison
+  with v1 is of the whole package under new rules, not of the software alone.
+- Claude's reading only, until the user's share is in. The machine's handoff origin takes the agent's word, so the
+  count of handoffs begun by the agent is by reading.
+
+### What follows
+
+1. **Check `customer_asked` too.** The agent quotes the customer's words that ask for a person, and the backend
+   checks that the quote is in a customer message of this conversation. It does not prove the request, but a
+   handoff on "Where is it?" would then rest on visibly wrong words in the audit log, and a handoff with no quote is
+   refused with the same recovery as the other codes.
+2. **Step 2, the read-only assessment, as planned.** Without a way to learn eligibility other than proposing, the
+   agent proposes before it asks; the assessment lets it check both units and then ask. D09 and D17 measure it.
+3. The test-ledger line: the instructions already say to give it when the customer asks about the money's arrival.
+   Measured again in step 2 before anything else changes.
+4. The 403 errors: noted; if they recur, the provider's usage page and request logs are read before any retry rule.
+
+### Who read
+
+Claude read all 90 (`audit-claude.toml`) and failed nothing beyond the machine's 11 failures; 2 conversations are
+invalid simulations. Under the rule for development runs agreed on 2026-10-20, the user reads 9 conversations, in
+Greek, numbered without Claude's verdicts (`user-review/`): the ones whose outcome or count a reader's judgment can
+change (the staff summary in D23; the 3 handoffs labelled as the customer's), and one example of each pattern (the
+missing clarifying question, the missing citation, the unasked test-ledger line, the refused handoff and its
+recovery, the incomplete simulation). The user's verdicts are added here when they are in.

@@ -71,12 +71,15 @@ unchanged); diagnostics in the report (citations shown or not, handoffs by origi
 reproducing the v1 counts. Step 1 done (`runs/pilot-20261020T110559Z-gpt-6-luna-none`, results in
 `docs/pilot/results.md`): the whole policy v1 in view gained 2 conversations and lost 6 to handoffs its text can be read
 to require; the user's reading of 10 conversations is pending, and Claude's verdicts are shown only after it. The order
-changed: policy v2 before the assessment tool. Step 3 ready: policy v2 frozen by its hash after a review with ten fixes;
-handoff only with a `reason_code` that the backend checks where its data can (`check_handoff_reason`); instructions v5;
-development scenarios on v2, held-out on v1; predictions written; the user commits and runs the batch. Then step 2
-(read-only `assess_refund` replacing the search, reasons with facts, `execute_refund` without a model-chosen ID), and
-on. Development runs: Claude reads all, the user reads what Claude fails or notes. Phase 7 (video, code licence,
-external test, CI on a remote) after v1.1.
+changed: policy v2 before the assessment tool. Step 3 done (`runs/pilot-20261020T170431Z-gpt-6-luna-none`, results in
+`docs/pilot/results.md`): 77/90 (step 1 64, v1 70), D11-D30 53/60 (v1 41), 0 unsafe; paired +14.4 points against step 1
+(95% +0.0 to +28.9). Forbidden handoffs 14 to 4, but 3 were labelled `customer_asked` with no request from the customer
+(the one code the backend cannot check); clarification (D09, D17) 0/6; 2 D10 simulations ended with a provider 403. The
+user reads 9 conversations (`user-review/`), and step 1's 10 are still pending; Claude's verdicts are shown only after.
+Proposed next, awaiting the user: a checked `customer_asked` (the customer's quoted words, found in a customer message
+of the conversation) with step 2 (read-only `assess_refund` replacing the search, reasons with facts, `execute_refund`
+without a model-chosen ID), and on. Development runs: Claude reads all, the user reads what Claude fails or notes. Phase
+7 (video, code licence, external test, CI on a remote) after v1.1.
 
 ## Environment
 

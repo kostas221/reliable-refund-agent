@@ -147,6 +147,21 @@ def test_a_copy_is_compared_with_its_held_out_source(tmp_path):
         report.compare_runs(new, [base, base])
 
 
+def test_a_copy_is_compared_with_itself_where_an_earlier_development_run_has_it(tmp_path):
+    # Step 3 against step 1 (2026-10-20): both ran D19, so D19 pairs with D19, not with H09 of another base.
+    earlier = configuration(tmp_path, "step-1", ["D19"])
+    for attempt in (1, 2, 3):
+        save(earlier, "D19", attempt, failed=["handoff"])
+    audit(earlier, report.CLAUDE)
+    new = configuration(tmp_path, "step-3", ["D19"])
+    for attempt in (1, 2, 3):
+        save(new, "D19", attempt)
+    audit(new, report.CLAUDE)
+    c = report.compare_runs(new, [earlier])
+    assert [(p["scenario"], p["source"], p["before"], p["after"]) for p in c["pairs"]] == [("D19", "D19", 0.0, 1.0)]
+    assert c["unpaired"] == []
+
+
 def test_a_development_run_is_one_configuration_and_never_judged_by_the_targets(tmp_path):
     folder = configuration(tmp_path, "pilot-run", ["D01"])  # a pilot run: its tries in the run folder itself
     recorded = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))

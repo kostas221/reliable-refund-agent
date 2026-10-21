@@ -1,0 +1,149 @@
+{
+  "scenario": "D19",
+  "try": 3,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['ineligible', 'none']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; allowed, origins ['customer']"
+    },
+    {
+      "name": "cites:refund-policy/v2/eligible-orders",
+      "status": "passed",
+      "evidence": "shown in an agent message"
+    },
+    {
+      "name": "communication:explains_refusal_reason",
+      "status": "pending",
+      "evidence": "pre-check passed: 2 agent messages"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 4,
+  "refusals": [
+    {
+      "event": "hand_off",
+      "check": "handoff_reason",
+      "actor": "agent"
+    }
+  ],
+  "handoff_origins": [],
+  "agent_seconds": [
+    6.083,
+    3.302
+  ],
+  "spent_usd": {
+    "agent": 0.0003033549999999982,
+    "simulator": 0.00012360000000000062
+  },
+  "attempts_sent": 6,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hi, I ordered a cookware set a few days ago but I don't need it anymore. Can I get my money back?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_1qneyRcjjU1mt8ymwdvz0IPe",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_1qneyRcjjU1mt8ymwdvz0IPe",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h09-o1\", \"status\": \"shipped\", \"purchased_at\": \"2026-10-20T17:00:00+00:00\", \"delivered_at\": null, \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h09-o1-u1\", \"product\": \"Stainless steel cookware set\", \"paid_minor\": 14999, \"received_back\": false, \"refunded\": false}], \"requests\": []}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_Nzszm8kgl2rYGOKF8XQUKDqb",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\":\"shop_decided\",\"order_id\":\"h09-o1\",\"unit_ids\":[],\"reason\":\"The order is shipped and has not been delivered, so it is not eligible for a refund through this process.\",\"customer_goal\":\"Get money back for the cookware set because it is no longer needed.\",\"confirmed_facts\":\"Order h09-o1 is recorded as shipped, with no delivery time; the cookware set unit has not been received back.\",\"decision_needed\":\"Help with the customer's options for cancelling the shipped order or changing its delivery, which are outside this refund process.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_Nzszm8kgl2rYGOKF8XQUKDqb",
+      "name": "request_handoff",
+      "content": "{\"ok\": false, \"refused\": \"handoff_reason\", \"explanation\": \"the latest refund decision of this conversation, on the order and policy as they are now, is not that a staff member takes the case. For a refund request, call propose_refund and follow its result. If a rule refuses the request, give its reason and what the policy allows, without offering a person. Hand off with customer_asked only when the customer clearly asks for a person.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Your cookware set order is marked as shipped, not delivered, so it can’t be refunded through this process yet. Cancelling an order or changing its delivery is outside the refund process. (refund-policy/v2/eligible-orders)",
+      "tool_calls": [],
+      "continuation": []
+    },
+    {
+      "role": "customer",
+      "text": "What can I do to get a refund once it arrives?"
+    },
+    {
+      "role": "agent",
+      "text": "Once the order is delivered, the cookware set must also be returned and recorded as received by the shop before you can request a refund. Then you can request a refund for the item, subject to the 30-day limit from the recorded delivery time. (refund-policy/v2/return) (refund-policy/v2/window)",
+      "tool_calls": [],
+      "continuation": []
+    }
+  ]
+}

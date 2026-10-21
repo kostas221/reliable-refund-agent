@@ -1,0 +1,144 @@
+{
+  "scenario": "D15",
+  "try": 1,
+  "configuration": "A",
+  "result": "failed",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "failed",
+      "evidence": "refunded units [], expected ['h05-o1-u1']; refunded 0 in total, expected 9990"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "failed",
+      "evidence": "last proposal none, acceptable ['refunded']"
+    },
+    {
+      "name": "handoff",
+      "status": "failed",
+      "evidence": "handoffs with origin ['customer']; forbidden, origins []"
+    },
+    {
+      "name": "communication:states_correct_amount",
+      "status": "failed",
+      "evidence": "pre-check failed: no proposal or refund amount to state"
+    },
+    {
+      "name": "communication:gives_this_receipt",
+      "status": "failed",
+      "evidence": "pre-check failed: no refund was committed in this run, so there is no receipt to give"
+    },
+    {
+      "name": "communication:announces_handoff",
+      "status": "pending",
+      "evidence": "pre-check passed: an agent message follows the handoff"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_with_other_units",
+      "status": "passed",
+      "evidence": "every proposal stays within ['h05-o1-u1']"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 3,
+  "refusals": [],
+  "handoff_origins": [
+    "customer"
+  ],
+  "agent_seconds": [
+    11.88
+  ],
+  "spent_usd": {
+    "agent": 0.0002419300000000013,
+    "simulator": 4.629999999999999e-05
+  },
+  "attempts_sent": 4,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hi, my game controller has not arrived yet. Where is it?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_gvDHBeh3uSceIHlamHxnhTq1",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_gvDHBeh3uSceIHlamHxnhTq1",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h05-o2\", \"status\": \"shipped\", \"purchased_at\": \"2026-10-17T14:19:26+00:00\", \"delivered_at\": null, \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h05-o2-u1\", \"product\": \"Wireless game controller\", \"paid_minor\": 3800, \"received_back\": false, \"refunded\": false}], \"requests\": []}, {\"order_id\": \"h05-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-09-05T13:10:24+00:00\", \"delivered_at\": \"2026-10-03T19:48:35+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h05-o1-u1\", \"product\": \"Hair dryer, 2000 W\", \"paid_minor\": 9990, \"received_back\": true, \"refunded\": false}], \"requests\": []}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_QEAb1rgz1gMH33PizZipIh08",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\":\"customer_asked\",\"order_id\":\"\",\"unit_ids\":[],\"reason\":\"The customer asks where their shipped game controller is; shipment tracking details are not available here, and delivery changes are outside the refund process.\",\"customer_goal\":\"Find out where the game controller is and when it will arrive.\",\"confirmed_facts\":\"Order h05-o2 contains a Wireless game controller and is recorded as shipped, not delivered; no delivery time or tracking details are available in the order records.\",\"decision_needed\":\"Please check the shipment status and advise the customer.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_QEAb1rgz1gMH33PizZipIh08",
+      "name": "request_handoff",
+      "content": "{\"ok\": true, \"handoff_id\": \"hand-0118c4b2fc074ae2\", \"next_step\": \"Tell the customer a person will take over. Make no more changes.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Your game controller order is marked as shipped, but I can’t see its current location or an estimated arrival time. A person will take over and check the shipment.",
+      "tool_calls": [],
+      "continuation": []
+    }
+  ]
+}
