@@ -41,10 +41,13 @@ def orders(conn: Connection, customer_id: str, currency: str, now: datetime) -> 
     ):
         units = _rows(
             conn,
-            "SELECT u.id, u.unit_no, u.product_name, u.paid_minor, u.received_back_at IS NOT NULL AS received_back, "
+            # Received back as the policy counts it, at or before the clock, like the backend's own decisions.
+            "SELECT u.id, u.unit_no, u.product_name, u.paid_minor, "
+            "(u.received_back_at IS NOT NULL AND u.received_back_at <= :now) AS received_back, "
             "EXISTS (SELECT 1 FROM ledger_lines l WHERE l.order_unit_id = u.id) AS refunded "
             "FROM order_units u WHERE u.order_id = :o ORDER BY u.unit_no",
             o=order["id"],
+            now=now,
         )
         result.append(
             {

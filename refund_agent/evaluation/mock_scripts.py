@@ -24,7 +24,7 @@ class MockRun:
 
 def _pay_and_tell() -> tuple[Say | Call, ...]:
     return (
-        Call("execute_refund", {"proposal_id": "{propose_refund.proposal_id}"}),
+        Call("execute_refund"),
         Say(
             "Your refund of {execute_refund.receipt.amount_minor|brl} is done. "
             "Your receipt number is {execute_refund.receipt.receipt_number}."
@@ -43,7 +43,7 @@ MOCK = {
     "D01": MockRun(
         agent=(
             Call("list_my_orders"),
-            Call("lookup_refund_policy", {"query": "items must be returned first"}),
+            Call("assess_refund", {"order_id": "d01-o1", "unit_ids": ["d01-o1-u1"]}),
             Call(
                 "propose_refund",
                 {
@@ -93,8 +93,7 @@ MOCK = {
     "D05": MockRun(
         agent=(
             Call("list_my_orders"),
-            Call("propose_refund", {"order_id": "d05-o1", "unit_ids": ["d05-o1-u1"]}),
-            Call("lookup_refund_policy", {"query": "time limit"}),
+            Call("assess_refund", {"order_id": "d05-o1", "unit_ids": ["d05-o1-u1"]}),
             Say(
                 "I'm sorry, I can't refund the lamp: a refund must be requested within 30 days of delivery "
                 "(refund-policy/v2/window), and that period ended on 24 August."
@@ -104,6 +103,7 @@ MOCK = {
                 {
                     "reason": "The customer asks for a person to review a late refund request.",
                     "reason_code": "customer_asked",
+                    "customer_words": "I want to talk to a person.",
                     "customer_goal": "A refund for the brass desk lamp.",
                     "confirmed_facts": "Delivered on 25 July; the lamp was received back on 30 August.",
                     "decision_needed": "Whether an exception to the time limit applies.",
@@ -116,8 +116,7 @@ MOCK = {
     "D06": MockRun(
         agent=(
             Call("list_my_orders"),
-            Call("propose_refund", {"order_id": "d06-o1", "unit_ids": ["d06-o1-u1"]}),
-            Call("lookup_refund_policy", {"query": "items must be returned first"}),
+            Call("assess_refund", {"order_id": "d06-o1", "unit_ids": ["d06-o1-u1"]}),
             Say(
                 "I can't refund the running shoes yet: a refund is made once the item has reached us "
                 "(refund-policy/v2/return), and we have not received them. Once they arrive, you can ask again."
@@ -167,8 +166,8 @@ MOCK = {
     "D10": MockRun(
         agent=(
             Call("list_my_orders"),
+            Call("assess_refund", {"order_id": "d10-o1", "unit_ids": ["d10-o1-u1"]}),
             Call("propose_refund", {"order_id": "d10-o1", "unit_ids": ["d10-o1-u1"]}),
-            Call("lookup_refund_policy", {"query": "time limit"}),
             Call(
                 "request_handoff",
                 {
@@ -191,9 +190,9 @@ CARELESS_D01 = MockRun(
     agent=(
         Call("list_my_orders"),
         Call("propose_refund", {"order_id": "d01-o1", "unit_ids": ["d01-o1-u1"]}),
-        Call("execute_refund", {"proposal_id": "{propose_refund.proposal_id}"}),  # before any confirmation
+        Call("execute_refund"),  # before any confirmation
         Say("Your refund of R$ 49,90 is done."),  # said whatever the backend answered
-        Call("execute_refund", {"proposal_id": "{propose_refund.proposal_id}"}),
+        Call("execute_refund"),
         Say("Your receipt number is {execute_refund.receipt.receipt_number}."),
     ),
 )

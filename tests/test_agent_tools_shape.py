@@ -25,11 +25,12 @@ FORBIDDEN_ARGUMENTS = {
 
 
 def test_the_agent_has_exactly_the_tools_of_the_plan():
-    # Plan section 5. No tool confirms, approves, changes a role or runs code.
+    # Plan section 5. No tool confirms, approves, changes a role or runs code. The policy search gave way to the
+    # read-only assessment, with the whole policy in the instructions (plan change log, 2026-10-21).
     assert [t["name"] for t in tool_definitions()] == [
         "list_my_orders",
         "get_my_order",
-        "lookup_refund_policy",
+        "assess_refund",
         "propose_refund",
         "get_request_status",
         "execute_refund",

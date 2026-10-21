@@ -33,7 +33,6 @@ from langgraph.graph import END, START, StateGraph
 from sqlalchemy import Engine, text
 
 from refund_agent.agent.model import Instructions, ModelAdapter, load_instructions
-from refund_agent.agent.policy_search import PolicySearch, WordSearch
 from refund_agent.agent.tools import ToolContext, call_tool, tool_definitions
 from refund_agent.policy import Policy
 from refund_agent.refunds import Configuration
@@ -61,14 +60,12 @@ class Agent:
         checkpointer: BaseCheckpointSaver,
         clock: Callable[[], datetime],
         *,
-        search: PolicySearch | None = None,
         instructions: Instructions | None = None,
         configuration: Configuration = "A",
         max_steps: int = 12,
     ) -> None:
         """engine: the refund_app role. configuration "C" only in the isolated evaluation harness."""
         self.engine, self.policy, self.model, self.clock = engine, policy, model, clock
-        self.search = search or WordSearch(policy)
         self.instructions = instructions or load_instructions(policy=policy)
         self.configuration, self.max_steps = configuration, max_steps
         self.tools = tool_definitions()
@@ -106,7 +103,6 @@ class Agent:
         return ToolContext(
             self.engine,
             self.policy,
-            self.search,
             self.clock,
             self._conversation(conversation_id)["customer_id"],
             conversation_id,

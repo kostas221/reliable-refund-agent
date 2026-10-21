@@ -7,7 +7,6 @@ in the next step; here it only shows that the adapter, the mock and the tools fi
 import json
 
 from refund_agent.agent.model import Call, RecordingAdapter, Say, ScriptedModel, load_instructions
-from refund_agent.agent.policy_search import WordSearch
 from refund_agent.agent.tools import ToolContext, call_tool, tool_definitions
 from refund_agent.fixtures import seed
 from refund_agent.refunds import Actor, confirm, decide, open_conversation
@@ -18,10 +17,10 @@ INSTRUCTIONS = load_instructions(policy=POLICY)
 
 ANA_MUG = [
     Call("list_my_orders"),
-    Call("lookup_refund_policy", {"query": "items must be returned first"}),
+    Call("assess_refund", {"order_id": "d01-o1", "unit_ids": ["d01-o1-u1"]}),
     Call("propose_refund", {"order_id": "d01-o1", "unit_ids": ["d01-o1-u1"]}),
     Say("I can refund {propose_refund.amount_minor|brl} for the blue mug. Please confirm on the proposal card."),
-    Call("execute_refund", {"proposal_id": "{propose_refund.proposal_id}"}),
+    Call("execute_refund"),  # the backend finds the conversation's request
     Say(
         "Your refund of {execute_refund.receipt.amount_minor|brl} is done: "
         "receipt {execute_refund.receipt.receipt_number}."
@@ -47,7 +46,7 @@ def test_a_scripted_conversation_refunds_the_mug_through_the_real_tools(db, tmp_
     seed(db("owner"), D01, POLICY)
     app = db("app")
     conversation = open_conversation(app, Actor("customer", "d01-ana"), D01.now)
-    ctx = ToolContext(app, POLICY, WordSearch(POLICY), lambda: D01.now, "d01-ana", conversation)
+    ctx = ToolContext(app, POLICY, lambda: D01.now, "d01-ana", conversation)
     log = tmp_path / "requests.jsonl"
     model = RecordingAdapter(ScriptedModel(ANA_MUG), log)
     messages = [{"role": "customer", "text": D01.customer.opening_message}]
@@ -56,8 +55,8 @@ def test_a_scripted_conversation_refunds_the_mug_through_the_real_tools(db, tmp_
     assert said == "I can refund R$ 49,90 for the blue mug. Please confirm on the proposal card."
     proposal_id = json.loads(messages[-2]["content"])["proposal_id"]
     assert rows(app, "SELECT status, amount_minor FROM proposals") == [("awaiting_customer_confirmation", 4990)]
-    policy = json.loads(messages[4]["content"])
-    assert policy["sections"][0]["citation"] == "refund-policy/v2/return"
+    assessed = json.loads(messages[4]["content"])
+    assert (assessed["outcome"], assessed["policy_citations"]) == ("eligible", ["refund-policy/v2/amount"])
 
     # The customer's button and the staff decision happen outside the agent; the agent is then told.
     confirm(app, Actor("customer", "d01-ana"), proposal_id, "confirmed", D01.now, POLICY)

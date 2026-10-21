@@ -21,12 +21,15 @@ fictional shop, 3-5 synthetic customers and one staff member.
 1. The customer signs in and sees their orders, each with its number and items, and picks the item and quantity
    to refund; the chat opens with that selection. Describing the item or giving the order number in chat also
    works, and the agent asks when more than one item matches.
-2. The agent retrieves the policy section; the citation is a real policy/section/version ID from the retriever.
+2. The agent has the whole policy of the version in force in its instructions, each section under its citation
+   ID (policy/version/section). It can ask the backend for an assessment of given units, with the reasons and the
+   facts behind them, which proposes and reserves nothing.
 3. The backend computes eligibility and amount and stores an immutable proposal. An ineligible request gets the
-   policy reason (or a handoff for an exception) and no refund.
+   policy reason and no refund; a case the policy names goes to a person.
 4. The customer confirms with a button on the proposal card. A "yes" typed in chat is not a confirmation.
 5. A staff member approves or rejects it from the queue; a rejection gives the customer its reason.
-6. `execute_refund(proposal_id)` asks the backend to execute; it commits one simulated refund and a receipt.
+6. `execute_refund` asks the backend to pay the conversation's request, which the backend finds (the agent names
+   no proposal); it commits one simulated refund and a receipt.
 7. The customer sees the final state and its reason: refunded with receipt, rejected, cancelled or expired.
 
 After a restart, a retry or an uncertain HTTP result (the client lost the answer and does not know whether the
@@ -37,8 +40,11 @@ Proposal states: `awaiting_customer_confirmation -> awaiting_staff_approval -> a
 `expired` and `invalidated` (order or policy changed, replaced by a newer proposal, or handed to a person). The full
 diagram, with the actor and checks of every transition, is in [state-machine.md](state-machine.md).
 
-**Handoff.** When the customer asks for a person or the case is not covered (shipping refund, missing return,
-policy exception), the agent records the reason and origin, the customer's goal, confirmed facts, any pending
+**Handoff.** A person takes over when the customer asks for one, when the shop's decision is that a staff member
+takes the case, or in a case the policy names (units sent but not received, a delivered order that never arrived, a
+request to refund shipping). The agent names one of these reasons; the backend checks those its data can show (the
+conversation's latest decision, the disputed units, the order's status) and that a customer's request rests on
+words the customer wrote. The agent records the reason and origin, the customer's goal, confirmed facts, any pending
 proposal, past actions and the decision needed. The conversation becomes `human_controlled` at once, its open
 proposals are invalidated, and the agent makes no further changes. Staff see and take the case in the console; there is no live staff-to-customer chat in v1.
 

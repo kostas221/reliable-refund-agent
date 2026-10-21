@@ -666,3 +666,11 @@ full context versus search must hold the policy and other components fixed.
 Keep the numeric limits, customer confirmation, staff approval and payment protections. The proposed change is
 more precise routing and evidence, not easier grading or relaxed financial authorization. Leave the twenty new
 held-out cases unused until the candidate and its development evidence are ready.
+
+## Follow-up after the policy v2 improvement
+
+21 October 2026. The next run reached 77/90 strict success. The named-unit and current-request handoff checks above
+were implemented before that run; do not reapply them as unfinished work. The remaining failures, external
+research and incremental experiment gates are documented in
+[Improving v1.1 while protecting the measured gains](next-improvements-2026-10-21.md). Use that companion for current
+priorities while retaining this review's acceptance requirements and historical findings.

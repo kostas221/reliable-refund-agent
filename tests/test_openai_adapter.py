@@ -307,3 +307,13 @@ def test_every_argument_of_every_tool_reaches_the_model_with_a_type():
 
     missing = [p for tool in TOOLS for p in untyped(openai_adapter.strict_schema(tool["parameters"]), tool["name"])]
     assert missing == []
+
+
+def test_a_refused_request_keeps_the_providers_request_id():
+    # The two 403s of the step 3 run said only "Error code: 403" (review of 2026-10-21): the ID lets them be traced.
+    request = httpx2.Request("POST", "https://api.openai.com/v1/responses")
+    answer = httpx2.Response(403, request=request, headers={"x-request-id": "req_403"})
+    denied = FakeClient(openai.PermissionDeniedError("status 403", response=answer, body=None))
+    with pytest.raises(ModelError) as refused:
+        OpenAIResponses("gpt-6-luna", "low", client=denied).respond("", [], TOOLS)
+    assert (refused.value.kind, refused.value.detail) == ("bad_request", "403: status 403 (request req_403)")

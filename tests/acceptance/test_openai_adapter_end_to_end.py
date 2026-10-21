@@ -55,8 +55,7 @@ class Agentlike:
             amount = last_result(request, "propose_refund")["amount_minor"]
             return FakeResponse([message(f"I can refund R$ {amount // 100},{amount % 100:02d}. Please confirm.")])
         if step == 4:
-            proposal = last_result(request, "propose_refund")["proposal_id"]
-            return FakeResponse([thinking(4), call(4, "execute_refund", {"proposal_id": proposal})])
+            return FakeResponse([thinking(4), call(4, "execute_refund", {})])  # the backend finds the request
         receipt = last_result(request, "execute_refund")["receipt"]
         return FakeResponse([message(f"Done: R$ 49,90, receipt {receipt['receipt_number']}.")])
 

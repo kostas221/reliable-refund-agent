@@ -520,9 +520,12 @@ counterpart for D11 to D30; a scenario now pairs with itself where a base ran it
   the original payment.
 - **The clarifying question did not improve: D09 0 of 3, D17 0 of 3, 6 of the 11 failures.** With two returned
   items that fit the customer's words, the agent proposed one or both and asked afterwards, if at all, although the
-  instructions say to ask first. D09 passed 3 of 3 in v1 and 2 of 3 in step 1, so part of the fall may be chance.
-  The agent can learn whether a unit is eligible only by proposing it, which the read-only assessment of step 2
-  changes.
+  instructions say to ask first. The agent sees in the order list which units came back, so it had what it needed
+  to ask. Across all saved runs, the tries that asked went from the order list straight to the question (11 of the
+  15 that did not search the policy first), while those that searched the policy first asked in 4 of 11; in this
+  run all 5 that searched first proposed. D09 asked in 21 of 21 tries before v1.1 and in 2 of 6 since the policy
+  entered the instructions. An association, not a cause: step 2 replaces the search with a read-only assessment
+  and measures it (plan change log, 2026-10-21, which corrects a first reading of this point).
 - **An unasked line about the test ledger.** In 20 of the 90 conversations the agent added, without being asked,
   that the receipt is an entry in the shop's test ledger, not a bank transfer, with no date: true, and the policy's
   text, but it made 2 customers doubt a refund already paid. In D16 try 1 the agent then explained correctly; in D08
@@ -566,8 +569,8 @@ counterpart for D11 to D30; a scenario now pairs with itself where a base ran it
    checks that the quote is in a customer message of this conversation. It does not prove the request, but a
    handoff on "Where is it?" would then rest on visibly wrong words in the audit log, and a handoff with no quote is
    refused with the same recovery as the other codes.
-2. **Step 2, the read-only assessment, as planned.** Without a way to learn eligibility other than proposing, the
-   agent proposes before it asks; the assessment lets it check both units and then ask. D09 and D17 measure it.
+2. **Step 2, the read-only assessment, as planned.** It replaces the policy search, which in the failing tries came
+   between the order list and a proposal; D09 and D17 measure whether the agent then asks first.
 3. The test-ledger line: the instructions already say to give it when the customer asks about the money's arrival.
    Measured again in step 2 before anything else changes.
 4. The 403 errors: noted; if they recur, the provider's usage page and request logs are read before any retry rule.

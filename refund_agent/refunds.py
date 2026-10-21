@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -822,6 +823,110 @@ HANDOFF_REASONS = ("customer_asked", "shop_decided", "return_disputed", "deliver
 _NEEDS_ORDER = ("return_disputed", "delivery_disputed")
 
 
+@dataclass(frozen=True)
+class Assessment:
+    """What propose would decide for these units at that moment, and the facts each reason rests on."""
+
+    outcome: str  # eligible, refused or needs_person
+    reasons: tuple[str, ...]  # policy section IDs, in the order eligibility.evaluate() gives them
+    amount_minor: int | None  # only when eligible: nothing to promise otherwise
+    order: dict[str, Any]
+    units: tuple[dict[str, Any], ...]
+
+
+def assess(
+    engine: Engine,
+    actor: Actor,
+    conversation_id: str,
+    order_id: str,
+    unit_ids: Sequence[str],
+    now: datetime,
+    policy: Policy,
+) -> Assessment:
+    """The decision propose would make for these units now, with the facts behind it, and nothing written (plan
+    change log, 2026-10-21, v1.1 step 2). It reads with the queries and the policy functions of propose, so the two
+    agree on the same data. An assessment reserves nothing and can go stale: propose and execute decide again.
+    A refused read is not recorded, as no other read is."""
+    with engine.connect() as conn:
+        conversation = _one(conn, "SELECT customer_id FROM conversations WHERE id = :id", id=conversation_id)
+        order = _one(conn, "SELECT id, customer_id, delivered_at FROM orders WHERE id = :id", id=order_id)
+        if (
+            actor.kind != "agent"
+            or conversation is None
+            or order is None
+            or conversation["customer_id"] != actor.user_id
+            or order["customer_id"] != actor.user_id
+        ):
+            raise Refused("actor_owns")
+        names = dict(
+            conn.execute(
+                text("SELECT id, product_name FROM order_units WHERE order_id = :order AND id = ANY(:ids)"),
+                {"order": order_id, "ids": list(unit_ids)},
+            ).all()
+        )
+        if not unit_ids or len(set(unit_ids)) != len(unit_ids) or len(names) != len(unit_ids):
+            raise Refused("valid_values", "the units must be distinct units of this order")
+        policy_order = _policy_order(conn, order_id, now)
+        earlier = _earlier_on_time_units(conn, policy, order["delivered_at"], list(unit_ids), now)
+        receipts = dict(
+            conn.execute(
+                text(
+                    "SELECT l.order_unit_id, o.receipt_number FROM ledger_lines l "
+                    "JOIN refund_operations o ON o.id = l.operation_id WHERE l.order_unit_id = ANY(:ids)"
+                ),
+                {"ids": list(unit_ids)},
+            ).all()
+        )
+    decision = eligibility.evaluate(policy, policy_order, tuple(unit_ids), now, earlier_on_time_units=earlier)
+    eligible = decision.outcome is eligibility.Outcome.ELIGIBLE
+    delivered = policy_order.delivered_at
+    by_id = {unit.id: unit for unit in policy_order.units}
+    return Assessment(
+        outcome=decision.outcome.value,
+        reasons=decision.reasons,
+        amount_minor=decision.amount_minor if eligible else None,
+        order={
+            "order_id": order_id,
+            "status": policy_order.status,
+            "delivered_at": delivered,
+            "refund_deadline": eligibility.refund_deadline(policy, delivered) if delivered else None,
+            "payment_records": len(policy_order.payments),
+            "one_valid_payment": eligibility.single_valid_payment(policy_order),
+        },
+        units=tuple(
+            {
+                "unit_id": unit_id,
+                "product": names[unit_id],
+                "paid_minor": by_id[unit_id].paid_minor,
+                "received_back": by_id[unit_id].received_back,
+                "refunded": by_id[unit_id].refunded,
+                "receipt_number": receipts.get(unit_id),
+                "earlier_on_time_proposal": unit_id in earlier,
+            }
+            for unit_id in unit_ids
+        ),
+    )
+
+
+# Curly quotation marks as their plain forms, written as escapes so the source stays ASCII.
+_PLAIN_QUOTES = str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"'})
+
+
+def _plain(text_: str) -> str:
+    return " ".join(text_.translate(_PLAIN_QUOTES).casefold().split())
+
+
+def _quoted(words: str, messages: Sequence[str]) -> bool:
+    """Whether one of the messages contains these words, compared without case, curly quotes or spacing. An
+    ellipsis stands for words left out, and the quote's own quotation marks and end punctuation do not count; each
+    remaining part must have two letters at least, so a single letter quotes nothing."""
+    parts = [part.strip(" \"'.,;:!?") for part in re.split("\\.\\.\\.|…", _plain(words))]
+    parts = [part for part in parts if part]
+    if not parts or any(sum(ch.isalpha() for ch in part) < 2 for part in parts):
+        return False
+    return any(all(part in _plain(message) for part in parts) for message in messages)
+
+
 def check_handoff_reason(
     engine: Engine,
     actor: Actor,
@@ -831,14 +936,18 @@ def check_handoff_reason(
     policy: Policy,
     order_id: str | None = None,
     unit_ids: Sequence[str] = (),
-) -> None:
+    customer_words: str = "",
+) -> dict[str, Any]:
     """Before the agent hands off, the backend checks the reason it names against its own data (plan change log,
-    2026-10-20, v1.1 step 3). It can see three of the five cases, each about the request in front of it: the latest
-    decision of this conversation, on the order and policy as they are now, is that a staff member takes the case;
-    the named units of the named order are neither received back nor refunded; the named order is recorded as
-    delivered. A customer's request for a person, or to refund shipping, is in the conversation's words and stays
-    the agent's claim. A refusal says what to do instead and is recorded like any other; the customer's button and a
-    staff member's takeover never come here."""
+    2026-10-20 and 2026-10-21, v1.1 steps 3 and 2). Each check is about the request in front of the agent: the
+    latest decision of this conversation, on the order and policy as they are now, is that a staff member takes the
+    case; the named units of the named order are neither received back nor refunded; the named order is recorded as
+    delivered; the words the agent quotes for a customer's request for a person are in a message the customer wrote
+    in this conversation. The quote shows the words exist, not that they ask for a person: that reading stays the
+    agent's, and the words are kept with the handoff for whoever reads it. A request to refund shipping is in the
+    conversation's words and stays the agent's claim. A refusal says what to do instead and is recorded like any
+    other; the customer's button and a staff member's takeover never come here. Returns what the check found, for
+    the record: for customer_asked, the ID of the latest customer message holding the quoted words."""
     try:
         with engine.connect() as conn:
             conversation = _one(conn, "SELECT customer_id FROM conversations WHERE id = :id", id=conversation_id)
@@ -854,6 +963,7 @@ def check_handoff_reason(
                 if not order or order["customer_id"] != actor.user_id:
                     raise Refused("handoff_reason", "name the customer's order the dispute is about")
             holds, unmet, then = True, "", ""
+            evidence: dict[str, Any] = {}
             if reason == "shop_decided":
                 # The request in front of the agent, not any earlier one: the conversation's latest decision.
                 latest = _one(
@@ -899,6 +1009,26 @@ def check_handoff_reason(
                         "A unit received back is requested with propose_refund; a refunded unit is reported with its "
                         f"receipt ({policy.citation('remaining')})."
                     )
+            elif reason == "customer_asked":
+                written = conn.execute(
+                    text(
+                        "SELECT id, content_untrusted FROM messages "
+                        "WHERE conversation_id = :id AND author = 'customer' ORDER BY seq"
+                    ),
+                    {"id": conversation_id},
+                ).all()
+                found = [message_id for message_id, words in written if _quoted(customer_words, [words])]
+                holds = bool(found)
+                evidence["customer_message"] = found[-1] if found else None
+                unmet = (
+                    "customer_words are not words the customer wrote in this conversation"
+                    if customer_words.strip()
+                    else "customer_words must give the customer's own words that ask for a person"
+                )
+                then = (
+                    "Copy the customer's words that ask for a person exactly. If the customer has not asked for one, "
+                    "answer from the policy, and offer a person only where it says to."
+                )
             elif reason == "delivery_disputed":
                 holds = order["status"] == "delivered"
                 unmet = "that order is not recorded as delivered, so it is on its way, not disputed"
@@ -916,6 +1046,7 @@ def check_handoff_reason(
     except Refused as refusal:
         _record_rejection(engine, now, actor, "hand_off", refusal, conversation_id=conversation_id)
         raise
+    return evidence
 
 
 def take_handoff(engine: Engine, actor: Actor, handoff_id: str, now: datetime) -> None:
@@ -1201,6 +1332,45 @@ def _commit_refund(x: _Execution) -> dict:
         operation_id=operation_id,
     )
     return receipt
+
+
+def execute_for_conversation(
+    engine: Engine,
+    actor: Actor,
+    conversation_id: str,
+    idempotency_key: str,
+    now: datetime,
+    policy: Policy,
+    configuration: Configuration = "A",
+) -> dict:
+    """Pay the conversation's request, which the backend finds: the agent names no proposal (plan change log,
+    2026-10-21, v1.1 step 2). In configuration A the request is the conversation's latest proposal that the policy
+    did not refuse or send to a person. In C, where the lab removes the policy and status checks, it is the latest
+    proposal of any status, so the lab's agent can still reach a refused request, as it could when it named one.
+    execute() then makes every check of the configuration as before: in A a request not yet confirmed or approved
+    is refused, and a request already paid returns its receipt again. A call that already paid, run again after a
+    restart, returns the receipt of what it paid, never a later request of the conversation. An older proposal of
+    the conversation is no longer reachable through the tool in either configuration; the authorization table
+    reaches it through execute()."""
+    with engine.connect() as conn:
+        target = _one(
+            conn,
+            "SELECT proposal_id AS id FROM refund_operations WHERE idempotency_key = :key",
+            key=idempotency_key,
+        ) or _one(
+            conn,
+            "SELECT id FROM proposals WHERE conversation_id = :id AND (:lab OR status <> 'ineligible') "
+            "ORDER BY created_at DESC, created_xact DESC LIMIT 1",
+            id=conversation_id,
+            lab=configuration == "C",
+        )
+    if target is None:
+        refusal = Refused("invalid_transition", "this conversation has no refund request to pay")
+        _record_rejection(engine, now, actor, "execute", refusal, conversation_id=conversation_id)
+        raise refusal
+    return execute(
+        engine, actor, target["id"], idempotency_key, now, policy, configuration, conversation_id=conversation_id
+    )
 
 
 def execute(

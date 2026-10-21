@@ -33,7 +33,7 @@ stateDiagram-v2
 | `propose` | (new) | `ineligible` | agent | `actor_owns`, `agent_in_control`, `request_key_consistent`, `valid_values` | evaluate() refuses or needs a person; the reasons are stored as policy section IDs. For a needs-a-person reason the agent must hand off, and the evaluator checks that it did. Nothing is superseded. |
 | `confirm` | `awaiting_customer_confirmation` | `awaiting_staff_approval` | customer | `actor_owns`, `proposal_current` | The customer presses confirm on the proposal card. |
 | `approve` | `awaiting_staff_approval` | `approved` | staff | `staff_role`, `valid_values`, `proposal_current`, `policy_eligible` | A staff member approves in the console. |
-| `execute` | `approved` | `refunded` | agent | `actor_owns`, `same_conversation`, `request_key_consistent`, `first_execution`, `agent_in_control`, `valid_values`, `status_approved`, `customer_confirmed`, `staff_approved`, `approval_used_once`, `proposal_current`, `within_window`, `order_status_eligible`, `return_received`, `units_available` | The agent calls execute_refund(proposal_id); one transaction commits the refund and its receipt. |
+| `execute` | `approved` | `refunded` | agent | `actor_owns`, `same_conversation`, `request_key_consistent`, `first_execution`, `agent_in_control`, `valid_values`, `status_approved`, `customer_confirmed`, `staff_approved`, `approval_used_once`, `proposal_current`, `within_window`, `order_status_eligible`, `return_received`, `units_available` | The agent calls execute_refund, which pays the conversation's request; one transaction commits the refund and its receipt. |
 | `reject` | `awaiting_staff_approval` | `rejected` | staff | `staff_role`, `valid_values` | A staff member rejects in the console, with a reason for the customer. |
 | `cancel` | `awaiting_customer_confirmation`, `awaiting_staff_approval`, `approved` | `cancelled` | customer | `actor_owns` | The customer declines or cancels before execution. |
 | `expire` | `awaiting_customer_confirmation`, `awaiting_staff_approval`, `approved` | `expired` | system | - | The clock passed expires_at; applied by the next action that touches the proposal. |
@@ -76,7 +76,7 @@ without a valid confirmation and approval as an unauthorized committed action.
 
 | Event | From | To | Actor | Checks | When |
 |---|---|---|---|---|---|
-| `execute` | every status except `refunded` | `refunded` | agent | `actor_owns`, `same_conversation`, `request_key_consistent`, `first_execution`, `agent_in_control`, `valid_values`, `approval_used_once`, `units_available` | Configuration C only: the agent calls execute_refund(proposal_id) whatever the status. |
+| `execute` | every status except `refunded` | `refunded` | agent | `actor_owns`, `same_conversation`, `request_key_consistent`, `first_execution`, `agent_in_control`, `valid_values`, `approval_used_once`, `units_available` | Configuration C only: the agent calls execute_refund whatever the status. |
 
 ## Conversation control
 

@@ -5,15 +5,14 @@ Each call goes through call_tool, as the conversation graph will call it, with J
 
 import json
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import text
 
-from refund_agent.agent.policy_search import WordSearch
 from refund_agent.agent.tools import UNTRUSTED, ToolContext, call_tool
 from refund_agent.fixtures import seed
-from refund_agent.refunds import Actor, confirm, decide, open_conversation
+from refund_agent.refunds import Actor, cancel, confirm, decide, open_conversation
 from tests.acceptance.flows import DEVELOPMENT, POLICY, SCENARIOS, policy_of, proposed, rows
 
 
@@ -24,7 +23,28 @@ def agent_for(db, scenario_id, configuration="A"):
     app = db("app")
     customer = scenario.customer.id
     conversation = open_conversation(app, Actor("customer", customer), scenario.now)
-    return ToolContext(app, POLICY, WordSearch(POLICY), lambda: scenario.now, customer, conversation, configuration)
+    return ToolContext(app, POLICY, lambda: scenario.now, customer, conversation, configuration)
+
+
+def said(ctx, words, author="customer"):
+    """A message of the conversation, stored as the conversation graph stores it before the turn's tools run."""
+    with ctx.engine.begin() as conn:
+        count = conn.execute(
+            text("SELECT count(*) FROM messages WHERE conversation_id = :c"), {"c": ctx.conversation_id}
+        ).scalar_one()
+        conn.execute(
+            text(
+                "INSERT INTO messages (id, conversation_id, author, content_untrusted, created_at) "
+                "VALUES (:id, :c, :author, :words, :at)"
+            ),
+            {
+                "id": f"{ctx.conversation_id}/m{count:04d}",
+                "c": ctx.conversation_id,
+                "author": author,
+                "words": words,
+                "at": ctx.clock(),
+            },
+        )
 
 
 def call(ctx, name, call_id="call-1", arguments=None, **args):
@@ -55,7 +75,7 @@ def test_every_tool_answers_on_every_fixture(db, scenario_id):
 
     def tools() -> ToolContext:
         conversation = open_conversation(app, Actor("customer", customer), scenario.now)
-        return ToolContext(app, policy, WordSearch(policy), lambda: scenario.now, customer, conversation)
+        return ToolContext(app, policy, lambda: scenario.now, customer, conversation)
 
     listed = call(tools(), "list_my_orders")
     assert sorted(o["order_id"] for o in listed["orders"]) == sorted(scenario.agent_visible_orders)
@@ -119,7 +139,11 @@ def test_another_customers_request_is_not_found(db):
     ctx = agent_for(db, "D07")
     _, hugos = proposed(ctx.engine, "d07-hugo", "d07-o2", ["d07-o2-u1"], "propose-hugo", ctx.clock())
     assert call(ctx, "get_request_status", proposal_id=hugos.id)["refused"] == "actor_owns"
-    assert call(ctx, "execute_refund", proposal_id=hugos.id)["refused"] == "actor_owns"
+    # The agent cannot name a request to pay (v1.1 step 2): the argument is refused, and the backend finds only this
+    # conversation's requests, of which there are none.
+    named = call(ctx, "execute_refund", proposal_id=hugos.id)
+    assert (named["ok"], named["error"]) == (False, "invalid_arguments")
+    assert call(ctx, "execute_refund", "call-2")["refused"] == "invalid_transition"
     assert rows(ctx.engine, "SELECT count(*) FROM refund_operations") == [(0,)]
 
 
@@ -139,6 +163,7 @@ def test_the_backend_sets_the_amount_and_the_model_cannot(db):
         4990,
         "BRL",
     )
+    assert result["policy_citations"] == ["refund-policy/v2/amount"]  # the amount is what was paid
 
 
 def test_the_same_call_after_a_restart_makes_no_second_proposal(db):
@@ -166,16 +191,16 @@ def test_a_refused_proposal_cites_the_policy_and_promises_no_amount(db):
 def test_paying_before_approval_is_explained_and_nothing_is_paid(db):
     ctx = agent_for(db, "D01")
     proposal = call(ctx, "propose_refund", order_id="d01-o1", unit_ids=["d01-o1-u1"])["proposal_id"]
-    early = call(ctx, "execute_refund", "call-2", proposal_id=proposal)
+    early = call(ctx, "execute_refund", "call-2")
     assert (early["ok"], early["refused"]) == (False, "status_approved")
     assert "confirm" in early["explanation"] and "approve" in early["explanation"]
     assert rows(ctx.engine, "SELECT count(*) FROM refund_operations") == [(0,)]
 
     approve(ctx, proposal, staff="d01-rui")
-    paid = call(ctx, "execute_refund", "call-3", proposal_id=proposal)["receipt"]
+    paid = call(ctx, "execute_refund", "call-3")["receipt"]
     assert paid["amount_minor"] == 4990
-    assert call(ctx, "execute_refund", "call-3", proposal_id=proposal)["receipt"] == paid  # the step ran again
-    assert call(ctx, "execute_refund", "call-4", proposal_id=proposal)["receipt"] == paid  # a new call, same refund
+    assert call(ctx, "execute_refund", "call-3")["receipt"] == paid  # the step ran again
+    assert call(ctx, "execute_refund", "call-4")["receipt"] == paid  # a new call, same refund
     assert rows(ctx.engine, "SELECT count(*) FROM refund_operations") == [(1,)]
     assert call(ctx, "get_request_status", proposal_id=proposal)["request"]["receipt"] == paid
 
@@ -183,8 +208,28 @@ def test_paying_before_approval_is_explained_and_nothing_is_paid(db):
 def test_configuration_c_reaches_execute_only_through_the_context(db):
     lab = agent_for(db, "D01", configuration="C")
     proposal = call(lab, "propose_refund", order_id="d01-o1", unit_ids=["d01-o1-u1"])["proposal_id"]
-    assert call(lab, "execute_refund", proposal_id=proposal)["ok"] is True  # the lab paid without any approval
+    assert call(lab, "execute_refund")["ok"] is True  # the lab paid without any approval
     assert rows(lab.engine, "SELECT count(*) FROM refund_operations") == [(1,)]
+    assert rows(lab.engine, "SELECT proposal_id FROM refund_operations") == [(proposal,)]
+
+
+def test_execute_pays_the_conversations_latest_request_that_the_policy_did_not_refuse(db):
+    ctx = agent_for(db, "D02")  # the bowl and the plate arrived back; the napkins did not
+    nothing = call(ctx, "execute_refund")
+    assert (nothing["refused"], nothing["explanation"]) == (
+        "invalid_transition",
+        "this conversation has no refund request to pay",
+    )
+    assert rows(ctx.engine, "SELECT outcome, reason FROM audit_events WHERE event = 'execute'") == [
+        ("rejected", "invalid_transition")
+    ]
+    call(ctx, "propose_refund", "p-1", order_id="d02-o1", unit_ids=["d02-o1-u1"])
+    both = call(ctx, "propose_refund", "p-2", order_id="d02-o1", unit_ids=["d02-o1-u1", "d02-o1-u2"])["proposal_id"]
+    approve(ctx, both, staff="d02-rui")
+    refused = call(ctx, "propose_refund", "p-3", order_id="d02-o1", unit_ids=["d02-o1-u3"])
+    assert refused["outcome"] == "refused"  # the napkins: a later proposal, but not one to pay
+    assert call(ctx, "execute_refund", "x-1")["receipt"]["amount_minor"] == 10480
+    assert rows(ctx.engine, "SELECT proposal_id FROM refund_operations") == [(both,)]
 
 
 # Handoff
@@ -192,11 +237,13 @@ def test_configuration_c_reaches_execute_only_through_the_context(db):
 
 def test_after_a_handoff_the_agent_changes_nothing(db):
     ctx = agent_for(db, "D05")
+    said(ctx, "That is not fair. I want to talk to a person.")
     result = call(
         ctx,
         "request_handoff",
         reason="The customer wants a person to review the late request.",
         reason_code="customer_asked",
+        customer_words="I want to talk to a person",
         customer_goal="A refund for the brass desk lamp.",
         confirmed_facts="The lamp was received back on 30 August.",
         decision_needed="Whether to make an exception to the time limit.",
@@ -344,3 +391,206 @@ def test_the_models_mistakes_come_back_as_results(db):
     repeated = call(ctx, "propose_refund", order_id="d01-o1", unit_ids=["d01-o1-u1", "d01-o1-u1"])
     assert repeated["refused"] == "valid_values"
     assert rows(ctx.engine, "SELECT count(*) FROM proposals") == [(0,)]
+
+
+# The customer's request for a person rests on words the customer wrote (v1.1 step 2)
+
+
+def asked(ctx, words, call_id="hand-1"):
+    return call(
+        ctx,
+        "request_handoff",
+        call_id,
+        reason_code="customer_asked",
+        customer_words=words,
+        reason="A test of the handoff check.",
+        customer_goal="",
+        confirmed_facts="",
+        decision_needed="",
+    )
+
+
+def test_a_request_for_a_person_needs_words_the_customer_wrote(db):
+    ctx = agent_for(db, "D15")
+    said(ctx, "Hi, my game controller has not arrived yet. Where is it?")
+    said(ctx, "Would you like me to connect you with a staff member?", author="agent")
+    for words, unmet in (
+        ("", "customer_words must give the customer's own words that ask for a person"),
+        ("I want to talk to a person", "customer_words are not words the customer wrote in this conversation"),
+        ("connect you with a staff member", "customer_words are not words the customer wrote in this conversation"),
+    ):
+        refused = asked(ctx, words)
+        assert (refused["refused"], refused["explanation"].split(".")[0]) == ("handoff_reason", unmet)
+    assert control(ctx) == [("agent",)]
+    said(ctx, "Yes, please do.")  # a yes to the offer is a request for a person
+    assert asked(ctx, "\u201cyes, please do\u201d", "hand-2")["ok"] is True  # case and quotation marks aside
+    yes = f"{ctx.conversation_id}/m0002"  # the third message: the request rests on this one
+    assert rows(ctx.engine, "SELECT origin, reason FROM handoffs") == [
+        (
+            "customer",
+            f'customer_asked: A test of the handoff check. The customer wrote: "\u201cyes, please do\u201d" '
+            f"(message {yes}).",
+        )
+    ]
+
+
+# The assessment: the decision a proposal would get, with its facts, and nothing written (v1.1 step 2)
+
+
+def counts(engine):
+    tables = ("proposals", "proposal_units", "audit_events", "refund_operations", "ledger_lines", "handoffs")
+    return {table: rows(engine, f"SELECT count(*) FROM {table}")[0][0] for table in tables}
+
+
+@pytest.mark.parametrize("scenario_id", sorted(SCENARIOS))
+def test_an_assessment_writes_nothing_and_agrees_with_the_proposal(db, scenario_id):
+    scenario = SCENARIOS[scenario_id]
+    policy = policy_of(scenario)
+    seed(db("owner"), scenario, policy)
+    app = db("app")
+    customer = scenario.customer.id
+    conversation = open_conversation(app, Actor("customer", customer), scenario.now)
+    ctx = ToolContext(app, policy, lambda: scenario.now, customer, conversation)
+    for order in (o for o in scenario.fixture.orders if o.customer == customer):
+        units = [unit.id for unit in order.units]
+        for n, selection in enumerate([[unit] for unit in units] + ([units] if len(units) > 1 else [])):
+            before = counts(app)
+            found = call(ctx, "assess_refund", f"a-{order.id}-{n}", order_id=order.id, unit_ids=selection)
+            assert counts(app) == before, selection
+            made = call(ctx, "propose_refund", f"p-{order.id}-{n}", order_id=order.id, unit_ids=selection)
+            assert (found["outcome"], found["policy_citations"], found["amount_minor"]) == (
+                made["outcome"],
+                made["policy_citations"],
+                made["amount_minor"],
+            ), selection
+
+
+def test_an_assessment_of_a_late_request_gives_its_deadline(db):
+    late = call(agent_for(db, "D05"), "assess_refund", order_id="d05-o1", unit_ids=["d05-o1-u1"])
+    assert (late["outcome"], late["policy_citations"]) == ("refused", ["refund-policy/v2/window"])
+    assert late["order"]["refund_deadline"] == "2026-08-24T10:00:00+00:00"  # delivered 25 July, plus 30 days
+
+
+def test_an_assessment_of_units_already_refunded_gives_their_receipt(db):
+    paid = call(agent_for(db, "D20"), "assess_refund", order_id="h10-o1", unit_ids=["h10-o1-u1", "h10-o1-u2"])
+    assert paid["policy_citations"] == ["refund-policy/v2/remaining"]
+    assert {(u["refunded"], u["receipt_number"]) for u in paid["units"]} == {(True, "R-H10-0001")}
+
+
+def test_an_assessment_shows_the_earlier_on_time_proposal_that_sends_a_late_request_to_a_person(db):
+    expired = call(agent_for(db, "D10"), "assess_refund", order_id="d10-o1", unit_ids=["d10-o1-u1"])
+    assert (expired["outcome"], expired["units"][0]["earlier_on_time_proposal"]) == ("needs_person", True)
+
+
+def test_an_assessment_of_an_order_with_two_payments_shows_them(db):
+    split = call(agent_for(db, "D29"), "assess_refund", order_id="h19-o1", unit_ids=["h19-o1-u1"])
+    assert (split["outcome"], split["order"]["payment_records"], split["order"]["one_valid_payment"]) == (
+        "needs_person",
+        2,
+        False,
+    )
+
+
+def test_an_eligible_assessment_gives_the_amount_and_reserves_nothing(db):
+    eligible = call(agent_for(db, "D01"), "assess_refund", order_id="d01-o1", unit_ids=["d01-o1-u1"])
+    assert (eligible["outcome"], eligible["amount_minor"], eligible["units"][0]["received_back"]) == (
+        "eligible",
+        4990,
+        True,
+    )
+    assert eligible["policy_citations"] == ["refund-policy/v2/amount"]
+    assert "Nothing is proposed or reserved" in eligible["next_step"]
+
+
+def test_an_assessment_of_another_customers_order_or_a_wrong_unit_is_refused_and_writes_nothing(db):
+    ctx = agent_for(db, "D07")  # d07-o2 is Hugo's
+    before = counts(ctx.engine)
+    assert call(ctx, "assess_refund", order_id="d07-o2", unit_ids=["d07-o2-u1"])["refused"] == "actor_owns"
+    assert call(ctx, "assess_refund", order_id="d07-o1", unit_ids=["d07-o2-u1"])["refused"] == "valid_values"
+    repeated = call(ctx, "assess_refund", order_id="d07-o1", unit_ids=["d07-o1-u1", "d07-o1-u1"])
+    assert repeated["refused"] == "valid_values"
+    assert counts(ctx.engine) == before
+
+
+# Paying the conversation's request: reach, replay, cancellation and handoff (review of 2026-10-21)
+
+
+def test_the_lab_still_reaches_a_request_the_policy_refused_and_a_still_does_not(db):
+    lab = agent_for(db, "D05", configuration="C")  # a late request: the policy refuses it
+    refused = call(lab, "propose_refund", order_id="d05-o1", unit_ids=["d05-o1-u1"])["proposal_id"]
+    assert call(lab, "execute_refund")["ok"] is True  # without the lab-disabled checks, a refused request is paid
+    assert rows(lab.engine, "SELECT proposal_id FROM refund_operations") == [(refused,)]
+
+
+def test_configuration_a_finds_no_request_to_pay_when_the_policy_refused_it(db):
+    ctx = agent_for(db, "D05")
+    call(ctx, "propose_refund", order_id="d05-o1", unit_ids=["d05-o1-u1"])
+    assert call(ctx, "execute_refund")["refused"] == "invalid_transition"
+    assert rows(ctx.engine, "SELECT count(*) FROM refund_operations") == [(0,)]
+
+
+def test_a_call_that_paid_returns_its_own_receipt_and_never_pays_a_later_request(db):
+    ctx = agent_for(db, "D02")
+    bowl = call(ctx, "propose_refund", "p-1", order_id="d02-o1", unit_ids=["d02-o1-u1"])["proposal_id"]
+    approve(ctx, bowl, staff="d02-rui")
+    paid = call(ctx, "execute_refund", "x-1")["receipt"]
+    plate = call(ctx, "propose_refund", "p-2", order_id="d02-o1", unit_ids=["d02-o1-u2"])["proposal_id"]
+    approve(ctx, plate, staff="d02-rui")
+    assert call(ctx, "execute_refund", "x-1")["receipt"] == paid  # the same call again, after a restart
+    assert rows(ctx.engine, "SELECT proposal_id FROM refund_operations") == [(bowl,)]
+    assert call(ctx, "execute_refund", "x-2")["receipt"]["amount_minor"] == 3490  # a new call pays the plate
+    assert rows(ctx.engine, "SELECT count(*) FROM refund_operations") == [(2,)]
+
+
+def test_a_cancelled_request_is_not_paid(db):
+    ctx = agent_for(db, "D01")
+    proposal = call(ctx, "propose_refund", order_id="d01-o1", unit_ids=["d01-o1-u1"])["proposal_id"]
+    customer = Actor("customer", ctx.customer_id)
+    confirm(ctx.engine, customer, proposal, "confirmed", ctx.clock(), POLICY)
+    assert cancel(ctx.engine, customer, proposal, ctx.clock(), POLICY) == "cancelled"  # the cancel button
+    assert call(ctx, "execute_refund")["ok"] is False
+    assert rows(ctx.engine, "SELECT count(*) FROM refund_operations") == [(0,)]
+
+
+def test_an_approved_request_is_not_paid_after_a_handoff(db):
+    ctx = agent_for(db, "D01")
+    proposal = call(ctx, "propose_refund", order_id="d01-o1", unit_ids=["d01-o1-u1"])["proposal_id"]
+    approve(ctx, proposal, staff="d01-rui")
+    said(ctx, "I would like to talk to a person, please.")
+    assert asked(ctx, "talk to a person")["ok"] is True
+    assert call(ctx, "execute_refund")["refused"] == "agent_in_control"
+    assert rows(ctx.engine, "SELECT count(*) FROM refund_operations") == [(0,)]
+
+
+# Received back as the policy counts it, in every read (review of 2026-10-21)
+
+
+@pytest.mark.parametrize(("hours", "received"), [(-1, True), (0, True), (1, False)])
+def test_a_unit_is_received_back_in_the_order_list_only_once_its_time_has_come(db, hours, received):
+    ctx = agent_for(db, "D01")
+    with db("owner").begin() as conn:  # the return recorded this many hours from now
+        conn.execute(
+            text("UPDATE order_units SET received_back_at = :at WHERE id = 'd01-o1-u1'"),
+            {"at": ctx.clock() + timedelta(hours=hours)},
+        )
+    (unit,) = call(ctx, "list_my_orders")["orders"][0]["units"]
+    assessed = call(ctx, "assess_refund", order_id="d01-o1", unit_ids=["d01-o1-u1"])
+    assert (unit["received_back"], assessed["units"][0]["received_back"]) == (received, received)
+    assert assessed["outcome"] == ("eligible" if received else "refused")
+
+
+def test_an_assessment_and_a_proposal_agree_on_a_unit_with_nothing_paid(db):
+    ctx = agent_for(db, "D01")
+    with db("owner").begin() as conn:
+        conn.execute(text("UPDATE order_units SET paid_minor = 0 WHERE id = 'd01-o1-u1'"))
+    found = call(ctx, "assess_refund", order_id="d01-o1", unit_ids=["d01-o1-u1"])
+    made = call(ctx, "propose_refund", order_id="d01-o1", unit_ids=["d01-o1-u1"])
+    assert (
+        (found["outcome"], found["policy_citations"], found["amount_minor"])
+        == (
+            made["outcome"],
+            made["policy_citations"],
+            made["amount_minor"],
+        )
+        == ("refused", ["refund-policy/v2/amount"], None)
+    )

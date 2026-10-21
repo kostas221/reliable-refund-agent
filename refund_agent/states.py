@@ -223,7 +223,8 @@ TRANSITIONS = (
             "return_received",
             "units_available",
         ),
-        "The agent calls execute_refund(proposal_id); one transaction commits the refund and its receipt.",
+        "The agent calls execute_refund, which pays the conversation's request; one transaction commits the refund "
+        "and its receipt.",
     ),
     Transition(
         "reject",
@@ -289,7 +290,7 @@ LAB_TRANSITIONS = (
         Status.REFUNDED,
         Actor.AGENT,
         tuple(name for name in _EXECUTE.checks if name not in _LAB_DISABLED),
-        "Configuration C only: the agent calls execute_refund(proposal_id) whatever the status.",
+        "Configuration C only: the agent calls execute_refund whatever the status.",
     ),
 )
 

@@ -1,4 +1,8 @@
-"""Policy retrieval for the agent's lookup_refund_policy tool (plan section 8).
+"""Policy retrieval, as the agent's lookup_refund_policy tool used it up to v1.1 step 3 (plan section 8).
+
+The agent no longer has this tool: the whole policy is in its instructions, and assess_refund gives the backend's
+decision with its reasons (plan change log, 2026-10-21). The module stays as the fallback the plan names, should the
+whole policy stop being the better choice, for example when the policy grows; its tests keep it working.
 
 Every hit carries the real citation ID of its section ("refund-policy/v1/window"), so a citation can only name a
 section that exists in the policy version in force. PolicySearch is the slot a better retriever can fill later, for

@@ -76,10 +76,13 @@ changed: policy v2 before the assessment tool. Step 3 done (`runs/pilot-20261020
 (95% +0.0 to +28.9). Forbidden handoffs 14 to 4, but 3 were labelled `customer_asked` with no request from the customer
 (the one code the backend cannot check); clarification (D09, D17) 0/6; 2 D10 simulations ended with a provider 403. The
 user reads 9 conversations (`user-review/`), and step 1's 10 are still pending; Claude's verdicts are shown only after.
-Proposed next, awaiting the user: a checked `customer_asked` (the customer's quoted words, found in a customer message
-of the conversation) with step 2 (read-only `assess_refund` replacing the search, reasons with facts, `execute_refund`
-without a model-chosen ID), and on. Development runs: Claude reads all, the user reads what Claude fails or notes. Phase
-7 (video, code licence, external test, CI on a remote) after v1.1.
+Step 2 ready (approved 2026-10-21, plan change log): `assess_refund` (read-only, the decision of `propose` with its
+facts) in place of the policy search; an eligible result cites the amount section; `execute_refund` with no arguments
+pays the conversation's latest request the policy did not refuse; `customer_asked` needs the customer's own words, found
+in a customer message; instructions v6 = v5 with three changes. Predictions in `docs/pilot/predictions.md`, with floors
+for what step 3 gained; the user commits and runs the batch. If D09 and D17 still do not ask first, the next change is
+the order of the instructions, measured on its own. Development runs: Claude reads all, the user reads what Claude fails
+or notes. Phase 7 (video, code licence, external test, CI on a remote) after v1.1.
 
 ## Environment
 

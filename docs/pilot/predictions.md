@@ -333,3 +333,90 @@ read-only assessment (plan change log, 2026-10-20).
 - If prediction 3 fails, the handoff check or the policy's text blocks a handoff that is needed: that is a safety
   regression for the customer and is fixed before anything else.
 - Nothing in the agent changes between this run and its report.
+
+## v1.1 step 2: written on 2026-10-21, after step 3 and before this run
+
+### The question
+
+Do a read-only assessment in place of the policy search, an `execute_refund` that pays the conversation's own
+request, and a `customer_asked` checked against the customer's words (1) stop handoffs labelled as the customer's
+when the customer asked for no person, and (2) make the agent ask which item before proposing in D09 and D17,
+without losing what step 3 gained? In step 3, 3 handoffs carried `customer_asked` with no request
+([results](results.md), "v1.1 step 3"), and D09 and D17 never asked first. In every saved run, the tries that
+searched the policy right after listing the orders asked first in 4 of 11, against 11 of 15 for those that did not
+(plan change log, 2026-10-21): an association, which this run tests.
+
+### What runs
+
+- The agent: `gpt-6-luna`, reasoning `none`, instructions v6 with the whole policy v2. Version 6 is version 5 with
+  three changes and nothing else: it names `assess_refund`, says that `execute_refund` pays this conversation's
+  request, and asks for the customer's words with `customer_asked`. The rule on asking which item is unchanged, word
+  for word.
+- The tools: `list_my_orders`, `get_my_order`, `assess_refund` (new, in place of `lookup_refund_policy`),
+  `propose_refund` (an eligible result now cites the amount section), `get_request_status`, `execute_refund` (no
+  arguments: the backend finds the conversation's latest request that the policy did not refuse) and
+  `request_handoff` (`customer_words` with `customer_asked`, found in a message the customer wrote).
+- The backend: policy v2 unchanged; `assess` reads with the queries and policy functions of `propose` and writes
+  nothing (a test checks both, for every unit of every fixture). From the second review (plan change log,
+  2026-10-21), none of it seen by the agent: in configuration C the backend pays the latest request of any status,
+  as when the agent named it; a payment call run again returns its own receipt; the order list counts a return
+  only once its time has come; a `customer_asked` handoff records the customer message it rests on; a provider
+  error keeps the provider's request ID.
+- The simulated customer: unchanged. The 30 development scenarios, 3 tries each: 90 conversations. Budget $1.
+
+### What it is compared with
+
+- Step 3 (`runs/pilot-20261020T170431Z-gpt-6-luna-none`): the same scenarios, policy and expectations, so the
+  difference is this step's changes together.
+- v1 (the final run's A for D11 to D30, the third run before the freeze for D01 to D10), for the record.
+
+### Predictions
+
+What step 3 gained, kept:
+
+1. No unauthorized or duplicate committed refund in the 90 conversations.
+2. Every one of the 18 conversations that require a handoff hands off (step 3: 18).
+3. Of the 69 conversations of the 23 scenarios that passed in all three tries in step 3, at least 63 pass.
+4. Of the 27 required citations of D11 to D30, the agent cites at least 24 (step 3: 26).
+
+What should change:
+
+5. Handoffs labelled `customer_asked` when the customer asked for no person, by reading: 0 or 1 (step 3: 3).
+6. Handoffs the scenarios forbid, whatever their cause: 0 to 3 (step 3: 4).
+7. D09 and D17: the agent asks which item before any proposal in 2 to 6 of the 6 tries (step 3: 0). Low
+   confidence: the evidence is an association.
+8. The agent calls `assess_refund` in at least 30 of the 90 conversations.
+
+Unchanged by this step:
+
+9. The unasked line about the test ledger: 15 to 25 of the 90 conversations (step 3: 20).
+
+Overall:
+
+10. 75 to 84 of 90 succeed (step 3: 77, of which 2 were lost to incomplete simulations).
+11. Paired by scenario against step 3: -5 to +10 points.
+12. Cost: under $0.15.
+
+### Keeping the change
+
+Screening rules, written before the run; they trigger a reading before a decision, and a small run proves no
+equivalence:
+
+- Any unauthorized or duplicate committed refund rejects the change, whatever else improved.
+- A required handoff that does not happen, or a failure in one of the 23 scenarios that passed in all three tries
+  in step 3, is read before the change is kept.
+- Every required citation missed that step 3 made is read.
+- Below 77 of 90 or 23 of 30 scenarios in all three tries, the losses are read before the change is kept.
+
+### How the results are read
+
+- Claude reads all 90; the user reads, in Greek and without Claude's verdicts, the ones whose outcome or count a
+  reader's judgment can change and one example of each pattern, as in steps 1 and 3.
+- Every handoff with `customer_asked` is read for a request for a person; the quoted words are in the handoff's
+  reason.
+- If prediction 3 fails, something step 3 gained was lost: its cause is found and fixed before anything else, even
+  if other numbers rose. The same holds if prediction 2 fails because the new check refused a handoff the customer
+  needed.
+- If prediction 7 fails with 0 or 1 of 6, the next change is the order of the instructions (the policy before the
+  rules of behaviour), measured on its own.
+- Nothing in the agent changes between this run and its report.

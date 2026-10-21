@@ -1,9 +1,13 @@
 """The agent's tools (plan section 5): what the model may ask the backend for, inside the customer's session.
 
-Arguments are only IDs, a search query and the texts of a handoff; never an amount, an actor or a status. The tool
-executor fills in who acts (the agent, for the customer of the conversation) and the request keys, made from the
-conversation and the model's tool call ID: when a step runs again after a restart, the same call gets the same key
-and the backend returns the same proposal or receipt instead of making a second one.
+Arguments are only IDs and the texts of a handoff; never an amount, an actor or a status, and no proposal to pay:
+execute_refund pays the conversation's own request, which the backend finds. The tool executor fills in who acts (the
+agent, for the customer of the conversation) and the request keys, made from the conversation and the model's tool
+call ID: when a step runs again after a restart, the same call gets the same key and the backend returns the same
+proposal or receipt instead of making a second one.
+
+The whole policy is in the agent's instructions; assess_refund gives the backend's decision on given units, with its
+reasons and facts, without proposing anything (plan change log, 2026-10-21, v1.1 step 2).
 
 A refusal by the backend is not an error for the model: it comes back as a result with the check's name and a plain
 explanation, so the agent can tell the customer. Another customer's order or request is "not found", like one that
@@ -25,15 +29,15 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import Engine, text
 
 from refund_agent import reads
-from refund_agent.agent.policy_search import PolicySearch
 from refund_agent.policy import Policy
 from refund_agent.refunds import (
     HANDOFF_REASONS,
     Actor,
     Configuration,
     Refused,
+    assess,
     check_handoff_reason,
-    execute,
+    execute_for_conversation,
     hand_off,
     propose,
 )
@@ -62,7 +66,6 @@ EXPLANATIONS = {
 class ToolContext:
     engine: Engine  # the refund_app role
     policy: Policy
-    search: PolicySearch
     clock: Callable[[], datetime]
     customer_id: str  # the signed-in customer of the conversation
     conversation_id: str
@@ -81,8 +84,9 @@ class OrderArgs(_Args):
     order_id: str = Field(max_length=100)
 
 
-class PolicyArgs(_Args):
-    query: str = Field(min_length=1, max_length=300, description="What to look up, in plain words.")
+class AssessArgs(_Args):
+    order_id: str = Field(max_length=100)
+    unit_ids: list[str] = Field(min_length=1, max_length=50, description="The units to assess, each listed once.")
 
 
 class ProposeArgs(_Args):
@@ -105,7 +109,8 @@ HandoffReason = Literal[HANDOFF_REASONS]  # the backend's list, so the tool and 
 
 class HandoffArgs(_Args):
     reason_code: HandoffReason = Field(
-        description="The case of the policy's section exceptions: customer_asked, the customer asked for a person; "
+        description="The case of the policy's section exceptions: customer_asked, the customer asked for a person, "
+        "in the words given in customer_words; "
         "shop_decided, the latest proposal's result in this conversation says a staff member takes the case; "
         "return_disputed, the customer says units were sent that the records do not show received; "
         "delivery_disputed, the customer says an order recorded as delivered never arrived; shipping_refund, the "
@@ -120,6 +125,12 @@ class HandoffArgs(_Args):
         default_factory=list,
         max_length=50,
         description="For return_disputed, the units the customer says were sent, each listed once; empty otherwise.",
+    )
+    customer_words: str = Field(
+        default="",
+        max_length=500,
+        description="For customer_asked, the customer's own words that ask for a person, copied exactly from their "
+        "message; empty otherwise.",
     )
     reason: str = Field(min_length=1, max_length=500, description="Why a person is needed, in a sentence.")
     customer_goal: str = Field(max_length=1000, description="What the customer wants, in their terms.")
@@ -165,12 +176,37 @@ def get_my_order(ctx: ToolContext, args: OrderArgs, call_id: str) -> dict:
     return {"order": order}
 
 
-def lookup_refund_policy(ctx: ToolContext, args: PolicyArgs, call_id: str) -> dict:
-    hits = ctx.search.search(args.query)
+def assess_refund(ctx: ToolContext, args: AssessArgs, call_id: str) -> dict:
+    found = assess(
+        ctx.engine,
+        Actor("agent", ctx.customer_id),
+        ctx.conversation_id,
+        args.order_id,
+        args.unit_ids,
+        ctx.clock(),
+        ctx.policy,
+    )
+    next_step = {
+        "eligible": "Nothing is proposed or reserved yet. If these are exactly the units the customer asked for, call "
+        "propose_refund with them; if the customer's words could mean other units too, ask which first.",
+        "refused": "Tell the customer why, citing the sections given. Propose nothing for these units.",
+        "needs_person": "A staff member takes the case: call propose_refund with these units to record the request, "
+        "then hand off with reason_code shop_decided.",
+    }[found.outcome]
     return {
-        "sections": [{"citation": h.citation, "title": h.title, "text": h.text} for h in hits],
-        "note": "Cite a section by its citation ID, exactly as given." if hits else "No section matched; ask again.",
+        "outcome": found.outcome,
+        "policy_citations": _citations(ctx.policy, found.reasons),
+        "amount_minor": found.amount_minor,
+        "currency": ctx.policy.currency,
+        "order": _plain(found.order),
+        "units": _plain(list(found.units)),
+        "next_step": next_step,
     }
+
+
+def _citations(policy: Policy, reasons: tuple[str, ...]) -> list[str]:
+    """A refusal or a referral cites its reasons; an eligible amount is what was paid, so the amount section."""
+    return [policy.citation(reason) for reason in reasons] or [policy.citation("amount")]
 
 
 def propose_refund(ctx: ToolContext, args: ProposeArgs, call_id: str) -> dict:
@@ -185,7 +221,7 @@ def propose_refund(ctx: ToolContext, args: ProposeArgs, call_id: str) -> dict:
         ctx.policy,
         summary_untrusted=args.summary_for_staff,
     )
-    citations = [ctx.policy.citation(reason) for reason in result.reasons]
+    citations = _citations(ctx.policy, result.reasons)
     next_step = {
         "eligible": "Tell the customer the amount. They confirm with the button on the proposal card; a typed yes "
         "is not a confirmation.",
@@ -214,23 +250,22 @@ def get_request_status(ctx: ToolContext, args: ProposalArgs, call_id: str) -> di
         return {"request": reads.proposal_card(conn, proposal, ctx.clock(), ctx.policy)}
 
 
-def execute_refund(ctx: ToolContext, args: ProposalArgs, call_id: str) -> dict:
-    receipt = execute(
+def execute_refund(ctx: ToolContext, args: NoArgs, call_id: str) -> dict:
+    receipt = execute_for_conversation(
         ctx.engine,
         Actor("agent", ctx.customer_id),
-        args.proposal_id,
+        ctx.conversation_id,
         f"{ctx.conversation_id}/execute/{call_id}",
         ctx.clock(),
         ctx.policy,
         ctx.configuration,
-        conversation_id=ctx.conversation_id,
     )
     return {"receipt": receipt}
 
 
 def request_handoff(ctx: ToolContext, args: HandoffArgs, call_id: str) -> dict:
     agent = Actor("agent", ctx.customer_id)
-    check_handoff_reason(
+    found = check_handoff_reason(
         ctx.engine,
         agent,
         ctx.conversation_id,
@@ -239,12 +274,19 @@ def request_handoff(ctx: ToolContext, args: HandoffArgs, call_id: str) -> dict:
         ctx.policy,
         args.order_id or None,
         args.unit_ids,
+        args.customer_words,
+    )
+    # The staff member sees the words the request rests on.
+    quoted = (
+        f' The customer wrote: "{args.customer_words}" (message {found["customer_message"]}).'
+        if args.reason_code == "customer_asked"
+        else ""
     )
     handoff_id = hand_off(
         ctx.engine,
         agent,
         ctx.conversation_id,
-        f"{args.reason_code}: {args.reason}",
+        f"{args.reason_code}: {args.reason}{quoted}",
         ctx.clock(),
         origin="customer" if args.reason_code == "customer_asked" else "agent",
         customer_goal_untrusted=args.customer_goal,
@@ -279,10 +321,12 @@ TOOLS = {
             get_my_order,
         ),
         Tool(
-            "lookup_refund_policy",
-            "Search the shop's refund policy. Returns sections with their citation IDs.",
-            PolicyArgs,
-            lookup_refund_policy,
+            "assess_refund",
+            "Ask the backend whether the policy allows a refund of these units now, why, and the facts behind it "
+            "(delivery, deadline, amounts paid, returns, earlier refunds and their receipts). It proposes and "
+            "reserves nothing.",
+            AssessArgs,
+            assess_refund,
         ),
         Tool(
             "propose_refund",
@@ -300,9 +344,9 @@ TOOLS = {
         ),
         Tool(
             "execute_refund",
-            "Ask the backend to pay an approved proposal. It refuses unless the customer "
-            "confirmed and a staff member approved.",
-            ProposalArgs,
+            "Ask the backend to pay this conversation's refund request. It refuses unless the customer confirmed "
+            "and a staff member approved; a request already paid returns its receipt.",
+            NoArgs,
             execute_refund,
         ),
         Tool(

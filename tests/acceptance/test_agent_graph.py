@@ -180,6 +180,8 @@ def test_after_a_handoff_the_model_is_not_asked_again(shop):
         {
             "reason": "The customer asks for a person.",
             "reason_code": "customer_asked",
+            # Said in the same turn: the graph stores the message before the turn's tools run.
+            "customer_words": "I want to talk to a person",
             "customer_goal": "A refund for the lamp.",
             "confirmed_facts": "",
             "decision_needed": "Whether to make an exception.",

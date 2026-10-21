@@ -160,7 +160,9 @@ class OpenAIResponses:
                 continue
             except openai.APIStatusError as error:  # bad request, authentication, permission, not found
                 self._settle("bad_request", 0.0, worst)
-                raise ModelError("bad_request", retryable=False, detail=f"{error.status_code}: {error}") from error
+                request = getattr(error, "request_id", None)  # the provider's ID of this request, if it sent one
+                detail = f"{error.status_code}: {error}" + (f" (request {request})" if request else "")
+                raise ModelError("bad_request", retryable=False, detail=detail) from error
             spent = self._reported_cost(response)
             self._settle("answered", worst if spent is None else spent, worst, uncertain=spent is None)
             return response
