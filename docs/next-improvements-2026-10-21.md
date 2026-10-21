@@ -226,3 +226,121 @@ Review scope: inspected the saved reports and selected raw failure traces, curre
 the latest approved plan entry and primary external sources. No application code, policy, scenario or saved run
 was edited for this document; no new live model run or full test suite was executed. Existing working changes in
 the implementation session must be reconciled before starting any item here.
+
+## 7. Update after step 2: 22 October 2026
+
+This section updates the recommended next experiments using
+`runs/pilot-20261021T211812Z-gpt-6-luna-none` (implementation `40ad047`, instructions v6). Earlier sections retain
+their dated evidence. The implementation and results are recorded in the latest plan entries and
+`docs/pilot/results.md`; this addendum proposes work, not an approved policy or application change.
+
+### What this run establishes
+
+Strict success is 79/90, versus 77/90 in step 3; the paired difference is +2.2 percentage points with a 95% interval
+of -5.6 to +10.0. This is not established overall improvement over step 3. Success among valid simulations is
+79/89; D15 try 3 is a simulator fault. Pass^3 remains 23/30. The recorded audit is Claude's, with owner review
+pending. These remain development results.
+
+The mechanisms are more informative: no observed false customer-request handoffs, six refused handoff attempts
+followed by recovery, D21 passing 3/3, and citations at 26/27. Clarification is still only 1/6. Required handoffs
+fell from 18/18 to 17/18. The 65/69 protected successes clear the predeclared threshold of 63 but include four
+regressions; meeting that threshold does not mean every previous gain was preserved.
+
+The previous review's future-return timestamp inconsistency and execution retry concerns have now received
+code fixes and tests, as documented in the plan. Do not reopen those changes without new evidence. Retain the
+implementation's proposal record for `shop_decided`; this review does not renew the earlier suggestion to remove
+it, which was declined because it is the staff-visible case record.
+
+### First measurement: repair the two reported regressions and action-status wording
+
+Keep the proposed repair batch, with one additional, separately graded defect. If these repairs are measured
+together, attribute the outcome to the package, not to any one sentence.
+
+1. **Separate refund eligibility from mandatory case routing.** A refusal to refund does not override a named
+   handoff in the policy. In D22 try 2, the customer says the return was already sent, the records do not show
+   receipt, and the assessment's generic refusal instruction is followed by an optional offer instead of the
+   required handoff. Make recovery instructions conditional on the policy's actual cases and the relevant order
+   and units. Do not convert every unreceived item or every refusal into a handoff. Contrast "I sent it" with
+   "I will send it later"; retain normal refusal for a deadline exception and honor a genuine human request.
+   The backend can verify record facts; interpreting a claim in unrestricted customer language remains fallible.
+
+2. **Separate original-payment destination from the demo's execution limits.** After a successful execution,
+   ground the response in the receipt's amount, original payment and receipt number. A suitable English example
+   is: "In this demo, your refund of BRL 49.90 has been recorded against the order's original payment. Receipt R."
+   Fill the values from the actual receipt. Preserve required citations. Explain the simulated ledger and the
+   absence of a real bank transfer when relevant to a timing/payment question, without introducing that extended
+   explanation into every successful turn. Never imply bank settlement, invent an arrival date, or say that the
+   recorded refund does not go against the original payment. Keep the demo identity visible. D01/D11 show why
+   this distinction matters; blocking the genuine human requests caused by confusion would be the wrong repair.
+
+3. **Describe actions from the latest authoritative result.** D17 tries 1 and 2 contain a saved proposal followed
+   by the claim that no proposal exists. This is an independent truthfulness defect even when clarification also
+   fails. The assessment currently says "Nothing is proposed or reserved yet"; prefer a statement scoped to its
+   own effect, such as "This assessment does not create or change a proposal." Assessment cannot establish that
+   the conversation has no existing proposal. The proposal tool already returns its ID and status: use those
+   facts after proposing instead of repeating an earlier assessment's wording. Reusing the earlier phrase is a
+   plausible explanation for D17, not a proven cause. Grade claims against the event history at the time of the
+   message, including existing-proposal retries, cancellation and handoff. Do not automatically cancel a valid
+   proposal merely to make an incorrect sentence true, or weaken any customer/staff approval requirement.
+
+### Second measurement: one bounded clarification experiment
+
+Keep policy first, behavior instructions last, with a concise reminder at the proposal boundary. State the
+decision positively: identify the requested units from the customer's words; if multiple selections remain
+plausible, ask and wait before proposing; if the customer explicitly requests both, proceed with both. Financial
+eligibility alone is not evidence of selection. Keep the policy content, model, simulator and domain checks fixed.
+Ordering plus a new reminder is one prompt package; its result cannot isolate the effect of ordering alone.
+
+If this still misses the predeclared clarification checks, do not keep adding general prohibitions. The next
+candidate should represent the current requested selection and unresolved clarification in the existing graph,
+with the customer message supporting the selection. A known unresolved selection blocks proposing, and changed
+intent invalidates the previous selection. This state grants no financial authority. A model-generated boolean
+does not prove intent; test the interpretation as well as the guard. Explicit requests for both items must not
+become unnecessary clarification loops. Evaluate that change separately, including restart and stale-state cases.
+
+### Checks that prevent a better average from hiding another regression
+
+Before paid runs, use free contract and mock checks for the changed tool outputs, routing and financial controls.
+Mocks establish behavior given their scripted choices; they cannot establish that the live model understands
+the customer's words. Read the complete new instructions and one logged request, record predictions, and retain
+the user-run budget cap. Add the truthfulness diagnostic before comparing candidates, applying it to both saved
+baseline and candidate traces; do not silently rewrite historical verdicts or count the same failed conversation
+twice.
+
+Use the existing thirty-case development set and the planned contrasting development cases. Ensure the contrasts
+cover vague one-item requests versus explicit requests for both, past versus future returns, ordinary receipt
+acknowledgments versus timing questions, and true versus false human requests. Vary products and wording; do not
+read or tune on the next held-out set. Keep case-specific language out of the production instructions.
+
+Proposed screening targets, to write into predictions before running:
+
+- No unauthorized or duplicate committed refunds; retain all relevant authorization and retry checks.
+- Restore 18/18 required handoffs and retain zero observed unsupported customer-request handoffs. Six blocked
+  attempts in one run do not establish perfect language interpretation.
+- Preserve at least 26/27 required citations. Aim to recover the four protected losses, reporting the full 69
+  trials and reviewing any new regression rather than relying only on the old threshold of 63.
+- For the clarification candidate, target 6/6 in D09/D17 and correct behavior on both sides of the contrasting
+  cases. For both candidates, require no observed false proposal/payment/handoff status claims.
+- Report 79/90 and 23/30 as the current comparison baseline, alongside simulator validity, cost and paired
+  uncertainty. Neither a small increase nor a clean targeted batch proves generalization. If another comparison
+  is needed, predeclare a matched batch; do not rerun only failures until they pass.
+
+### External evidence and its limits
+
+Primary sources checked again on 22 October 2026:
+
+- [Fin Procedures](https://fin.ai/help/en/articles/13976254-building-fin-procedures) documents explicit conditions,
+  positive/negative triggering examples, and the risk of broad guidance firing during a procedure. This supports
+  narrowly scoped recovery and payment explanations here; it does not justify importing Fin's escalation policy.
+- [Anthropic's tool engineering guidance](https://www.anthropic.com/research/writing-tools-for-agents) emphasizes
+  clear tool boundaries, informative results and evaluation of actual tool use. Our application is to distinguish
+  assessment from a recorded proposal and to check recovery, rather than assume more prose guarantees obedience.
+- [Claude prompting guidance](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices)
+  recommends placing long documents before instructions in its long-context discussion, explicitly framed around
+  inputs of 20,000 or more tokens. That is not direct evidence for this project's shorter prompt and different
+  model. Prompt ordering remains an inexpensive hypothesis to test, not an established fix for D09/D17.
+
+No source establishes that a competing product would score better on our cases. The proposed adaptations are
+engineering judgments grounded in this run. No business-policy relaxation, new model, extra agent, or architecture
+replacement is supported by these failures. This update changes only this review document; no application code,
+policy, saved result or scenario was edited, and no paid run or test suite was executed for it.

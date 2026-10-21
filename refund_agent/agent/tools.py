@@ -187,9 +187,12 @@ def assess_refund(ctx: ToolContext, args: AssessArgs, call_id: str) -> dict:
         ctx.policy,
     )
     next_step = {
-        "eligible": "Nothing is proposed or reserved yet. If these are exactly the units the customer asked for, call "
-        "propose_refund with them; if the customer's words could mean other units too, ask which first.",
-        "refused": "Tell the customer why, citing the sections given. Propose nothing for these units.",
+        # Scoped to the assessment's own effect: it cannot tell whether the conversation already has a proposal.
+        "eligible": "This assessment does not create or change a proposal. If these are exactly the units the "
+        "customer asked for, call propose_refund with them; if the customer's words could mean other units too, ask "
+        "which first.",
+        "refused": "Tell the customer why, citing the sections given. Propose nothing for these units."
+        + _NAMED_CASES.get(found.reasons[0] if found.reasons else "", ""),
         "needs_person": "A staff member takes the case: call propose_refund with these units to record the request, "
         "then hand off with reason_code shop_decided.",
     }[found.outcome]
@@ -202,6 +205,15 @@ def assess_refund(ctx: ToolContext, args: AssessArgs, call_id: str) -> dict:
         "units": _plain(list(found.units)),
         "next_step": next_step,
     }
+
+
+# A refusal for missing return records does not settle what to do: the policy names a case for a person when the
+# customer says the units were already sent (section return; plan change log, 2026-10-22). Keyed by the first reason.
+_NAMED_CASES = {
+    "return": " If the customer says these units were already sent, the policy names that case for a person: hand "
+    "off with reason_code return_disputed, the order and those units. If they will send them later, explain that "
+    "they must arrive first.",
+}
 
 
 def _citations(policy: Policy, reasons: tuple[str, ...]) -> list[str]:
@@ -223,9 +235,11 @@ def propose_refund(ctx: ToolContext, args: ProposeArgs, call_id: str) -> dict:
     )
     citations = _citations(ctx.policy, result.reasons)
     next_step = {
-        "eligible": "Tell the customer the amount. They confirm with the button on the proposal card; a typed yes "
-        "is not a confirmation.",
-        "refused": "Tell the customer it cannot be refunded and why, citing the sections given.",
+        # What now exists, so the agent says what it did (D17 of step 2 told the customer no proposal existed).
+        "eligible": "The proposal is now on the customer's card, waiting for their button. Tell the customer the "
+        "amount. They confirm with the button on the proposal card; a typed yes is not a confirmation.",
+        "refused": "Tell the customer it cannot be refunded and why, citing the sections given."
+        + _NAMED_CASES.get(result.reasons[0] if result.reasons else "", ""),
         "needs_person": "A staff member takes the case: hand off with request_handoff, reason_code shop_decided, and "
         "tell the customer.",
     }[result.outcome]
@@ -260,7 +274,13 @@ def execute_refund(ctx: ToolContext, args: NoArgs, call_id: str) -> dict:
         ctx.policy,
         ctx.configuration,
     )
-    return {"receipt": receipt}
+    return {
+        "receipt": receipt,
+        # The paid refund in words that keep the original payment apart from the demo's limits (D01, D11 of step 2).
+        "next_step": "The refund is paid and recorded against the order's original payment. Tell the customer the "
+        "amount and the receipt number. Explain the test ledger (not a bank transfer, no date) only if the customer "
+        "asks when or how the money arrives.",
+    }
 
 
 def request_handoff(ctx: ToolContext, args: HandoffArgs, call_id: str) -> dict:

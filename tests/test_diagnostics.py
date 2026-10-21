@@ -46,3 +46,16 @@ def test_a_proposal_after_a_paid_refund_is_counted():
     refused = tool("execute_refund", {"ok": False, "refused": "status_approved"})
     assert proposals_after_receipt([propose, paid, propose]) == 1
     assert proposals_after_receipt([propose, refused, propose]) == 0
+
+
+def test_a_message_denying_a_proposal_made_before_it_is_counted():
+    # D17 of step 2: a proposal, then "I haven't created a proposal".
+    from refund_agent.evaluation.diagnostics import proposal_denials
+
+    eligible = tool("propose_refund", {"ok": True, "outcome": "eligible", "proposal_id": "p-1"})
+    refused = tool("propose_refund", {"ok": True, "outcome": "refused", "proposal_id": "p-2"})
+    denial = {"role": "agent", "text": "It could be either pair, so I haven\u2019t created a proposal. Which one?"}
+    honest = {"role": "agent", "text": "I've proposed a refund of BRL 59.90 for the compact shears."}
+    assert proposal_denials([eligible, denial, honest]) == 1
+    assert proposal_denials([denial, eligible, honest]) == 0  # before any proposal it may be true
+    assert proposal_denials([refused, denial]) == 0  # a refused request is no proposal to confirm

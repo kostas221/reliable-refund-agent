@@ -164,6 +164,7 @@ def test_the_backend_sets_the_amount_and_the_model_cannot(db):
         "BRL",
     )
     assert result["policy_citations"] == ["refund-policy/v2/amount"]  # the amount is what was paid
+    assert result["next_step"].startswith("The proposal is now on the customer's card")  # what now exists
 
 
 def test_the_same_call_after_a_restart_makes_no_second_proposal(db):
@@ -499,7 +500,8 @@ def test_an_eligible_assessment_gives_the_amount_and_reserves_nothing(db):
         True,
     )
     assert eligible["policy_citations"] == ["refund-policy/v2/amount"]
-    assert "Nothing is proposed or reserved" in eligible["next_step"]
+    # Scoped to its own effect: an assessment cannot tell whether a proposal already exists (D17 of step 2).
+    assert eligible["next_step"].startswith("This assessment does not create or change a proposal.")
 
 
 def test_an_assessment_of_another_customers_order_or_a_wrong_unit_is_refused_and_writes_nothing(db):
@@ -594,3 +596,35 @@ def test_an_assessment_and_a_proposal_agree_on_a_unit_with_nothing_paid(db):
         )
         == ("refused", ["refund-policy/v2/amount"], None)
     )
+
+
+# What the tools tell the agent after a refusal and a payment (repairs of step 2, plan change log 2026-10-22)
+
+
+@pytest.mark.parametrize("tool", ["assess_refund", "propose_refund"])
+def test_a_refusal_for_a_missing_return_names_the_case_for_a_person(db, tool):
+    # D22 of step 2: "Propose nothing" was followed where the policy names a case for a person.
+    ctx = agent_for(db, "D22")  # h12-o1: the duvet set has not arrived back
+    refused = call(ctx, tool, order_id="h12-o1", unit_ids=["h12-o1-u1"])
+    assert refused["outcome"] == "refused"
+    assert "already sent, the policy names that case for a person" in refused["next_step"]
+    assert "reason_code return_disputed" in refused["next_step"]
+    assert "If they will send them later, explain that they must arrive first." in refused["next_step"]
+
+
+@pytest.mark.parametrize("tool", ["assess_refund", "propose_refund"])
+def test_a_refusal_for_lateness_names_no_case_for_a_person(db, tool):
+    ctx = agent_for(db, "D05")  # a late request: an exception is refused, not handed off
+    refused = call(ctx, tool, order_id="d05-o1", unit_ids=["d05-o1-u1"])
+    assert refused["outcome"] == "refused"
+    assert "for a person" not in refused["next_step"] and "return_disputed" not in refused["next_step"]
+
+
+def test_a_paid_refund_is_told_against_the_original_payment_and_the_ledger_only_when_asked(db):
+    ctx = agent_for(db, "D01")
+    proposal = call(ctx, "propose_refund", order_id="d01-o1", unit_ids=["d01-o1-u1"])["proposal_id"]
+    approve(ctx, proposal, staff="d01-rui")
+    paid = call(ctx, "execute_refund", "x-1")
+    assert paid["next_step"].startswith("The refund is paid and recorded against the order's original payment.")
+    assert "only if the customer asks when or how the money arrives" in paid["next_step"]
+    assert paid["receipt"]["payment_id"] == "d01-o1-p1"  # the original payment the words refer to

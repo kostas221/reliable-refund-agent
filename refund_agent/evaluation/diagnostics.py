@@ -7,6 +7,9 @@
   when the agent's instructions contain its full text. An ID quoted as an example, without the text, is not shown.
 - Handoffs the scenario forbids, by who began them; required handoffs that are missing or came from the wrong side.
 - Proposals after a receipt: a new proposal in a conversation whose refund was already paid.
+- Proposal denials: an agent message that says no proposal was made, after this conversation made an eligible one
+  (plan change log, 2026-10-22). A pattern over the agent's words: it finds the claims of step 2's D17 and is read
+  in the audit; it changes no verdict.
 """
 
 from __future__ import annotations
@@ -20,6 +23,11 @@ from refund_agent.policy import Policy
 from refund_agent.scenarios import Scenario
 
 CITATION = re.compile(r"refund-policy/v[0-9]+/[a-z-]+")
+DENIES_PROPOSAL = re.compile(
+    r"\b(?:have not|haven['\u2019]t|did not|didn['\u2019]t)\b[^.?!]{0,30}?"
+    r"\b(?:proposed|(?:created|made) (?:a|any) proposal)",
+    re.IGNORECASE,
+)
 
 
 def instructions_of(try_folder: Path) -> str:
@@ -49,6 +57,16 @@ def proposals_after_receipt(messages: list[dict]) -> int:
     return count
 
 
+def proposal_denials(messages: list[dict]) -> int:
+    proposed, count = False, 0
+    for message in messages:
+        if message["role"] == "tool" and message["name"] == "propose_refund":
+            proposed = proposed or json.loads(message["content"]).get("outcome") == "eligible"
+        elif message["role"] == "agent" and proposed and DENIES_PROPOSAL.search(message.get("text") or ""):
+            count += 1
+    return count
+
+
 def of_try(
     saved: dict, failed: set[str], items: dict[str, str], scenario: Scenario, instructions: str, policy: Policy
 ) -> dict:
@@ -70,17 +88,20 @@ def of_try(
         "citations": citations,
         "handoffs": handoffs,
         "proposals_after_receipt": proposals_after_receipt(saved.get("messages", [])),
+        "proposal_denials": proposal_denials(saved.get("messages", [])),
     }
 
 
 def summarize(per_try: list[dict]) -> dict:
-    total = {"citations": Counter(), "handoffs": Counter(), "proposals_after_receipt": 0}
+    total = {"citations": Counter(), "handoffs": Counter(), "proposals_after_receipt": 0, "proposal_denials": 0}
     for d in per_try:
         total["citations"].update(d["citations"])
         total["handoffs"].update(d["handoffs"])
         total["proposals_after_receipt"] += d["proposals_after_receipt"]
+        total["proposal_denials"] += d["proposal_denials"]
     return {
         "citations": dict(sorted(total["citations"].items())),
         "handoffs": dict(sorted(total["handoffs"].items())),
         "proposals_after_receipt": total["proposals_after_receipt"],
+        "proposal_denials": total["proposal_denials"],
     }

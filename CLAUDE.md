@@ -80,10 +80,15 @@ Step 2 done (`runs/pilot-20261021T211812Z-gpt-6-luna-none`, results in `docs/pil
 unsafe; +2.2 points against step 3 (95% -5.6 to +10.0). No `customer_asked` handoff without a request (6 false attempts
 refused); clarification 1/6 (the assessment did not bring it); two defects in text the agent reads: the assessment's
 'refused' next step overrode a named handoff (D22, 17/18 required handoffs), and the unasked test-ledger line rose from
-20 to 35 and made customers doubt the refund (D01, D11). Proposed next, awaiting the user: correct both as fixes of step
-2, then the order of the instructions alone for clarification. The user reads 10 conversations of step 1 and 9 of each
-of steps 3 and 2 (`user-review/`); Claude's verdicts are shown after. Development runs: Claude reads all, the user reads
-what Claude fails or notes. Phase 7 (video, code licence, external test, CI on a remote) after v1.1.
+20 to 35 and made customers doubt the refund (D01, D11). Step 2 repairs ready (approved 2026-10-22, with section 7 of
+`docs/next-improvements-2026-10-21.md`): a refusal for a missing return names the case for a person; a paid refund is
+told as recorded against the original payment, the ledger explained only when asked (instructions v7 = v6 plus one
+sentence); the assessment no longer says nothing is proposed, and a new diagnostic counts denials of a proposal that
+exists (2 in step 2, none before). Predictions written; the user commits and runs the batch. Then the order of the
+instructions alone for clarification, with the contrasting development cases written first; the graph's
+pending-selection state only if that is not enough. The user reads 10 conversations of step 1 and 9 of each of steps 3
+and 2 (`user-review/`); Claude's verdicts are shown after. Development runs: Claude reads all, the user reads what
+Claude fails or notes. Phase 7 (video, code licence, external test, CI on a remote) after v1.1.
 
 ## Environment
 

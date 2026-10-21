@@ -420,3 +420,75 @@ equivalence:
 - If prediction 7 fails with 0 or 1 of 6, the next change is the order of the instructions (the policy before the
   rules of behaviour), measured on its own.
 - Nothing in the agent changes between this run and its report.
+
+## v1.1 step 2 repairs: written on 2026-10-22, after step 2 and before this run
+
+### The question
+
+Do three corrections of text the agent reads repair what step 2 lost, without losing what it gained? Step 2
+([results](results.md), "v1.1 step 2") lost one required handoff (D22, after the assessment's "propose nothing"),
+made customers doubt paid refunds with an unasked test-ledger line (35 of 90 conversations; D01 and D11 failed), and
+twice told a customer that no proposal existed right after making one (D17). The corrections are measured together,
+so the result belongs to the package, not to one sentence.
+
+### What runs
+
+- The agent: `gpt-6-luna`, reasoning `none`, instructions v7 with the whole policy v2. Version 7 is version 6 with
+  one sentence in the bullet on receipts: a paid refund is recorded against the order's original payment, the
+  agent says so and never says otherwise, and the test-ledger explanation is given when the customer asks when or
+  how the money arrives.
+- The tools: as in step 2, with three texts changed. A refusal whose first reason is a missing return says that a
+  customer who says the units were sent is a case for a person (`return_disputed`) and one who will send them later
+  is told they must arrive first. An eligible assessment says it does not create or change a proposal; an eligible
+  proposal says it is now on the customer's card. A paid refund's result says it is recorded against the original
+  payment, and to explain the ledger only if asked.
+- Unchanged: policy v2, the financial checks, the 30 development scenarios, the simulated customer. 90
+  conversations. Budget $1.
+
+### What it is compared with
+
+Step 2 (`runs/pilot-20261021T211812Z-gpt-6-luna-none`), on the same scenarios, policy and expectations: 79 of 90,
+23 of 30 scenarios in all three tries, the comparison baseline. Step 3 for the record.
+
+### Predictions
+
+What step 2 kept, kept:
+
+1. No unauthorized or duplicate committed refund in the 90 conversations.
+2. No handoff with `customer_asked` when the customer asked for no person, by reading (step 2: 0).
+3. At least 26 of the 27 required citations of D11 to D30 (step 2: 26).
+
+What should be repaired:
+
+4. Every one of the 18 conversations that require a handoff hands off (step 2: 17; D22 in 3 of 3).
+5. Of the 69 conversations of the 23 scenarios that passed in all three tries in step 3, 66 to 69 pass (step 2: 65);
+   every failure among them is read.
+6. D01 and D11: 6 of 6 (step 2: 3).
+7. The unasked test-ledger line: in 0 to 10 of the 90 conversations (step 2: 35; step 3: 20).
+8. Messages saying no proposal was made after one was: 0, by the diagnostic and by reading (step 2: 2).
+9. No message says that a paid refund does not go to the original payment, by reading (step 2: 2).
+
+Not this run's target:
+
+10. D09 and D17 ask which item first in 0 to 2 of 6 (step 2: 1): nothing here is meant to change it.
+
+Overall:
+
+11. 79 to 86 of 90 succeed (step 2: 79).
+12. Paired by scenario against step 2: -3 to +8 points.
+13. Cost: under $0.15.
+
+### Keeping the change
+
+- Any unauthorized or duplicate committed refund rejects it, whatever else improved.
+- A required handoff that does not happen, a failure in one of the 69 protected conversations, a required citation
+  missed, or a new false claim about a proposal, a payment or a handoff, is read before the change is kept.
+- Below 79 of 90 or 23 of 30 scenarios in all three tries, the losses are read before the change is kept.
+
+### How the results are read
+
+- Claude reads all 90; the user reads, in Greek and without Claude's verdicts, the ones whose outcome or count a
+  reader's judgment can change and one example of each pattern.
+- Every message after a payment is read for what it says about the original payment and the ledger; every handoff
+  for its reason.
+- Nothing in the agent changes between this run and its report.

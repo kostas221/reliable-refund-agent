@@ -35,7 +35,7 @@ from refund_agent.scenarios import format_brl
 # v2: cite whenever an answer rests on the policy, hand off only in a case the policy names with its reason code, and
 # the lifecycle rules of the policy v2 specification (docs/pilot/results.md, "v1.1 step 1"). Earlier versions stay
 # for the runs made with them.
-INSTRUCTIONS_PATH = REPO_ROOT / "prompts" / "agent-v6.md"
+INSTRUCTIONS_PATH = REPO_ROOT / "prompts" / "agent-v7.md"
 
 
 @dataclass(frozen=True)

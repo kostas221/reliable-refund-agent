@@ -88,7 +88,7 @@ def test_the_instructions_name_only_real_tools_and_handoff_reasons():
     arguments = {name for tool in TOOLS.values() for name in tool.args.model_fields}
     assert named and named <= set(TOOLS) | arguments | set(HANDOFF_REASONS)
     assert set(HANDOFF_REASONS) <= named  # every reason the backend accepts is explained to the agent
-    assert INSTRUCTIONS.version == "agent-v6" and len(INSTRUCTIONS.sha256) == 64
+    assert INSTRUCTIONS.version == "agent-v7" and len(INSTRUCTIONS.sha256) == 64
 
 
 def test_every_citation_the_instructions_quote_exists_in_their_policy():
@@ -112,7 +112,7 @@ def test_the_instructions_hold_every_section_of_the_policy_under_its_id():
 
 
 def test_instructions_that_include_the_policy_need_it():
-    with pytest.raises(ValueError, match="agent-v6.md includes the policy"):
+    with pytest.raises(ValueError, match="agent-v7.md includes the policy"):
         load_instructions()
 
 

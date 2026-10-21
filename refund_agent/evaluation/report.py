@@ -346,6 +346,11 @@ def render(report: dict) -> str:
         + " | ".join(str(c["diagnostics"]["proposals_after_receipt"]) for c in conf.values())
         + " |"
     )
+    lines.append(
+        "| Messages saying no proposal was made, after one was | "
+        + " | ".join(str(c["diagnostics"].get("proposal_denials", 0)) for c in conf.values())
+        + " |"
+    )
     lines += ["", "## Who read the conversations", ""]
     for name, c in conf.items():
         readers = ", ".join(f"{k} {v}" for k, v in sorted(c["readers"].items()))
