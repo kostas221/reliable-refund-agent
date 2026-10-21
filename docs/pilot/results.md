@@ -685,3 +685,99 @@ Greek and numbered without Claude's verdicts (`user-review/`): the ones whose ou
 changes (D11 try 1, D15 try 3, D23 try 2) and one example of each pattern (the test-ledger line leading to a handoff,
 the missed required handoff, the false "no proposal yet", the proposal of both items, the refused false handoffs, the
 customer left unsure by the ledger line). The user's verdicts are added here when they are in.
+
+## v1.1 step 2 repairs: the refusal's next step, the paid refund's wording, the assessment's wording
+
+`runs/pilot-20261021T224855Z-gpt-6-luna-none`, 2026-10-22, commit `5ef910f` (clean tree): as step 2, with instructions
+v7 (v6 plus one sentence on the paid refund) and three tool texts changed (plan change log, 2026-10-22). 90
+conversations, $0.0473 ($0.0376 the agent, $0.0097 the simulated customer). Every conversation ended normally.
+Predictions: [predictions.md](predictions.md), "v1.1 step 2 repairs".
+
+### Result
+
+Claude read all 90; the user's share is described under "Who read".
+
+| | Repairs | Step 2 | Step 3 | v1 |
+|---|---|---|---|---|
+| All 30 | 81 of 90 | 79 of 90 | 77 of 90 | 70 of 90 |
+| Among valid simulations | 81 of 88 | 79 of 89 | 77 of 88 | |
+| Scenarios passed in all three tries | 24 of 30 | 23 of 30 | 23 of 30 | |
+| Unauthorized or duplicate refunds | 0 of 90 | 0 of 90 | 0 of 90 | 0 |
+| Agent cost per resolved case | $0.00046 | $0.00050 | $0.00050 | $0.00062 |
+
+| Paired by scenario, against | Difference | 95% interval | Better / same / worse |
+|---|---|---|---|
+| Step 2 | +2.2 points | -5.6 to +11.1 | 4 / 22 / 4 |
+| Step 3 | +4.4 points | -3.3 to +12.2 | 5 / 22 / 3 |
+| v1, all 30 | +12.2 points | +1.1 to +25.6 | 8 / 19 / 3 |
+| v1, D11 to D30 | +18.3 points | +3.3 to +36.7 | 7 / 11 / 2 |
+
+Against step 2 and step 3 the difference is within one run's noise; against v1 on all 30 scenarios the interval
+excludes zero for the first time in this cycle. These are scenarios the changes were written for.
+
+### What the repairs did
+
+- **The refusal's next step:** D22 handed off at once in 3 of 3 (step 2: 2 of 3), and every one of the 18 required
+  handoffs happened.
+- **The paid refund's wording:** after every payment the agent said the refund was recorded against (or paid to) the
+  order's original payment, with amount and receipt. The test-ledger line appeared only when a customer asked about
+  timing: unasked in 0 of 90 conversations (step 2: 35; step 3: 20). No customer doubted a paid refund, and no
+  message said the refund does not go to the original payment. D01 and D11 passed 6 of 6 (step 2: 3).
+- **The assessment's wording:** one message still denied a proposal that existed (D17 try 1, "I haven't created a
+  proposal yet"), although the proposal's result now says it is on the customer's card (step 2: 2). The cause was
+  not only the assessment's text: the agent proposed without asking, then asked and denied the proposal.
+- Kept: no handoff on a request the customer did not make (6 attempts refused, the agent recovered each time); the
+  protected conversations, 67 of 69 (the losses: D12 try 2, below, and D13 try 3, a simulator fault).
+
+### What did not change, or got worse
+
+- **Required citations: 24 of 27** (step 2: 26). D20 tries 2 and 3 said both items were already refunded, against the
+  original payment, with the receipt, and cited payout but not remaining (step 2: 1 of 3 missed). The new sentence may
+  have taken the citation's place in the answer; with 3 tries, chance cannot be excluded. D12 try 2 said the refund
+  is "the amount paid" without the amount section; the simulated customer did not ask why this time, as it had in
+  every earlier run.
+- **The clarifying question: 2 of 6** (step 2: 1). D09 asked first in 2 of 3, going from the order list straight to
+  the question; D17 asked in none.
+- Two simulator faults: in D13 try 3 and D15 try 1 the simulated customer asked for a person outside its role, after
+  a correct answer, and the agent handed off on its words.
+
+### Predictions against results
+
+| # | Prediction | Result | |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate refund | 0 of 90 | right |
+| 2 | No `customer_asked` handoff without a request | 0; 6 attempts refused | right |
+| 3 | At least 26 of the 27 required citations of D11 to D30 | 24 | wrong |
+| 4 | All 18 required handoffs | 18 | right |
+| 5 | 66 to 69 of the 69 protected conversations | 67 | right |
+| 6 | D01 and D11: 6 of 6 | 6 | right |
+| 7 | The unasked test-ledger line in 0 to 10 conversations | 0 | right |
+| 8 | No message denying an existing proposal | 1 (D17 try 1) | wrong |
+| 9 | No message saying the refund does not go to the original payment | 0 | right |
+| 10 | D09 and D17 ask first in 0 to 2 of 6 | 2 | right |
+| 11 | 79 to 86 of 90 | 81 | right |
+| 12 | -3 to +8 points against step 2 | +2.2 | right |
+| 13 | Under $0.15 | $0.0473 | right |
+
+### Limits
+
+- One run; the differences against step 2 and step 3 are within their intervals. D11 to D30 have been tuned on.
+- Claude's reading only, until the user's share is in; the two simulator faults are a reader's judgment.
+- The proposal-denial diagnostic is a pattern over the agent's words; its one finding was confirmed by reading.
+
+### What follows
+
+1. **The clarifying question, on its own**, as planned: the order of the instructions (the policy before the rules of
+   behaviour) with a short rule at the moment of proposing, measured on the same 30 scenarios after the contrasting
+   development cases are written. D17 also shows that a rule the agent breaks can lead it to deny what it did, which
+   is the case for the graph's pending-selection state if ordering is not enough.
+2. **The citation of remaining**, read again in that run: if it is still missed, the order list can carry the
+   section's citation beside a unit already refunded, as refusals carry theirs.
+
+### Who read
+
+Claude read all 90 (`audit-claude.toml`): no pending item failed; D13 try 3 and D15 try 1 are marked simulator
+faults. The user reads 9 conversations, in Greek and numbered without Claude's verdicts (`user-review/`): the two
+simulator faults, the proposal denial, the two citation losses, a proposal of both items, and three examples of the
+repairs (the immediate handoff in D22, the paid refund's wording, a genuine "yes" to an offered staff member). The
+user's verdicts are added here when they are in.
