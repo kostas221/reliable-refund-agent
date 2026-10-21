@@ -76,13 +76,14 @@ changed: policy v2 before the assessment tool. Step 3 done (`runs/pilot-20261020
 (95% +0.0 to +28.9). Forbidden handoffs 14 to 4, but 3 were labelled `customer_asked` with no request from the customer
 (the one code the backend cannot check); clarification (D09, D17) 0/6; 2 D10 simulations ended with a provider 403. The
 user reads 9 conversations (`user-review/`), and step 1's 10 are still pending; Claude's verdicts are shown only after.
-Step 2 ready (approved 2026-10-21, plan change log): `assess_refund` (read-only, the decision of `propose` with its
-facts) in place of the policy search; an eligible result cites the amount section; `execute_refund` with no arguments
-pays the conversation's latest request the policy did not refuse; `customer_asked` needs the customer's own words, found
-in a customer message; instructions v6 = v5 with three changes. Predictions in `docs/pilot/predictions.md`, with floors
-for what step 3 gained; the user commits and runs the batch. If D09 and D17 still do not ask first, the next change is
-the order of the instructions, measured on its own. Development runs: Claude reads all, the user reads what Claude fails
-or notes. Phase 7 (video, code licence, external test, CI on a remote) after v1.1.
+Step 2 done (`runs/pilot-20261021T211812Z-gpt-6-luna-none`, results in `docs/pilot/results.md`): 79/90, D11-D30 54/60, 0
+unsafe; +2.2 points against step 3 (95% -5.6 to +10.0). No `customer_asked` handoff without a request (6 false attempts
+refused); clarification 1/6 (the assessment did not bring it); two defects in text the agent reads: the assessment's
+'refused' next step overrode a named handoff (D22, 17/18 required handoffs), and the unasked test-ledger line rose from
+20 to 35 and made customers doubt the refund (D01, D11). Proposed next, awaiting the user: correct both as fixes of step
+2, then the order of the instructions alone for clarification. The user reads 10 conversations of step 1 and 9 of each
+of steps 3 and 2 (`user-review/`); Claude's verdicts are shown after. Development runs: Claude reads all, the user reads
+what Claude fails or notes. Phase 7 (video, code licence, external test, CI on a remote) after v1.1.
 
 ## Environment
 

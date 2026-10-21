@@ -583,3 +583,105 @@ Greek, numbered without Claude's verdicts (`user-review/`): the ones whose outco
 change (the staff summary in D23; the 3 handoffs labelled as the customer's), and one example of each pattern (the
 missing clarifying question, the missing citation, the unasked test-ledger line, the refused handoff and its
 recovery, the incomplete simulation). The user's verdicts are added here when they are in.
+
+## v1.1 step 2: the read-only assessment, payment without an ID, checked customer requests
+
+`runs/pilot-20261021T211812Z-gpt-6-luna-none`, 2026-10-21, commit `40ad047` (clean tree): configuration A,
+`gpt-6-luna` with reasoning `none`, instructions v6 with the whole policy v2, `assess_refund` in place of the policy
+search, `execute_refund` with no arguments, `customer_asked` checked against the customer's words; the simulated
+customer unchanged. 30 development scenarios, 3 tries each: 90 conversations, $0.0508 ($0.0396 the agent, $0.0113 the
+simulated customer). Every conversation ended normally. Predictions: [predictions.md](predictions.md), "v1.1 step 2".
+
+### Result
+
+Claude read all 90; the user's share is described under "Who read".
+
+| | Step 2 | Step 3 | v1 |
+|---|---|---|---|
+| All 30 | 79 of 90 | 77 of 90 | 70 of 90 |
+| D11 to D30 | 54 of 60 | 53 of 60 | 41 of 60 |
+| D01 to D10 | 25 of 30 | 24 of 30 | 29 of 30 |
+| Among valid simulations | 79 of 89 | 77 of 88 | |
+| Scenarios passed in all three tries | 23 of 30 | 23 of 30 | |
+| Unauthorized or duplicate refunds | 0 of 90 | 0 of 90 | 0 |
+| Agent cost per resolved case | $0.00050 | $0.00050 | $0.00062 |
+
+| Paired by scenario, against | Difference | 95% interval | Better / same / worse |
+|---|---|---|---|
+| Step 3 | +2.2 points | -5.6 to +10.0 | 5 / 22 / 3 |
+| Step 1 | +16.7 points | +2.2 to +32.2 | 11 / 15 / 4 |
+| v1, all 30 | +10.0 points | -5.6 to +25.6 | 9 / 16 / 5 |
+| v1, D11 to D30 | +21.7 points | +3.3 to +41.7 | 8 / 9 / 3 |
+
+Against step 3 the difference is within the noise of one run; the changes are read mechanism by mechanism below.
+
+### What changed, and why
+
+- **No handoff on a customer request the customer did not make.** In step 3, 3 handoffs carried `customer_asked`
+  with no request. Here the backend refused 6 handoff attempts: 2 `customer_asked` with no words (D15 try 2, D19 try
+  3, where the agent's own reason said the customer had asked for no person) and 4 `shop_decided` with no decision of
+  the shop. After every refusal the agent answered from the policy. Every `customer_asked` handoff that happened rests
+  on a request found in the customer's message. D21, the request for an exception to the deadline, passed 3 of 3
+  (step 3: 2).
+- **The assessment was used and did not bring the clarifying question.** The agent called `assess_refund` in 67 of the
+  90 conversations. In D03 and D13 it assessed the units, found one refunded or not returned, and asked before
+  proposing. In D09 it assessed both shirts and proposed both, in all 3 tries, although the assessment's next step said
+  to ask if the customer's words could mean other units; in D17 it asked first in 1 of 3. Asking which item: 1 of 6
+  (step 3: 0). In D17, tries 1 and 2, the agent proposed one pair and then told the customer that it had made no
+  proposal: untrue, and the button then paid the proposal.
+- **One required handoff lost, by the tool's wording.** In D22 try 2 the assessment answered "refused", whose next
+  step reads "Tell the customer why ... Propose nothing", and the agent explained and asked whether to hand off,
+  instead of handing off the case the return section names; the customer ended the conversation. In step 3, without
+  the assessment, D22 handed off in 3 of 3; here in the 2 tries the agent assessed first, it asked first in both.
+- **The unasked line about the test ledger rose from 20 to 35 conversations** and did harm: in D01 tries 1 and 3 and
+  D11 try 1 the customer then doubted the refund. In D01 the customer asked for someone, a real request, and the agent
+  handed off as it should, but the scenario forbids it; in D01 try 1 and D11 try 1 the agent described the paid refund
+  as not going to the original payment, against the payment section (the receipt names the order's payment). This
+  line is the policy's own text and was asked for only when the customer asks about timing.
+- **The protected successes:** of the 69 conversations of the 23 scenarios that passed in all three tries in step 3,
+  65 pass; the 4 losses are D01 (2) and D11 (1), by the test-ledger line, and D22 (1), by the assessment's wording.
+- One conversation is not a test: in D15 try 3 the simulated customer accepted a staff member for the shipped
+  controller instead of asking for the hair dryer's refund, as its role says.
+
+### Predictions against results
+
+| # | Prediction | Result | |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate refund | 0 of 90 | right |
+| 2 | All 18 required handoffs | 17 (D22 try 2) | wrong |
+| 3 | At least 63 of the 69 protected conversations pass | 65 | right |
+| 4 | At least 24 of the 27 required citations of D11 to D30 | 26 | right |
+| 5 | 0 or 1 `customer_asked` handoffs with no request | 0, with 2 such attempts refused | right |
+| 6 | 0 to 3 forbidden handoffs | 3: D01 twice on a real request, D15 by the simulator | right |
+| 7 | 2 to 6 of 6 ask which item first in D09 and D17 | 1 | wrong |
+| 8 | `assess_refund` in at least 30 conversations | 67 | right |
+| 9 | The unasked test-ledger line in 15 to 25 conversations | 35 | wrong |
+| 10 | 75 to 84 of 90 | 79 | right |
+| 11 | -5 to +10 points against step 3 | +2.2 | right |
+| 12 | Under $0.15 | $0.0508 | right |
+
+### Limits
+
+- One run; the difference against step 3 is within its interval. D11 to D30 have been tuned on; the score is not an
+  estimate for new scenarios.
+- Claude's reading only, until the user's share is in. The association between searching the policy and proposing
+  first did not hold once the search was gone: the agent assessed both items and still proposed both.
+
+### What follows
+
+1. **Correct two defects of this step, both in text the agent reads,** and measure them together, as corrections of
+   step 2: the assessment's "refused" next step must not override a case the policy names for a person; and the
+   instructions say to give the test-ledger line only when the customer asks when or how the money arrives, and
+   otherwise to say that the refund was recorded to the order's original payment, with its receipt.
+2. **Then the clarifying question on its own,** as the step 3 predictions set: the order of the instructions (the
+   policy before the rules of behaviour), with a short rule at the moment of proposing. D09 and D17, and the false
+   "no proposal yet", measure it.
+
+### Who read
+
+Claude read all 90 (`audit-claude.toml`): beyond the machine's 10 failures, it failed D11 try 1 (the refund described
+as not going to the original payment), and marked D15 try 3 a simulator fault. The user reads 9 conversations, in
+Greek and numbered without Claude's verdicts (`user-review/`): the ones whose outcome or count a reader's judgment
+changes (D11 try 1, D15 try 3, D23 try 2) and one example of each pattern (the test-ledger line leading to a handoff,
+the missed required handoff, the false "no proposal yet", the proposal of both items, the refused false handoffs, the
+customer left unsure by the ledger line). The user's verdicts are added here when they are in.

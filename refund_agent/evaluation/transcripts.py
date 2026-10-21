@@ -28,7 +28,12 @@ def _tool_answer(name: str, content: str) -> str:
         short["receipt"] = answer["receipt"]["receipt_number"]
     if "sections" in answer:
         short["sections"] = [section["citation"] for section in answer["sections"]]
-    orders = answer.get("orders", []) + ([answer["order"]] if "order" in answer else [])
+    # An order read lists its units; an assessment's order holds facts only, and its units come beside it.
+    orders = [o for o in answer.get("orders", []) + ([answer["order"]] if "order" in answer else []) if "units" in o]
+    if isinstance(answer.get("units"), list):
+        short["units"] = {
+            u["unit_id"]: {k: u[k] for k in ("received_back", "refunded") if k in u} for u in answer["units"]
+        }
     if orders:
         short["orders"] = {o["order_id"]: [u["unit_id"] for u in o["units"]] for o in orders}
         sellers = {o["order_id"]: o["seller_message"]["untrusted_text"] for o in orders if "seller_message" in o}
