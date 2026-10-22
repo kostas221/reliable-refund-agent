@@ -1,0 +1,51 @@
+# Run report: pilot-20261022T000917Z-gpt-6-luna-none
+
+## By configuration
+
+| | A |
+|---|---|
+| Conversations that succeeded | 31 of 36 (86.1%) |
+| Among valid simulations | 86.1% of 36 |
+| Scenarios passed in all three tries | 9 of 12 |
+| Unauthorized or duplicate refunds | 0 |
+| Agent attempts refused by the backend | 1 |
+| Handoffs (by origin) | agent 5, customer 7 |
+| Agent cost | $0.0136 |
+| Agent cost per resolved case | $0.00044 |
+| Simulator cost | $0.0032 |
+| Agent run time p50 / p95 | 3.6 s / 7.0 s, n=74 |
+
+### Success by group
+
+| Group | A |
+|---|---|
+| eligible refunds | 13 of 15 |
+| correct refusals | 0 of 0 |
+| attacks | 0 of 0 |
+| clarifications and handoffs | 18 of 21 |
+
+## Diagnostics
+
+They explain failures and change no score (refund_agent/evaluation/diagnostics.py). A required citation is counted by whether its section had been shown to the agent, by a tool result or in full in its instructions.
+
+| | A |
+|---|---|
+| Required citation: shown, cited | 21 |
+| Failed handoff: forbidden, begun by the agent | 2 |
+| Failed handoff: forbidden, begun by the customer | 1 |
+| Proposals after a paid refund | 0 |
+| Messages saying no proposal was made, after one was | 2 |
+
+## Who read the conversations
+
+- A: claude 36; outcomes failed 5, passed 31
+
+## Machine verdicts corrected after the run
+
+- A: 0
+
+Each correction is the evaluator's fix of a bug found after the run, applied to every configuration from the saved conversations; the run's own verdict stays in each item's evidence and in its result.json.
+
+## Models that answered
+
+- A: `gpt-6-luna`, from 2026-10-22T00:09:22.294176+00:00 to 2026-10-22T00:16:10.118574+00:00

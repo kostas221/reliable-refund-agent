@@ -927,6 +927,67 @@ def _quoted(words: str, messages: Sequence[str]) -> bool:
     return any(all(part in _plain(message) for part in parts) for message in messages)
 
 
+# What a request for a person looks like in words (plan change log, 2026-10-22). In the contrasting baseline the agent
+# quoted "Can I cancel it?", the customer's words, which ask for no one (D38). Code cannot read consent: this check
+# refuses words that plainly ask for no one, and lets the reading of the rest stay the agent's. The request no
+# reading can doubt is the customer's own button (POST /api/conversations/{id}/handoff).
+_PERSON = re.compile(
+    r"\b(persons?|people|humans?|someone|somebody|anyone|anybody|staff|team|agents?|representatives?|reps?|"
+    r"managers?|supervisors?|employees?|colleagues?|operators?)\b"
+)
+_NEGATION = re.compile(r"\b(no|not|never|nobody|nope|without)\b|n't\b")
+_WITHDRAWN = re.compile(r"\b(never ?mind|forget it)\b")
+_OFFER = re.compile(
+    r"\b(connect|transfer|put you in touch|hand (?:you|this|it|the conversation) over|pass (?:you|this|it)|"
+    r"talk (?:to|with)|speak (?:to|with)|chat with|offer|help (?:you|with))\b"
+)
+_ACCEPT = re.compile(r"(yes|yeah|yep|yup|sure|please do|please connect|go ahead|that would|i'?d like that)\b")
+
+
+def _asks_for_person(text_: str) -> bool:
+    """A clause of the message names a person with no negation before it ("not an assistant" comes after)."""
+    for clause in re.split(r"[.,;:!?]|\bbut\b", _plain(text_)):
+        found = _PERSON.search(clause)
+        if found and not _NEGATION.search(clause[: found.start()]):
+            return True
+    return False
+
+
+def _offers_person(text_: str) -> bool:
+    """One sentence of the agent's names a person and offers contact with one, question mark or not."""
+    return any(_PERSON.search(part) and _OFFER.search(part) for part in re.split(r"[.!?]", _plain(text_)))
+
+
+def _accepts(text_: str) -> bool:
+    """The message opens with a yes and holds no negation: "No, thanks" and "Yes, but not now" accept nothing."""
+    plain = _plain(text_).lstrip(" \"'")
+    return bool(_ACCEPT.match(plain)) and not _NEGATION.search(plain)
+
+
+def request_for_person(messages: Sequence[tuple[str, str, str]], words: str) -> tuple[str | None, str]:
+    """The customer message a request for a person rests on, or None and why not.
+
+    messages: the conversation's (id, author, text), customer and agent only, in order. The quoted words must be in
+    the customer's latest message, the one in front of the agent, since an earlier request may have been withdrawn.
+    That message asks for a person when a clause of it names one with no negation before it, or when it accepts,
+    with a yes and no negation, the offer of a person the agent made in the message just before it. A message that
+    says "never mind" or "forget it" asks for nothing."""
+    if not words.strip():
+        return None, "customer_words must give the customer's own words that ask for a person"
+    customer = [i for i, (_, author, _) in enumerate(messages) if author == "customer"]
+    if not any(_quoted(words, [messages[i][2]]) for i in customer):
+        return None, "customer_words are not words the customer wrote in this conversation"
+    latest = customer[-1]
+    message_id, _, said = messages[latest]
+    if not _quoted(words, [said]):
+        return None, "those words are not in the customer's latest message, which is the request in front of you"
+    before = messages[latest - 1] if latest > 0 else None
+    offered = before is not None and before[1] == "agent" and _offers_person(before[2])
+    if not _WITHDRAWN.search(_plain(said)) and (_asks_for_person(said) or (offered and _accepts(said))):
+        return message_id, ""
+    return None, "that message does not ask for a person: it names none, or declines one, or answers no offer of one"
+
+
 def check_handoff_reason(
     engine: Engine,
     actor: Actor,
@@ -942,12 +1003,13 @@ def check_handoff_reason(
     2026-10-20 and 2026-10-21, v1.1 steps 3 and 2). Each check is about the request in front of the agent: the
     latest decision of this conversation, on the order and policy as they are now, is that a staff member takes the
     case; the named units of the named order are neither received back nor refunded; the named order is recorded as
-    delivered; the words the agent quotes for a customer's request for a person are in a message the customer wrote
-    in this conversation. The quote shows the words exist, not that they ask for a person: that reading stays the
-    agent's, and the words are kept with the handoff for whoever reads it. A request to refund shipping is in the
-    conversation's words and stays the agent's claim. A refusal says what to do instead and is recorded like any
-    other; the customer's button and a staff member's takeover never come here. Returns what the check found, for
-    the record: for customer_asked, the ID of the latest customer message holding the quoted words."""
+    delivered; the words the agent quotes for a customer's request for a person are in the customer's latest message,
+    and that message asks for one (request_for_person). Code cannot read consent, so a request that passes may still
+    be misread: that reading stays the agent's, and the words are kept with the handoff for whoever reads it. A request
+    worded otherwise still has a path: the agent offers a person, and the customer's yes is the request. A request to
+    refund shipping is in the conversation's words and stays the agent's claim. A refusal says what to do instead and
+    is recorded like any other; the customer's button and a staff member's takeover never come here. Returns what
+    the check found, for the record: for customer_asked, the ID of the customer message the request rests on."""
     try:
         with engine.connect() as conn:
             conversation = _one(conn, "SELECT customer_id FROM conversations WHERE id = :id", id=conversation_id)
@@ -1012,22 +1074,18 @@ def check_handoff_reason(
             elif reason == "customer_asked":
                 written = conn.execute(
                     text(
-                        "SELECT id, content_untrusted FROM messages "
-                        "WHERE conversation_id = :id AND author = 'customer' ORDER BY seq"
+                        "SELECT id, author, content_untrusted FROM messages "
+                        "WHERE conversation_id = :id AND author IN ('customer', 'agent') ORDER BY seq"
                     ),
                     {"id": conversation_id},
                 ).all()
-                found = [message_id for message_id, words in written if _quoted(customer_words, [words])]
-                holds = bool(found)
-                evidence["customer_message"] = found[-1] if found else None
-                unmet = (
-                    "customer_words are not words the customer wrote in this conversation"
-                    if customer_words.strip()
-                    else "customer_words must give the customer's own words that ask for a person"
-                )
+                found, unmet = request_for_person([tuple(row) for row in written], customer_words)
+                holds = found is not None
+                evidence["customer_message"] = found
                 then = (
                     "Copy the customer's words that ask for a person exactly. If the customer has not asked for one, "
-                    "answer from the policy, and offer a person only where it says to."
+                    "answer from the policy, and offer a person only where it says to; the customer's yes to that "
+                    "offer is a request for one."
                 )
             elif reason == "delivery_disputed":
                 holds = order["status"] == "delivered"

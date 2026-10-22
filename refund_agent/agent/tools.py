@@ -130,7 +130,7 @@ class HandoffArgs(_Args):
         default="",
         max_length=500,
         description="For customer_asked, the customer's own words that ask for a person, copied exactly from their "
-        "message; empty otherwise.",
+        "message: words that name a person, or their yes to your offer of one; empty otherwise.",
     )
     reason: str = Field(min_length=1, max_length=500, description="Why a person is needed, in a sentence.")
     customer_goal: str = Field(max_length=1000, description="What the customer wants, in their terms.")
@@ -191,11 +191,12 @@ def assess_refund(ctx: ToolContext, args: AssessArgs, call_id: str) -> dict:
         "eligible": "This assessment does not create or change a proposal. If these are exactly the units the "
         "customer asked for, call propose_refund with them; if the customer's words could mean other units too, ask "
         "which first.",
-        "refused": "Tell the customer why, citing the sections given. Propose nothing for these units."
-        + _NAMED_CASES.get(found.reasons[0] if found.reasons else "", ""),
+        "refused": "Tell the customer why, citing the sections given. Propose nothing for these units.",
         "needs_person": "A staff member takes the case: call propose_refund with these units to record the request, "
         "then hand off with reason_code shop_decided.",
     }[found.outcome]
+    if found.outcome == "refused":
+        next_step += _named_case(ctx, args.order_id, args.unit_ids, found.reasons)
     return {
         "outcome": found.outcome,
         "policy_citations": _citations(ctx.policy, found.reasons),
@@ -207,13 +208,65 @@ def assess_refund(ctx: ToolContext, args: AssessArgs, call_id: str) -> dict:
     }
 
 
-# A refusal for missing return records does not settle what to do: the policy names a case for a person when the
-# customer says the units were already sent (section return; plan change log, 2026-10-22). Keyed by the first reason.
-_NAMED_CASES = {
-    "return": " If the customer says these units were already sent, the policy names that case for a person: hand "
-    "off with reason_code return_disputed, the order and those units. If they will send them later, explain that "
-    "they must arrive first.",
+def _named_case(ctx: ToolContext, order_id: str, unit_ids: list[str], reasons: tuple[str, ...]) -> str:
+    """A refusal for missing return records does not settle what to do: the policy names a case for a person when
+    the customer says the units were already sent (sections return and exceptions; plan change log, 2026-10-22).
+    It holds whatever other rule also refuses, such as the time limit, so every reason is read, not only the first
+    (second review, 2026-10-22). It names the units a return_disputed handoff can carry: neither received back nor
+    refunded. An order on its way has nothing returned yet, so its status is the answer and no case is named."""
+    if "return" not in reasons or "eligible-orders" in reasons:
+        return ""
+    order = _order(ctx, order_id) or {"units": []}
+    missing = [u for u in order["units"] if u["unit_id"] in unit_ids and not u["received_back"] and not u["refunded"]]
+    if not missing:
+        return ""
+    if len(missing) == len(set(unit_ids)):
+        said, units = "these units were already sent", "those units"
+    else:  # some requested units are received back or refunded: only the others can be disputed
+        said = "they already sent " + ", ".join(f"{u['unit_id']} ({u['product']})" for u in missing)
+        units = "only those units"
+    return (
+        f" If the customer says {said}, the policy names that case for a person: hand off with reason_code "
+        f"return_disputed, the order and {units}. If they will send them later, explain that they must arrive first."
+    )
+
+
+# A proposal call made again with its call ID, as a resumed run does, returns the proposal as it is now: the
+# customer may have confirmed it, or it may be paid or closed, so the next step follows its status (second review,
+# 2026-10-22). A new proposal is always waiting for the customer's button.
+_AFTER_PROPOSAL = {
+    # What now exists, so the agent says what it did (D17 of step 2 told the customer no proposal existed).
+    "awaiting_customer_confirmation": "The proposal is now on the customer's card, waiting for their button. Tell "
+    "the customer the amount. They confirm with the button on the proposal card; a typed yes is not a confirmation.",
+    "awaiting_staff_approval": "The customer already confirmed this proposal with the button; it waits for a staff "
+    "member's decision. Tell the customer it is with staff, and do not ask them to confirm it again.",
+    "approved": "A staff member already approved this proposal; it is ready to be paid with execute_refund.",
 }
+
+
+def _after_proposal(ctx: ToolContext, proposal_id: str) -> tuple[str, str]:
+    """The proposal's status as the customer's card shows it now, and the next step, from one read: a proposal past
+    its deadline shows as expired before any write records it (third review, 2026-10-22)."""
+    with ctx.engine.connect() as conn:
+        proposal = conn.execute(text("SELECT * FROM proposals WHERE id = :id"), {"id": proposal_id}).mappings().one()
+        card = reads.proposal_card(conn, proposal, ctx.clock(), ctx.policy)
+    status = card["display_status"]
+    if status == "refunded":
+        return status, (
+            f"This proposal is already paid, receipt {card['receipt']['receipt_number']}. Tell the customer so, with "
+            "that receipt, and do not propose these units again."
+        )
+    if status == "rejected":  # the staff member's decision stands: say it and why, without asking to resubmit
+        why = f', with the reason "{card["rejection_reason"]}"' if card["rejection_reason"] else ""
+        return status, (
+            f"A staff member rejected this proposal{why}. Tell the customer it was rejected and why; nothing waits "
+            "for their button."
+        )
+    return status, _AFTER_PROPOSAL.get(
+        status,
+        f"This proposal is {status} and nothing waits for the customer's button. If the customer still wants these "
+        "units refunded, call propose_refund again.",
+    )
 
 
 def _citations(policy: Policy, reasons: tuple[str, ...]) -> list[str]:
@@ -234,18 +287,21 @@ def propose_refund(ctx: ToolContext, args: ProposeArgs, call_id: str) -> dict:
         summary_untrusted=args.summary_for_staff,
     )
     citations = _citations(ctx.policy, result.reasons)
-    next_step = {
-        # What now exists, so the agent says what it did (D17 of step 2 told the customer no proposal existed).
-        "eligible": "The proposal is now on the customer's card, waiting for their button. Tell the customer the "
-        "amount. They confirm with the button on the proposal card; a typed yes is not a confirmation.",
-        "refused": "Tell the customer it cannot be refunded and why, citing the sections given."
-        + _NAMED_CASES.get(result.reasons[0] if result.reasons else "", ""),
-        "needs_person": "A staff member takes the case: hand off with request_handoff, reason_code shop_decided, and "
-        "tell the customer.",
-    }[result.outcome]
+    status = result.status
+    if result.outcome == "eligible":
+        status, next_step = _after_proposal(ctx, result.id)
+    elif result.outcome == "refused":
+        next_step = "Tell the customer it cannot be refunded and why, citing the sections given." + _named_case(
+            ctx, args.order_id, args.unit_ids, result.reasons
+        )
+    else:
+        next_step = (
+            "A staff member takes the case: hand off with request_handoff, reason_code shop_decided, and tell the "
+            "customer."
+        )
     return {
         "proposal_id": result.id,
-        "status": result.status,
+        "status": status,
         "outcome": result.outcome,
         "amount_minor": result.amount_minor if result.outcome == "eligible" else None,  # nothing to promise otherwise
         "currency": ctx.policy.currency,

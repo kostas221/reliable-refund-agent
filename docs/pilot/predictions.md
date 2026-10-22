@@ -534,3 +534,61 @@ Overall:
 - A failure on the side of a pair that should not ask, or should not hand off, is a weakness the thirty scenarios
   could not show, and is reported as such.
 - Nothing in the agent changes between this run and its report.
+
+## Bug fixes after the contrasting baseline: written on 2026-10-22, before the run
+
+### The question
+
+Do four fixes in code, none of them in the instructions, remove the defects they target without costing anything
+the agent already did right?
+
+### What runs
+
+All 42 development scenarios, 3 tries each: 126 conversations. Budget $0.50. Instructions v7, policy v2 and the
+simulated customer are unchanged since the step 2 repairs run (D01 to D30) and the contrasting baseline (D31 to D42).
+The four changes (plan change log, 2026-10-22):
+
+1. The adapter shows the customer the text the model labels `final_answer`, logs every text item with its label,
+   and sends the model back every text item it gave, with its label, in the order it gave them, as the provider
+   asks: the customer sees the final answer, the model gets back what it said. Every scenario can be affected when
+   the model labels its text; the effect of sending the items back is not separated from the rest.
+2. A `customer_asked` handoff needs the quoted words in the customer's latest message, and that message must ask for
+   a person: a clause names one with no negation before it, or it opens with a yes, with no negation, to an offer of
+   a person in the agent's message just before it; "never mind" withdraws a request. Twelve contrasting cases are
+   permanent tests (the first version of the rule, written earlier the same day, got 7 of them wrong; third review,
+   2026-10-22). Replayed on every `customer_asked` attempt of the step 2, repairs and baseline runs, the rule keeps
+   the 30 handoffs where the customer asked for a person and refuses only "Can I cancel it?" (D38 try 1).
+3. The refusal's named case for a person is read from every refusal reason, never for an order in transit, and
+   names only the units a return dispute can carry. The text the agent reads changes only when it requests units
+   not received back together with others (possible in D02, D03, D09, D11, D12, D13, D25, D31 and D32).
+4. A proposal call made again with its call ID tells the proposal's status now, in its status field and its next
+   step from one read; after a staff member's rejection it gives the reason and asks for no new proposal. No run
+   makes such a call.
+
+### Predictions
+
+1. No unauthorized or duplicate committed refund.
+2. No agent message holds the same text twice. If the log shows that the model labelled no text, this prediction
+   is reported as untested, not as right.
+3. No `customer_asked` handoff on words that ask for no person, by Claude's reading; refused attempts are counted.
+4. All 27 required handoffs (18 in D01 to D30, and D36, D37 and D40).
+5. D38: 3 of 3.
+6. Of the 112 conversations that passed in their scenario's last run (81 of the repairs run, 31 of the baseline), at
+   least 106 pass, and every loss is read.
+7. 106 to 120 of the 126 conversations succeed.
+8. Nothing targets the clarifying question: D09, D17, D31 and D33 together 3 to 8 of 12; D32 and D34 6 of 6.
+9. Nothing targets the shipping question: D39 0 to 3.
+10. Paired by scenario against each scenario's last run: -6 to +8 points.
+11. Cost: under $0.15.
+
+### How the results are read
+
+- Claude reads all 126; the user reads, in Greek and without Claude's verdicts, the ones whose outcome a reader's
+  judgment can change and one example of each change at work.
+- A loss among the 112 is attributed, by reading, to one of the four changes or to the run's variation. A change
+  that causes a loss is repaired or withdrawn before the clarification step.
+- Nothing in the agent changes between this run and its report.
+
+### Keeping the changes
+
+All four stay if predictions 1, 3 and 4 hold and no loss among the 112 is attributed to one of them.

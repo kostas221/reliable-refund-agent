@@ -124,6 +124,50 @@ def test_an_answer_becomes_a_turn_and_its_reasoning_goes_back_next_time():
     assert parse(FakeResponse([message("Hello!")])).text == "Hello!"
 
 
+def labelled(text, phase, item_id="msg_1"):
+    content = [ResponseOutputText(type="output_text", text=text, annotations=[])]
+    return ResponseOutputMessage(
+        id=item_id, type="message", role="assistant", status="completed", content=content, phase=phase
+    )
+
+
+def test_the_customer_sees_the_final_answer_and_the_model_gets_back_all_it_said():
+    # The contrasting baseline (2026-10-22): every clarifying question reached the customer twice in one message.
+    # The third review: what is shown is not what the model said, and the model must get back what it said.
+    question = "Which scarf would you like refunded, the olive or the rust one?"
+    commentary = "I found two scarves. " + question
+    turn = parse(FakeResponse([labelled(commentary, "commentary"), labelled(question, "final_answer", "msg_2")]))
+    assert turn.text == question
+    assert turn.message_items == (
+        {"phase": "commentary", "text": commentary},
+        {"phase": "final_answer", "text": question},
+    )
+    assert to_input([turn.as_message()]) == [
+        {"role": "assistant", "content": commentary, "phase": "commentary"},
+        {"role": "assistant", "content": question, "phase": "final_answer"},
+    ]
+
+
+def test_labelled_text_goes_back_in_the_order_the_model_gave_it():
+    second = ResponseReasoningItem(id="rs_2", type="reasoning", summary=[], encrypted_content="gAAAA-second")
+    output = [REASONING, labelled("Let me check.", "commentary"), second, labelled("Done.", "final_answer", "msg_2")]
+    back = to_input([parse(FakeResponse(output)).as_message()])
+    assert [item.get("id") or item["content"] for item in back] == ["rs_1", "Let me check.", "rs_2", "Done."]
+
+
+def test_commentary_before_a_tool_call_is_still_shown_and_unlabelled_text_is_unchanged():
+    turn = parse(FakeResponse([labelled("Let me look up your orders.", "commentary"), CALL]))
+    assert (turn.text, len(turn.tool_calls)) == ("Let me look up your orders.", 1)
+    assert to_input([turn.as_message()])[0] == {
+        "role": "assistant",
+        "content": "Let me look up your orders.",
+        "phase": "commentary",
+    }
+    plain = parse(FakeResponse([message("One."), message("Two.")]))
+    assert plain.text == "One.\nTwo." and plain.continuation == ()
+    assert to_input([plain.as_message()]) == [{"role": "assistant", "content": "One.\nTwo."}]
+
+
 def test_retries_are_ours_and_counted():
     client = FakeClient(
         http_error(openai.RateLimitError, 429),

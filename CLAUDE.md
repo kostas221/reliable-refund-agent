@@ -87,9 +87,24 @@ test-ledger line 0/90 (step 2: 35); one proposal denial left (D17); required cit
 twice). Contrasting development cases written (plan change log, 2026-10-22): D31-D42, six pairs that differ in the
 behaviour that should change (ask which item or propose at once; hand off or not; a question after a receipt), with a
 new criterion `proposes_without_asking` for the explicit side, mock runs and predictions ("Contrasting cases,
-baseline"); their baseline run with the current agent (v7) costs about $0.02. Next: the order of the instructions
-alone for clarification (2/6 now), with the remaining citation of D20 carried by the order list, measured on all 42;
-the graph's pending-selection state only if that is not enough; the simulator fixed and frozen before the final
+baseline"). Their baseline (`runs/pilot-20261022T000917Z-gpt-6-luna-none`, results in `docs/pilot/results.md`): 31/36,
+0 unsafe; asking which item 4/6 (D33 3/3, D31 1/3), no unnecessary question 6/6; three new weaknesses: every clarifying
+question reached the customer twice in one message (the adapter joins all message items and ignores their
+commentary/final_answer label), a `customer_asked` handoff quoting "Can I cancel it?" accepted by the backend (D38), a
+shipping question handed off as a shipping refund (D39, 2/3; the user reads its opening as a question, so the scenario
+stands). The user asked for careful fixes of causes rather than trial runs (2026-10-22): code defects first, each with
+a test that fails without it, then the language judgments one at a time. Bug fixes written (plan change log,
+2026-10-22; second review `docs/remaining-gaps-after-repairs-2026-10-22.md`): the adapter shows the `final_answer`
+text and sends the model back every text item it gave, with labels and in order; `customer_asked` needs the quote in
+the customer's latest message, and that message must name a person with no negation before it or say yes, with no
+negation, to the agent's offer of one in the message just before (12 contrasting cases in
+`tests/test_request_for_person.py`, after a third review found the first rule too loose; replayed on the last three
+runs: keeps the 30 genuine, refuses only D38's); the refusal's named case reads every reason, never for an order in
+transit, and names only the units a dispute can carry; a repeated proposal call tells its status and next step from one
+read, and a rejection's reason. Predictions "Bug fixes after the contrasting
+baseline"; next, the user's run on all 42 (126 conversations, about $0.07). After it: the clarifying question (the
+order of the instructions plus a reminder at the proposal, labelled as a package, or the graph's pending-selection
+state); the shipping question (D39); the D20 remaining citation; the simulator fixed and frozen before the final
 evaluation. The user reads 10 conversations
 of step 1 and 9 of each of steps 3, 2 and the repairs (`user-review/`); Claude's verdicts are shown after. Development
 runs: Claude reads all, the user reads what Claude fails or notes. Phase 7 (video, code licence, external test, CI on a

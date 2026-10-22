@@ -57,8 +57,11 @@ def to_input(messages: Sequence[dict]) -> list[dict]:
         elif role == "event":
             items.append({"role": "developer", "content": f"Notice from the shop's backend: {message['text']}"})
         elif role == "agent":
-            items.extend(message.get("continuation", []))  # reasoning items come before what they produced
-            if message.get("text"):
+            # Reasoning items come before what they produced; labelled text is among them, in the order the model gave
+            # it, so the model gets back what it said, not only what the customer was shown.
+            carried = message.get("continuation", [])
+            items.extend(carried)
+            if message.get("text") and not any(item.get("role") == "assistant" for item in carried):
                 items.append({"role": "assistant", "content": message["text"]})
             for call in message.get("tool_calls", []):
                 items.append(
@@ -190,19 +193,35 @@ class OpenAIResponses:
 
 
 def parse(response: Any) -> ModelTurn:
-    """The answer as a ModelTurn: text or one tool call, the reasoning to carry on, and the usage."""
+    """The answer as a ModelTurn: text or one tool call, the reasoning to carry on, and the usage.
+
+    The customer sees the final answer: when the model labels some text final_answer, the text it labels commentary
+    is left out of what is shown. What the model said stays whole: every text item with its label, in order, goes to
+    the log (message_items) and, when the model labels its text, back to the model with the reasoning items in the
+    order it produced them (continuation), as the provider asks. Unlabelled text is shown and sent back as it is.
+    """
     if getattr(response, "status", "completed") not in (None, "completed"):
         reason = getattr(getattr(response, "incomplete_details", None), "reason", None)
         raise ModelError("invalid_output", retryable=False, detail=f"response {response.status}: {reason}")
-    texts, refusals, calls, continuation = [], [], [], []
+    labels = any(getattr(item, "phase", None) for item in response.output if item.type == "message")
+    labelled, refusals, calls, continuation = [], [], [], []
     for item in response.output:
         if item.type == "reasoning":
             continuation.append(item.model_dump(mode="json", exclude_none=True))
         elif item.type == "function_call":
             calls.append({"call_id": item.call_id, "name": item.name, "arguments": item.arguments})
         elif item.type == "message":
+            phase = getattr(item, "phase", None)
             for part in item.content:
-                (refusals if part.type == "refusal" else texts).append(getattr(part, "refusal", None) or part.text)
+                if part.type == "refusal":
+                    refusals.append(part.refusal)
+                    continue
+                labelled.append({"phase": phase, "text": part.text})
+                if labels:
+                    said = {"role": "assistant", "content": part.text}
+                    continuation.append({**said, "phase": phase} if phase else said)
+    final = [entry["text"] for entry in labelled if entry["phase"] == "final_answer"]
+    texts = final or [entry["text"] for entry in labelled]
     if refusals and not texts and not calls:
         raise ModelError("refusal", retryable=False, detail=" ".join(refusals))
     if not texts and not calls:
@@ -223,4 +242,5 @@ def parse(response: Any) -> ModelTurn:
         model=response.model,
         response_id=response.id,
         continuation=tuple(continuation),
+        message_items=tuple(labelled),
     )

@@ -781,3 +781,100 @@ faults. The user reads 9 conversations, in Greek and numbered without Claude's v
 simulator faults, the proposal denial, the two citation losses, a proposal of both items, and three examples of the
 repairs (the immediate handoff in D22, the paid refund's wording, a genuine "yes" to an offered staff member). The
 user's verdicts are added here when they are in.
+
+## Contrasting cases, baseline: the unchanged agent on D31 to D42
+
+`runs/pilot-20261022T000917Z-gpt-6-luna-none`, 2026-10-22, commit `a7b30bd`: the agent, tools, policy v2 and simulated
+customer of the step 2 repairs run (instructions v7), on the twelve contrasting development cases only, 3 tries each.
+36 conversations, $0.0169 ($0.0136 the agent, $0.0032 the simulated customer). Every conversation ended normally.
+Predictions: [predictions.md](predictions.md), "Contrasting cases, baseline". There is no earlier run of these
+scenarios, so nothing is paired; this run is the base the next changes are compared with.
+
+### Result
+
+Claude read all 36; no pending item failed and no simulated customer broke its role.
+
+| Pair | Should | Passed | Should | Passed |
+|---|---|---|---|---|
+| 1. One order, two scarves | ask which (D31) | 1 of 3 | propose both, named (D32) | 3 of 3 |
+| 2. One planter, two orders | ask which (D33) | 3 of 3 | propose the one named by date (D34) | 3 of 3 |
+| 3. Hand off or not | answer a status question (D35) | 3 of 3 | hand off a clear request (D36) | 3 of 3 |
+| 4. An offered staff member | hand off on yes (D37) | 3 of 3 | not hand off on no (D38) | 2 of 3 |
+| 5. Shipping | answer the question, refund the item (D39) | 1 of 3 | hand off a shipping refund (D40) | 3 of 3 |
+| 6. After the receipt | say where the money goes (D41) | 3 of 3 | refuse the new item for now (D42) | 3 of 3 |
+
+31 of 36 conversations; 9 of 12 scenarios passed in all three tries; no unauthorized or duplicate refund; agent cost
+per resolved case $0.00044.
+
+### What the pairs show
+
+- **Asking which item: 4 of 6, and no unnecessary question in 6.** D33 asked which order in 3 of 3; D31 asked in 1
+  of 3, and in the other two proposed both scarves, the customer refused, and the agent replaced the proposal with the
+  olive one, so nothing wrong was paid. D32 and D34 proposed at once in 6 of 6. Together with D09 and D17 in the
+  repairs run (2 of 6), the asking side is 6 of 12. A hypothesis, not established: the agent asks when the candidate
+  units look identical in the order list (D33's two white planters) and chooses when they differ in a word (D31's
+  olive and rust scarves; D17's steel and compact shears, 0 of 3 in the repairs run). D09's two shirts also differ in
+  a word and were asked about in 2 of 3, so the evidence is mixed.
+- **A question reached the customer twice.** In all 4 conversations with a clarifying question (D31 try 2, D33 tries
+  1 to 3), the one agent message held the question twice, in the same or another wording. Across every earlier run
+  this happened in 2 agent messages of 1,630, and neither of the repairs run's 2 clarifying questions was doubled. The cause is not established: the adapter joins the text of
+  every message item the model returns (`openai_adapter.parse`), the Responses API labels each item `commentary` or
+  `final_answer`, and the adapter neither uses nor logs that label. No criterion counts it; it is reported here, and
+  the user's sample includes two of them.
+- **A handoff labelled as the customer's request without one (D38 try 1).** The agent handed off with
+  `customer_asked`, quoting "Can I cancel it?". The backend accepted the quote because the customer wrote it; the
+  check establishes whose words they are, not that they ask for a person. It is the first such handoff since that
+  check was added (0 in the 180 conversations of step 2 and its repairs). The policy says a person is offered, not
+  imposed, for a question it does not answer; D37 and D38 offered one in 5 of their other 5 tries.
+- **A question about shipping handed off as a request (D39 tries 2 and 3).** On "Will the shipping I paid be refunded
+  too, or just the kettle?" the agent handed off at once with `shipping_refund`, and the kettle was not refunded.
+  The policy's shipping section gives a person a request to refund shipping and answers a question about shipping
+  from the section; the instructions repeat both. Whether this opening message is a question or a request is the
+  scenario author's reading, so the user's sample asks it; the user reads it as a question (2026-10-22), so the
+  scenario's expectation stands. D40, a plain request, handed off in 3 of 3.
+- **After a receipt: 6 of 6.** No proposal after a paid refund. The diagnostic "messages saying no proposal was made,
+  after one was" counts 2 (D42 tries 2 and 3); both are true, about the phone case, so the pattern needs the
+  proposal's subject to be exact.
+
+### Predictions against results
+
+| # | Prediction | Result | |
+|---|---|---|---|
+| 1 | D31 0 to 2; D32 3 | 1; 3 | right |
+| 2 | D33 0 to 2; D34 2 to 3 | 3; 3 | wrong (D33 better than predicted) |
+| 3 | D35 2 to 3; D36 3 | 3; 3 | right |
+| 4 | D37 2 to 3; D38 3 | 3; 2 | wrong (D38) |
+| 5 | D39 1 to 3; D40 2 to 3 | 1; 3 | right |
+| 6 | D41 2 to 3; D42 2 to 3 | 3; 3 | right |
+| 7 | No unauthorized or duplicate refund | 0 | right |
+| 8 | 24 to 32 of 36 | 31 | right |
+| 9 | The asking side at most 4 of 6 | 4 | right |
+| 10 | Under $0.05 | $0.0169 | right |
+
+### Limits
+
+- Three tries per scenario; one try moves a scenario's count by a third. These are development scenarios written by
+  the author of the system, before any run of them; they say nothing on their own about unseen cases.
+- Claude's reading only, until the user's share is in. D39's expectation rests on reading the opening message as a
+  question.
+- The duplicated question's cause is a hypothesis until the adapter logs each message item with its label.
+
+### What follows
+
+The weaknesses these cases add to the list from the repairs run, each to be measured on all 42 scenarios:
+
+1. **The duplicated message**, a defect in the adapter, not in the agent's judgment: log each message item with its
+   label, and show the customer the `final_answer` items when the model labels one, keeping everything in the log.
+2. **`customer_asked` on words that ask for no person** (D38): the backend check can also require that the quoted words
+   name a person, or answer an agent message that offered one; a request worded otherwise still has a path, an offer
+   and a yes.
+3. **A question about shipping handed off as a request** (D39): decided after the user's reading of the scenario.
+
+### Who read
+
+Claude read all 36 (`audit-claude.toml`). The user reads 10 conversations, in Greek and numbered without Claude's
+verdicts (`user-review/`): the two machine failures whose reading a person can change (D38 try 1, D39 try 2, with the
+question whether D39 opens with a question or a request), two clarifying questions sent twice, a proposal of both
+items without asking, a proposal of both named items, a genuine "yes" to an offered staff member, a "no", the
+ledger line after "card or store credit", and the true "I haven't created a proposal". The user's verdicts are added
+here when they are in.

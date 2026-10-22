@@ -79,7 +79,13 @@ class ModelTurn:
     usage: Usage = field(default_factory=Usage)
     model: str = ""  # the model that actually answered
     response_id: str | None = None
-    continuation: tuple[Any, ...] = ()  # provider items to send back next time, such as reasoning items
+    # Provider items to send back next time, in the order the model gave them: reasoning items, and the model's own
+    # labelled text when it labels it (see openai_adapter.parse).
+    continuation: tuple[Any, ...] = ()
+    # Every text item the model returned, in order, as {"phase", "text"}, for the request log; phase is the provider's
+    # label, "final_answer" or "commentary", or None. `text` is what the customer sees (plan change log, 2026-10-22:
+    # a clarifying question reached the customer twice in one message).
+    message_items: tuple[dict, ...] = ()
 
     def as_message(self) -> dict:
         return {
@@ -214,7 +220,12 @@ class RecordingAdapter:
             record["error"] = {"kind": "budget_exceeded", "retryable": False, "detail": str(stop)}
             self._write(self._attempts(record))
             raise
-        record["answer"] = {"text": turn.text, "tool_calls": list(turn.tool_calls), "model": turn.model}
+        record["answer"] = {
+            "text": turn.text,
+            "tool_calls": list(turn.tool_calls),
+            "model": turn.model,
+            "message_items": list(turn.message_items),
+        }
         record["usage"] = asdict(turn.usage)
         self._write(self._attempts(record))
         return turn

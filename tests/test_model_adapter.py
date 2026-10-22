@@ -73,6 +73,7 @@ def test_the_log_holds_each_request_in_full(tmp_path):
     assert (first["instructions"], first["instructions_sha256"]) == (INSTRUCTIONS.text, INSTRUCTIONS.sha256)
     assert first["messages"] == messages and first["tools"] == TOOL_LIST
     assert first["answer"]["tool_calls"][0]["name"] == "list_my_orders"
+    assert first["answer"]["message_items"] == []  # each text item with its label, when a provider returns some
     assert first["usage"] == {
         "input_tokens": 0,
         "cached_input_tokens": 0,

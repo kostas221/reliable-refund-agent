@@ -1,0 +1,139 @@
+{
+  "scenario": "D38",
+  "try": 1,
+  "configuration": "A",
+  "result": "failed",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['none', 'ineligible']"
+    },
+    {
+      "name": "handoff",
+      "status": "failed",
+      "evidence": "handoffs with origin ['customer']; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v2/eligible-orders",
+      "status": "passed",
+      "evidence": "shown in an agent message"
+    },
+    {
+      "name": "communication:explains_refusal_reason",
+      "status": "pending",
+      "evidence": "pre-check passed: 1 agent messages"
+    },
+    {
+      "name": "communication:announces_handoff",
+      "status": "pending",
+      "evidence": "pre-check passed: an agent message follows the handoff"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 3,
+  "refusals": [],
+  "handoff_origins": [
+    "customer"
+  ],
+  "agent_seconds": [
+    5.169
+  ],
+  "spent_usd": {
+    "agent": 0.0002166049999999982,
+    "simulator": 5.000000000000013e-05
+  },
+  "attempts_sent": 4,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hello, my rice cooker order is still on its way, but I don't need it any more. Can I cancel it?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_PJh1SNHnruK7dGV0cFMa2KHD",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_PJh1SNHnruK7dGV0cFMa2KHD",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"d38-o1\", \"status\": \"shipped\", \"purchased_at\": \"2026-10-17T10:00:00+00:00\", \"delivered_at\": null, \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"d38-o1-u1\", \"product\": \"Electric rice cooker\", \"paid_minor\": 15990, \"received_back\": false, \"refunded\": false}], \"requests\": []}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_w6tTII1rf43DWQrC1Gd5U9I8",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\":\"customer_asked\",\"order_id\":\"\",\"unit_ids\":[],\"customer_words\":\"Can I cancel it?\",\"reason\":\"The order is still on its way, and cancellation is outside the refund process.\",\"customer_goal\":\"Cancel the rice cooker order.\",\"confirmed_facts\":\"Order d38-o1 for an Electric rice cooker has status shipped.\",\"decision_needed\":\"Whether the shipped order can be cancelled.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_w6tTII1rf43DWQrC1Gd5U9I8",
+      "name": "request_handoff",
+      "content": "{\"ok\": true, \"handoff_id\": \"hand-49be4d218b2942c0\", \"next_step\": \"Tell the customer a person will take over. Make no more changes.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Your rice cooker order is marked as shipped. Cancelling an order that’s on its way is outside this refund process, so a person will take over to help with your request. (refund-policy/v2/eligible-orders)",
+      "tool_calls": [],
+      "continuation": []
+    }
+  ]
+}

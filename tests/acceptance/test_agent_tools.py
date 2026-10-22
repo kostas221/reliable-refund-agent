@@ -435,6 +435,24 @@ def test_a_request_for_a_person_needs_words_the_customer_wrote(db):
     ]
 
 
+def test_a_request_for_a_person_names_one_or_answers_an_offer_of_one(db):
+    # The contrasting baseline (2026-10-22): the agent quoted "Can I cancel it?", which the customer wrote but which
+    # asks for no one, and the backend accepted it (D38 try 1).
+    ctx = agent_for(db, "D38")
+    said(ctx, "Hello, my rice cooker order is still on its way, but I don't need it any more. Can I cancel it?")
+    no_person = "that message does not ask for a person: it names none, or declines one, or answers no offer of one"
+    refused = asked(ctx, "Can I cancel it?")
+    assert (refused["refused"], refused["explanation"].split(".")[0]) == ("handoff_reason", no_person)
+    said(ctx, "Your order is on its way, so I can't cancel it here.", author="agent")  # no offer of a person
+    said(ctx, "Yes, please.")
+    refused = asked(ctx, "Yes, please.", "hand-2")
+    assert (refused["refused"], refused["explanation"].split(".")[0]) == ("handoff_reason", no_person)
+    assert control(ctx) == [("agent",)]
+    said(ctx, "Then I'd like to talk to someone from your team.")
+    assert asked(ctx, "I'd like to talk to someone from your team", "hand-3")["ok"] is True
+    assert rows(ctx.engine, "SELECT origin FROM handoffs") == [("customer",)]
+
+
 # The assessment: the decision a proposal would get, with its facts, and nothing written (v1.1 step 2)
 
 
@@ -618,6 +636,86 @@ def test_a_refusal_for_lateness_names_no_case_for_a_person(db, tool):
     refused = call(ctx, tool, order_id="d05-o1", unit_ids=["d05-o1-u1"])
     assert refused["outcome"] == "refused"
     assert "for a person" not in refused["next_step"] and "return_disputed" not in refused["next_step"]
+
+
+# The second review (2026-10-22): the named case was keyed by the first refusal reason only.
+
+
+@pytest.mark.parametrize("tool", ["assess_refund", "propose_refund"])
+def test_a_late_request_for_a_unit_not_received_still_names_the_case_for_a_person(db, tool):
+    ctx = agent_for(db, "D05")  # a late request; here the unit's return is not recorded either
+    with db("owner").begin() as conn:
+        conn.execute(text("UPDATE order_units SET received_back_at = NULL WHERE id = 'd05-o1-u1'"))
+    refused = call(ctx, tool, order_id="d05-o1", unit_ids=["d05-o1-u1"])
+    assert refused["policy_citations"] == ["refund-policy/v2/window", "refund-policy/v2/return"]
+    assert "If the customer says these units were already sent, the policy names that case" in refused["next_step"]
+
+
+@pytest.mark.parametrize("tool", ["assess_refund", "propose_refund"])
+def test_an_order_on_its_way_names_no_case_for_a_person(db, tool):
+    ctx = agent_for(db, "D38")  # shipped, so nothing is received back either
+    refused = call(ctx, tool, order_id="d38-o1", unit_ids=["d38-o1-u1"])
+    assert refused["policy_citations"] == ["refund-policy/v2/eligible-orders", "refund-policy/v2/return"]
+    assert "for a person" not in refused["next_step"] and "return_disputed" not in refused["next_step"]
+
+
+@pytest.mark.parametrize("tool", ["assess_refund", "propose_refund"])
+def test_a_refusal_names_only_the_units_a_return_dispute_can_carry(db, tool):
+    ctx = agent_for(db, "D03")  # u1 refunded before, u2 received back, u3 kept by the customer
+    refused = call(ctx, tool, order_id="d03-o1", unit_ids=["d03-o1-u1", "d03-o1-u2", "d03-o1-u3"])
+    assert refused["policy_citations"] == ["refund-policy/v2/remaining", "refund-policy/v2/return"]
+    assert "If the customer says they already sent d03-o1-u3 (Crystal wine glass)," in refused["next_step"]
+    assert "the order and only those units" in refused["next_step"]
+
+
+# A proposal call made again with its call ID returns the proposal as it is now (second review, 2026-10-22).
+
+
+def test_a_proposal_call_made_again_tells_the_proposals_status_now(db):
+    ctx = agent_for(db, "D01")
+    again = lambda: call(ctx, "propose_refund", "p-1", order_id="d01-o1", unit_ids=["d01-o1-u1"])  # noqa: E731
+    proposal = again()["proposal_id"]
+    assert again()["next_step"].startswith("The proposal is now on the customer's card, waiting for their button.")
+    confirm(ctx.engine, Actor("customer", ctx.customer_id), proposal, "confirmed", ctx.clock(), POLICY)
+    assert again()["next_step"].startswith("The customer already confirmed this proposal with the button;")
+    decide(ctx.engine, Actor("staff", "d01-rui"), proposal, "approved", ctx.clock(), POLICY)
+    assert again()["next_step"].startswith("A staff member already approved this proposal;")
+    receipt = call(ctx, "execute_refund", "x-1")["receipt"]["receipt_number"]
+    assert again()["next_step"].startswith(f"This proposal is already paid, receipt {receipt}.")
+    assert {again()["proposal_id"]} == {proposal}
+    assert rows(ctx.engine, "SELECT count(*) FROM proposals") == [(1,)]
+    assert rows(ctx.engine, "SELECT count(*) FROM refund_operations") == [(1,)]
+
+
+def test_a_proposal_call_made_again_after_a_cancel_or_the_deadline_says_nothing_waits(db):
+    ctx = agent_for(db, "D01")
+    again = lambda c: call(c, "propose_refund", "p-1", order_id="d01-o1", unit_ids=["d01-o1-u1"])  # noqa: E731
+    proposal = again(ctx)["proposal_id"]
+    later = replace(ctx, clock=lambda: ctx.clock() + timedelta(hours=POLICY.rules.proposal_ttl_hours))
+    expired = again(later)  # past its deadline, before any write records it: the status and the step agree
+    assert expired["status"] == "expired"
+    assert expired["next_step"].startswith("This proposal is expired and nothing waits for the customer's button.")
+    assert cancel(ctx.engine, Actor("customer", ctx.customer_id), proposal, ctx.clock(), POLICY) == "cancelled"
+    cancelled = again(ctx)
+    assert cancelled["status"] == "cancelled"
+    assert cancelled["next_step"].startswith("This proposal is cancelled and nothing waits for the customer's button.")
+    assert rows(ctx.engine, "SELECT count(*) FROM proposals") == [(1,)]
+
+
+def test_a_proposal_call_made_again_after_a_rejection_gives_the_reason_and_asks_for_nothing(db):
+    ctx = agent_for(db, "D01")
+    again = lambda: call(ctx, "propose_refund", "p-1", order_id="d01-o1", unit_ids=["d01-o1-u1"])  # noqa: E731
+    proposal = again()["proposal_id"]
+    confirm(ctx.engine, Actor("customer", ctx.customer_id), proposal, "confirmed", ctx.clock(), POLICY)
+    reason = "The mug in the photo is not the one we sent."
+    decide(ctx.engine, Actor("staff", "d01-rui"), proposal, "rejected", ctx.clock(), POLICY, reason)
+    rejected = again()
+    assert rejected["status"] == "rejected"
+    assert rejected["next_step"] == (
+        f'A staff member rejected this proposal, with the reason "{reason}". Tell the customer it was rejected and '
+        "why; nothing waits for their button."
+    )
+    assert "propose_refund" not in rejected["next_step"]
 
 
 def test_a_paid_refund_is_told_against_the_original_payment_and_the_ledger_only_when_asked(db):
