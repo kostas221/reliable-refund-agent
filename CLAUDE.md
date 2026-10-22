@@ -84,8 +84,13 @@ refused); clarification 1/6 (the assessment did not bring it); two defects in te
 (`runs/pilot-20261021T224855Z-gpt-6-luna-none`, results in `docs/pilot/results.md`): 81/90, pass^3 24/30, 0 unsafe; +2.2
 points against step 2 (95% -5.6 to +11.1), +12.2 against v1 (+1.1 to +25.6). 18/18 required handoffs; the unasked
 test-ledger line 0/90 (step 2: 35); one proposal denial left (D17); required citations 24/27 (D20 missed remaining
-twice). Next, as approved: write the contrasting development cases, then the order of the instructions alone for
-clarification (2/6 now); the graph's pending-selection state only if that is not enough. The user reads 10 conversations
+twice). Contrasting development cases written (plan change log, 2026-10-22): D31-D42, six pairs that differ in the
+behaviour that should change (ask which item or propose at once; hand off or not; a question after a receipt), with a
+new criterion `proposes_without_asking` for the explicit side, mock runs and predictions ("Contrasting cases,
+baseline"); their baseline run with the current agent (v7) costs about $0.02. Next: the order of the instructions
+alone for clarification (2/6 now), with the remaining citation of D20 carried by the order list, measured on all 42;
+the graph's pending-selection state only if that is not enough; the simulator fixed and frozen before the final
+evaluation. The user reads 10 conversations
 of step 1 and 9 of each of steps 3, 2 and the repairs (`user-review/`); Claude's verdicts are shown after. Development
 runs: Claude reads all, the user reads what Claude fails or notes. Phase 7 (video, code licence, external test, CI on a
 remote) after v1.1.

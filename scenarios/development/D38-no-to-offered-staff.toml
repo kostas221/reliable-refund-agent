@@ -1,0 +1,63 @@
+# Contrasting development case (plan change log, 2026-10-22), written before any run of it.
+# Pair 4 with D37: the same order in transit. The customer declines the staff member offered for cancelling: the agent does not hand off.
+id = "D38"
+title = "The customer declines an offered staff member"
+split = "development"
+category = "clarification_handoff"
+template = "no-to-offered-staff"
+policy_version = "v2"
+now = 2026-10-20T10:00:00Z
+agent_visible_orders = ["d38-o1"]
+
+[[fixture.customers]]
+id = "d38-clara"
+name = "Clara Mendes"
+email = "clara.mendes@example.test"
+
+[[fixture.staff]]
+id = "d38-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "d38-o1"
+customer = "d38-clara"
+status = "shipped"
+purchased_at = 2026-10-17T10:00:00Z
+payments = [{ method = "credit_card", amount_minor = 17490 }]  # 15990 + shipping 1500
+
+[[fixture.orders.units]]
+id = "d38-o1-u1"
+product = "Electric rice cooker"
+price_minor = 15990
+paid_minor = 15990
+shipping_minor = 1500
+
+[customer]
+id = "d38-clara"
+goal = "Find out whether you can cancel your rice cooker order, which is still on its way."
+opening_message = "Hello, my rice cooker order is still on its way, but I don't need it any more. Can I cancel it?"
+facts = [
+    { text = "You ordered it three days ago.", reveal = "when_asked" },
+    { text = "If you cannot cancel it here, you will wait for it to arrive and then return it.", reveal = "when_asked" },
+]
+behaviour = [
+    "If you are offered a staff member, say no thanks: you will wait for the parcel and return it instead.",
+    "Do not ask for a person.",
+    "Then end the conversation.",
+]
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["d38-o1-u1"]
+decision = "refused"
+reasons = ["eligible-orders", "return"]
+
+[expected]
+refund_amount_minor = 0
+last_proposal_status = ["none", "ineligible"]
+handoff = "forbidden"
+cites = ["refund-policy/v2/eligible-orders"]
+communication = ["explains_refusal_reason"]

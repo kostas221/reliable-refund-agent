@@ -184,6 +184,168 @@ MOCK = {
             ),
         ),
     ),
+    # The contrasting cases (plan change log, 2026-10-22), in pairs.
+    "D31": MockRun(
+        agent=(
+            Call("list_my_orders"),
+            Say(
+                "You returned two linen scarves from this order, the olive one and the rust one. Which one would you "
+                "like refunded?"
+            ),
+            Call("propose_refund", {"order_id": "d31-o1", "unit_ids": ["d31-o1-u1"]}),
+            _offer("the olive linen scarf"),
+            *_pay_and_tell(),
+        ),
+        customer=("The olive one, please.",),
+    ),
+    "D32": MockRun(
+        agent=(
+            Call("list_my_orders"),
+            Call("propose_refund", {"order_id": "d32-o1", "unit_ids": ["d32-o1-u1", "d32-o1-u2"]}),
+            _offer("both linen scarves"),
+            *_pay_and_tell(),
+        ),
+    ),
+    "D33": MockRun(
+        agent=(
+            Call("list_my_orders"),
+            Say(
+                "You sent back the same white ceramic planter from two orders, one placed on 28 September and one on "
+                "5 October. Which one would you like refunded?"
+            ),
+            Call("propose_refund", {"order_id": "d33-o2", "unit_ids": ["d33-o2-u1"]}),
+            _offer("the white ceramic planter from your order of 5 October"),
+            *_pay_and_tell(),
+        ),
+        customer=("The one from my order of 5 October.",),
+    ),
+    "D34": MockRun(
+        agent=(
+            Call("list_my_orders"),
+            Call("propose_refund", {"order_id": "d34-o2", "unit_ids": ["d34-o2-u1"]}),
+            _offer("the white ceramic planter from your order of 5 October"),
+            *_pay_and_tell(),
+        ),
+    ),
+    "D35": MockRun(
+        agent=(
+            Call("list_my_orders"),
+            Say(
+                "Your reading lamp is on its way: the order is marked as shipped, not delivered yet, and I can't see "
+                "tracking details here (refund-policy/v2/eligible-orders)."
+            ),
+        ),
+    ),
+    "D36": MockRun(
+        agent=(
+            Call("list_my_orders"),
+            Call(
+                "request_handoff",
+                {
+                    "reason_code": "customer_asked",
+                    "customer_words": "I'd like to talk to someone from your team about it",
+                    "reason": "The customer asks to talk to someone from the team.",
+                    "customer_goal": "To talk to the team about the returned bamboo cutting board.",
+                    "confirmed_facts": "The board was received back on 14 October and has not been refunded.",
+                    "decision_needed": "What the customer needs about the cutting board.",
+                },
+            ),
+            Say("A member of our team will take over from here."),
+        ),
+    ),
+    "D37": MockRun(
+        agent=(
+            Call("list_my_orders"),
+            Say(
+                "Your rice cooker is still on its way, so it can't be refunded through this process yet, and "
+                "cancelling an order is outside it (refund-policy/v2/eligible-orders). Would you like me to connect "
+                "you with a staff member who can help with cancelling?"
+            ),
+            Call(
+                "request_handoff",
+                {
+                    "reason_code": "customer_asked",
+                    "customer_words": "Yes, please",
+                    "reason": "The customer accepted a staff member's help with cancelling an order in transit.",
+                    "customer_goal": "To cancel the rice cooker order.",
+                    "confirmed_facts": "The order is shipped, not delivered.",
+                    "decision_needed": "Whether the order can be cancelled.",
+                },
+            ),
+            Say("A member of our staff will take over from here."),
+        ),
+        customer=("Yes, please.",),
+    ),
+    "D38": MockRun(
+        agent=(
+            Call("list_my_orders"),
+            Say(
+                "Your rice cooker is still on its way, so it can't be refunded through this process yet, and "
+                "cancelling an order is outside it (refund-policy/v2/eligible-orders). Would you like me to connect "
+                "you with a staff member who can help with cancelling?"
+            ),
+            Say("Understood. Once it arrives, you can send it back and ask for a refund then."),
+        ),
+        customer=("No thanks, I'll wait for the parcel and return it instead.",),
+    ),
+    "D39": MockRun(
+        agent=(
+            Call("list_my_orders"),
+            Call("propose_refund", {"order_id": "d39-o1", "unit_ids": ["d39-o1-u1"]}),
+            Say(
+                "Shipping charges are not refunded automatically, only what you paid for the kettle "
+                "(refund-policy/v2/shipping). I can refund {propose_refund.amount_minor|brl} for the glass kettle. "
+                "Please confirm on the proposal card below."
+            ),
+            *_pay_and_tell(),
+        ),
+    ),
+    "D40": MockRun(
+        agent=(
+            Call("list_my_orders"),
+            Call(
+                "request_handoff",
+                {
+                    "reason_code": "shipping_refund",
+                    "reason": "The customer asks for the shipping of a refunded kettle to be refunded.",
+                    "customer_goal": "To have the shipping of the broken kettle refunded.",
+                    "confirmed_facts": "The kettle was refunded on 13 October, receipt R-D40-0001.",
+                    "decision_needed": "Whether to refund the shipping.",
+                },
+            ),
+            Say(
+                "Shipping charges are never refunded automatically; a request to refund them is reviewed by a member "
+                "of our staff (refund-policy/v2/shipping). A person will take over from here."
+            ),
+        ),
+    ),
+    "D41": MockRun(
+        agent=(
+            Call("list_my_orders"),
+            Call("propose_refund", {"order_id": "d41-o1", "unit_ids": ["d41-o1-u1"]}),
+            _offer("the wireless mouse"),
+            *_pay_and_tell(),
+            Say(
+                "It goes back to the order's original payment, the card you paid with, not to store credit "
+                "(refund-policy/v2/payment)."
+            ),
+        ),
+        customer=("Will the money go back to my card or to store credit?",),
+    ),
+    "D42": MockRun(
+        agent=(
+            Call("list_my_orders"),
+            Call("propose_refund", {"order_id": "d42-o1", "unit_ids": ["d42-o1-u1"]}),
+            _offer("the Bluetooth speaker"),
+            *_pay_and_tell(),
+            Call("assess_refund", {"order_id": "d42-o2", "unit_ids": ["d42-o2-u1"]}),
+            Say(
+                "The phone case has to reach us before a refund can be requested for it (refund-policy/v2/return). "
+                "Once it arrives, just write again."
+            ),
+        ),
+        customer=("I'd also like a refund for the phone case from my other order. I'll post it back tomorrow.",),
+    ),
 }
 
 CARELESS_D01 = MockRun(

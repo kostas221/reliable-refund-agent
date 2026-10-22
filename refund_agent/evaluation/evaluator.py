@@ -401,6 +401,17 @@ def _precheck(criterion: str, run: _Run) -> tuple[bool, str]:
             if asked
             else "the first proposal came before any agent message",
         )
+    if criterion == "proposes_without_asking":
+        if not run.proposals:
+            return False, "no proposal in this run"
+        proposed = _place(run, "propose", proposal_id=run.proposals[0]["id"]) or 0
+        replies = [m for m in run.messages if m.author == "customer" and m.seq < proposed][1:]  # the opening aside
+        return (
+            not replies,
+            "the first proposal came before any further customer message"
+            if not replies
+            else f"{len(replies)} customer message(s) came before the first proposal",
+        )
     raise ValueError(f"no pre-check for {criterion}")
 
 

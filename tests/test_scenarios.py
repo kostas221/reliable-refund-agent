@@ -49,8 +49,10 @@ DEVELOPMENT = load_split("development")
 HELD_OUT = load_split("held_out")
 ALL = DEVELOPMENT + HELD_OUT
 BY_ID = {s.id: s for s in DEVELOPMENT}
-ORIGINAL = [s for s in DEVELOPMENT if not s.derived_from]  # written for development
+ORIGINAL = [s for s in DEVELOPMENT if not s.derived_from and int(s.id[1:]) <= 10]  # written for development
 COPIES = [s for s in DEVELOPMENT if s.derived_from]  # copies of held-out scenarios a final evaluation used
+# Contrasting cases in pairs, written before any run of them (plan change log, 2026-10-22).
+CONTRAST = [s for s in DEVELOPMENT if not s.derived_from and int(s.id[1:]) > 30]
 FINAL_RUN = REPO_ROOT / "runs" / "final-20261019T201207Z" / "manifest.json"
 SUBSET = json.loads((REPO_ROOT / "data" / "olist" / "subset.json").read_text(encoding="utf-8"))
 # A list price above what was paid is synthetic, and written in the scenario (data/olist/README.md).
@@ -72,9 +74,31 @@ def policy_order(scenario: Scenario, unit_id: str) -> eligibility.Order:
 
 
 def test_development_scenarios_numbered_in_order():
-    assert [s.id for s in DEVELOPMENT] == [f"D{n:02d}" for n in range(1, 31)]
+    assert [s.id for s in DEVELOPMENT] == [f"D{n:02d}" for n in range(1, 43)]
     assert [s.id for s in ORIGINAL] == [f"D{n:02d}" for n in range(1, 11)]
     assert [(s.id, s.derived_from) for s in COPIES] == [(f"D{n + 10:02d}", f"H{n:02d}") for n in range(1, 21)]
+    assert [s.id for s in CONTRAST] == [f"D{n:02d}" for n in range(31, 43)]
+
+
+def test_contrasting_cases_come_in_pairs_that_differ_in_the_right_behaviour():
+    # Each pair is one situation with the one difference that decides what is right: asking or not, handing off or
+    # not, answering a question or handling a new request. Both sides are measured, so a change that always asks or
+    # always hands off cannot pass as an improvement.
+    pairs = [(CONTRAST[i], CONTRAST[i + 1]) for i in range(0, len(CONTRAST), 2)]
+    sides = {
+        "ask": lambda s: "resolves_ambiguity_first" in s.expected.communication,
+        "propose": lambda s: "proposes_without_asking" in s.expected.communication,
+    }
+    for first, second in pairs:
+        assert first.template != second.template
+        asks = (sides["ask"](first), sides["propose"](second))
+        hands = (first.expected.handoff, second.expected.handoff)
+        assert (
+            asks == (True, True)
+            or "required" in hands
+            and "forbidden" in hands
+            or (first.expected.cites != second.expected.cites)
+        ), (first.id, second.id)
 
 
 def test_a_development_copy_is_its_source_but_for_id_split_and_origin():

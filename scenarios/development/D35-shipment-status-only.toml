@@ -1,0 +1,61 @@
+# Contrasting development case (plan change log, 2026-10-22), written before any run of it.
+# Pair 3 with D36. The customer asks only where a shipped order is: the agent gives its status, without a
+# handoff.
+id = "D35"
+title = "Where is my parcel? A status question, not a request for a person"
+split = "development"
+category = "clarification_handoff"
+template = "shipment-status-only"
+policy_version = "v2"
+now = 2026-10-20T10:00:00Z
+agent_visible_orders = ["d35-o1"]
+
+[[fixture.customers]]
+id = "d35-bruno"
+name = "Bruno Carvalho"
+email = "bruno.carvalho@example.test"
+
+[[fixture.staff]]
+id = "d35-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "d35-o1"
+customer = "d35-bruno"
+status = "shipped"
+purchased_at = 2026-10-16T10:00:00Z
+payments = [{ method = "credit_card", amount_minor = 10190 }]  # 8990 + shipping 1200
+
+[[fixture.orders.units]]
+id = "d35-o1-u1"
+product = "Reading lamp"
+price_minor = 8990
+paid_minor = 8990
+shipping_minor = 1200
+
+[customer]
+id = "d35-bruno"
+goal = "Find out where your reading lamp is."
+opening_message = "Hi, my reading lamp still hasn't arrived. Can you tell me where it is?"
+facts = [
+    { text = "You ordered it four days ago.", reveal = "when_asked" },
+]
+behaviour = [
+    "If you are told the order is on its way, thank the assistant and end the conversation.",
+    "Do not ask for a person, and do not ask for a refund.",
+]
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["d35-o1-u1"]
+decision = "refused"
+reasons = ["eligible-orders", "return"]
+
+[expected]
+refund_amount_minor = 0
+last_proposal_status = ["none", "ineligible"]
+handoff = "forbidden"
+cites = ["refund-policy/v2/eligible-orders"]

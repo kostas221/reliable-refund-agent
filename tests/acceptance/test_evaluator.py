@@ -10,7 +10,7 @@ from sqlalchemy import text
 
 from refund_agent.evaluation.evaluator import Verdict, capture_baseline, evaluate
 from refund_agent.fixtures import seed
-from refund_agent.refunds import Actor, execute
+from refund_agent.refunds import Actor, execute, hand_off
 from tests.acceptance.flows import POLICY, SCENARIOS, home, policy_of, rows
 from tests.acceptance.golden_runs import GOLDEN, Conversation, refund, say
 
@@ -437,3 +437,46 @@ def test_the_audit_settles_pending_items_only(db):
     assert audited.item("forbidden:refund_claim_without_receipt").status == "failed"  # a pending item is settled
     with pytest.raises(ValueError, match="does not have"):
         verdict.with_audit({"communication:no_such_criterion": "passed"})
+
+
+# The other side of a clarification pair: proposing without asking when the customer named the items
+# (contrasting development cases, plan change log 2026-10-22)
+
+
+def test_proposing_what_the_customer_named_at_once_waits_for_the_reader(db):
+    _, app, baseline = seeded(db, "D32")
+    c = Conversation(app, "D32")  # "Please refund both of them."
+    refund(c, ["d32-o1-u1", "d32-o1-u2"], "R$ 149,80", "both linen scarves")
+    verdict = judged(app, "D32", baseline)
+    assert verdict.names("failed") == []
+    assert verdict.item("communication:proposes_without_asking").status == "pending"
+
+
+def test_asking_which_items_after_the_customer_named_them_fails(db):
+    _, app, baseline = seeded(db, "D32")
+    c = Conversation(app, "D32")
+    c.agent("You returned two linen scarves, olive and rust. Which one would you like refunded?")  # both were named
+    c.customer("Both of them, as I said.")
+    refund(c, ["d32-o1-u1", "d32-o1-u2"], "R$ 149,80", "both linen scarves")
+    verdict = judged(app, "D32", baseline)
+    assert verdict.names("failed") == ["communication:proposes_without_asking"]
+    assert (
+        "1 customer message(s) came before the first proposal"
+        in verdict.item("communication:proposes_without_asking").evidence
+    )
+
+
+def test_a_handoff_after_the_customer_declined_a_staff_member_fails(db):
+    # D38: the customer said no to the offered staff member; handing off anyway is the wrong side of pair 4.
+    _, app, baseline = seeded(db, "D38")
+    c = Conversation(app, "D38")
+    c.agent(
+        "It is on its way, so cancelling is outside this process (refund-policy/v2/eligible-orders). Would you "
+        "like a staff member to help?"
+    )
+    c.customer("No thanks, I'll wait for the parcel and return it instead.")
+    handoff = hand_off(app, Actor("agent", "d38-clara"), c.id, "shop_decided: cancelling", c.tick(), origin="agent")
+    assert handoff
+    c.agent("A person will take over from here.")
+    verdict = judged(app, "D38", baseline)
+    assert "handoff" in verdict.names("failed")

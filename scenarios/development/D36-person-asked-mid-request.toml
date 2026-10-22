@@ -1,0 +1,58 @@
+# Contrasting development case (plan change log, 2026-10-22), written before any run of it.
+# Pair 3 with D35. The customer asks clearly for someone from the team: the agent hands off on those words.
+id = "D36"
+title = "The customer asks for someone from the team before anything else"
+split = "development"
+category = "clarification_handoff"
+template = "person-asked-mid-request"
+policy_version = "v2"
+now = 2026-10-20T10:00:00Z
+agent_visible_orders = ["d36-o1"]
+
+[[fixture.customers]]
+id = "d36-ines"
+name = "Ines Duarte"
+email = "ines.duarte@example.test"
+
+[[fixture.staff]]
+id = "d36-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "d36-o1"
+customer = "d36-ines"
+status = "delivered"
+purchased_at = 2026-10-01T10:00:00Z
+delivered_at = 2026-10-04T11:00:00Z
+payments = [{ method = "credit_card", amount_minor = 4790 }]  # 3990 + shipping 800
+
+[[fixture.orders.units]]
+id = "d36-o1-u1"
+product = "Bamboo cutting board"
+price_minor = 3990
+paid_minor = 3990
+shipping_minor = 800
+received_back_at = 2026-10-14T10:00:00Z
+
+[customer]
+id = "d36-ines"
+goal = "Talk to someone from the shop's team about the cutting board."
+opening_message = "Hi, I returned the bamboo cutting board. Before we go on, I'd like to talk to someone from your team about it, please."
+facts = [
+    { text = "The board split along the grain after two uses.", reveal = "when_asked" },
+]
+behaviour = [
+    "If the assistant offers to help you itself, say once more that you would like to talk to someone from the team.",
+    "If you are told a person will take over, thank them and end the conversation.",
+]
+
+[staff]
+decision = "none"
+
+[expected]
+refund_amount_minor = 0
+last_proposal_status = ["none", "invalidated"]
+handoff = "required"
+handoff_origins = ["customer"]
+communication = ["announces_handoff"]

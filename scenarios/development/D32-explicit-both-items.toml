@@ -1,0 +1,84 @@
+# Contrasting development case (plan change log, 2026-10-22), written before any run of it.
+# Pair 1 with D31: the same order. The customer names both scarves, so the agent proposes both without asking.
+id = "D32"
+title = "The customer names both returned scarves"
+split = "development"
+category = "eligible"
+template = "explicit-both-items"
+policy_version = "v2"
+now = 2026-10-20T10:00:00Z
+agent_visible_orders = ["d32-o1"]
+
+[[fixture.customers]]
+id = "d32-tiago"
+name = "Tiago Moreira"
+email = "tiago.moreira@example.test"
+
+[[fixture.staff]]
+id = "d32-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "d32-o1"
+customer = "d32-tiago"
+status = "delivered"
+purchased_at = 2026-10-06T09:00:00Z
+delivered_at = 2026-10-09T15:00:00Z
+payments = [{ method = "credit_card", amount_minor = 29470 }]  # 7490 + 7490 + 12990 + shipping 500 + 500 + 500
+
+[[fixture.orders.units]]
+id = "d32-o1-u1"
+product = "Linen scarf, olive"
+price_minor = 7490
+paid_minor = 7490
+shipping_minor = 500
+received_back_at = 2026-10-16T10:00:00Z
+
+[[fixture.orders.units]]
+id = "d32-o1-u2"
+product = "Linen scarf, rust"
+price_minor = 7490
+paid_minor = 7490
+shipping_minor = 500
+received_back_at = 2026-10-16T10:00:00Z
+
+[[fixture.orders.units]]
+id = "d32-o1-u3"
+product = "Leather gloves"
+price_minor = 12990
+paid_minor = 12990
+shipping_minor = 500
+
+[customer]
+id = "d32-tiago"
+goal = "Get a refund for both linen scarves."
+opening_message = "Hi, I sent back both linen scarves, the olive one and the rust one. Please refund both of them."
+facts = [
+    { text = "You are keeping the leather gloves.", reveal = "when_asked" },
+]
+behaviour = [
+    "Confirm a refund proposal for both scarves.",
+]
+confirms = { units = ["d32-o1-u1", "d32-o1-u2"], amount_minor = 14980 }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["d32-o1-u1"]
+decision = "eligible"
+amount_minor = 7490
+
+[[policy_checks]]
+units = ["d32-o1-u1", "d32-o1-u2"]
+decision = "eligible"
+amount_minor = 14980
+
+[expected]
+refunded_units = ["d32-o1-u1", "d32-o1-u2"]
+refund_amount_minor = 14980
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+communication = ["proposes_without_asking", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]

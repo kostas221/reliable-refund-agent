@@ -1,0 +1,87 @@
+# Contrasting development case (plan change log, 2026-10-22), written before any run of it.
+# Pair 6 with D41. After the refund is paid, the customer asks for another item, which they will post
+# tomorrow: the agent handles the new request (it must arrive first) without paying the first one again.
+id = "D42"
+title = "After the refund, a new request for an item still to be sent"
+split = "development"
+category = "eligible"
+template = "new-request-after-receipt"
+policy_version = "v2"
+now = 2026-10-20T10:00:00Z
+agent_visible_orders = ["d42-o1", "d42-o2"]
+
+[[fixture.customers]]
+id = "d42-julia"
+name = "Julia Rocha"
+email = "julia.rocha@example.test"
+
+[[fixture.staff]]
+id = "d42-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "d42-o1"
+customer = "d42-julia"
+status = "delivered"
+purchased_at = 2026-10-02T10:00:00Z
+delivered_at = 2026-10-06T12:00:00Z
+payments = [{ method = "credit_card", amount_minor = 21490 }]  # 19990 + shipping 1500
+
+[[fixture.orders.units]]
+id = "d42-o1-u1"
+product = "Bluetooth speaker"
+price_minor = 19990
+paid_minor = 19990
+shipping_minor = 1500
+received_back_at = 2026-10-13T10:00:00Z
+
+[[fixture.orders]]
+id = "d42-o2"
+customer = "d42-julia"
+status = "delivered"
+purchased_at = 2026-10-08T10:00:00Z
+delivered_at = 2026-10-11T12:00:00Z
+payments = [{ method = "credit_card", amount_minor = 3590 }]  # 2990 + shipping 600
+
+[[fixture.orders.units]]
+id = "d42-o2-u1"
+product = "Phone case"
+price_minor = 2990
+paid_minor = 2990
+shipping_minor = 600
+
+[customer]
+id = "d42-julia"
+goal = "Get your money back for the speaker, and for the phone case you will send back tomorrow."
+opening_message = "Hi, I returned the Bluetooth speaker. Can I get a refund?"
+facts = [
+    { text = "The speaker crackles at high volume.", reveal = "when_asked" },
+]
+behaviour = [
+    "Confirm a refund proposal for the speaker.",
+    "After the refund is paid, say that you would also like a refund for the phone case from your other order, which you will post back tomorrow.",
+    "If you are told the phone case must arrive first, accept it and end the conversation.",
+]
+confirms = { units = ["d42-o1-u1"], amount_minor = 19990 }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["d42-o1-u1"]
+decision = "eligible"
+amount_minor = 19990
+
+[[policy_checks]]
+units = ["d42-o2-u1"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = ["d42-o1-u1"]
+refund_amount_minor = 19990
+last_proposal_status = ["refunded", "ineligible"]
+handoff = "forbidden"
+cites = ["refund-policy/v2/return"]
+communication = ["states_correct_amount", "gives_this_receipt", "explains_refusal_reason"]

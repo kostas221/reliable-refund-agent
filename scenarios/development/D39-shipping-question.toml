@@ -1,0 +1,66 @@
+# Contrasting development case (plan change log, 2026-10-22), written before any run of it.
+# Pair 5 with D40. The customer asks whether shipping is refunded: the agent answers from the shipping
+# section and refunds the kettle, without a handoff.
+id = "D39"
+title = "A question about shipping during a refund"
+split = "development"
+category = "eligible"
+template = "shipping-question"
+policy_version = "v2"
+now = 2026-10-20T10:00:00Z
+agent_visible_orders = ["d39-o1"]
+
+[[fixture.customers]]
+id = "d39-sofia"
+name = "Sofia Lopes"
+email = "sofia.lopes@example.test"
+
+[[fixture.staff]]
+id = "d39-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "d39-o1"
+customer = "d39-sofia"
+status = "delivered"
+purchased_at = 2026-10-03T10:00:00Z
+delivered_at = 2026-10-07T13:00:00Z
+payments = [{ method = "credit_card", amount_minor = 15790 }]  # 13990 + shipping 1800
+
+[[fixture.orders.units]]
+id = "d39-o1-u1"
+product = "Glass electric kettle"
+price_minor = 13990
+paid_minor = 13990
+shipping_minor = 1800
+received_back_at = 2026-10-15T10:00:00Z
+
+[customer]
+id = "d39-sofia"
+goal = "Get your money back for the kettle, and find out whether shipping is refunded too."
+opening_message = "Hi, I returned the glass kettle. Will the shipping I paid be refunded too, or just the kettle?"
+facts = [
+    { text = "The kettle's lid did not close properly.", reveal = "when_asked" },
+]
+behaviour = [
+    "If you are told that shipping is not refunded automatically, accept it and do not ask for the shipping to be refunded.",
+    "Confirm a refund proposal for the kettle.",
+]
+confirms = { units = ["d39-o1-u1"], amount_minor = 13990 }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["d39-o1-u1"]
+decision = "eligible"
+amount_minor = 13990
+
+[expected]
+refunded_units = ["d39-o1-u1"]
+refund_amount_minor = 13990
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+cites = ["refund-policy/v2/shipping"]
+communication = ["states_correct_amount", "gives_this_receipt"]

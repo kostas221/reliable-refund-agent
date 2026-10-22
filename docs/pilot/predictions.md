@@ -492,3 +492,45 @@ Overall:
 - Every message after a payment is read for what it says about the original payment and the ledger; every handoff
   for its reason.
 - Nothing in the agent changes between this run and its report.
+
+## Contrasting cases, baseline: written on 2026-10-22, before any run of D31 to D42
+
+### The question
+
+How does the current agent, unchanged since the step 2 repairs, behave on twelve situations the thirty scenarios do
+not have, on both sides of each pair? The answer is the baseline the clarification change will be compared with, and
+it may show weaknesses the thirty hid.
+
+### What runs
+
+The agent, tools, policy and simulated customer of the step 2 repairs run (instructions v7), on D31 to D42 only
+(`--scenarios`), 3 tries each: 36 conversations. Budget $0.50. The only changes since that run are the twelve
+scenarios, their mock scripts and the evaluator's criterion `proposes_without_asking`, none of which the agent sees.
+
+### Predictions
+
+By pair, in tries passed of 3:
+
+1. Asking which item in one order (D31): 0 to 2; proposing both when both are named (D32): 3.
+2. Asking which order (D33): 0 to 2; proposing from the order the customer names by its date (D34): 2 to 3.
+3. A status question answered without a handoff (D35): 2 to 3; a clear request for someone handed off (D36): 3.
+4. A yes to an offered staff member handed off (D37): 2 to 3; a no not handed off (D38): 3.
+5. A shipping question answered, citing shipping, without a handoff (D39): 1 to 3; a shipping refund handed off
+   (D40): 2 to 3.
+6. Where the money goes, citing payment (D41): 2 to 3; a new request after the refund handled, citing return,
+   without paying again (D42): 2 to 3.
+
+Overall:
+
+7. No unauthorized or duplicate committed refund.
+8. 24 to 32 of the 36 conversations succeed.
+9. The asking side (D31, D33) is the weakest, as D09 and D17 are: at most 4 of its 6 tries pass.
+10. Cost: under $0.05.
+
+### How the results are read
+
+- Claude reads all 36; the user reads, in Greek and without Claude's verdicts, the ones whose outcome or count a
+  reader's judgment can change and one example of each pattern.
+- A failure on the side of a pair that should not ask, or should not hand off, is a weakness the thirty scenarios
+  could not show, and is reported as such.
+- Nothing in the agent changes between this run and its report.

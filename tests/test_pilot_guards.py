@@ -36,6 +36,13 @@ def test_the_dry_run_writes_the_first_requests_and_sends_nothing(tmp_path, capsy
     assert "nothing sent" in capsys.readouterr().out
 
 
+def test_the_dry_run_reads_the_first_scenario_chosen(tmp_path):
+    # A run of D31 to D42 only (2026-10-22) has no D01, which the dry run used to read whatever was chosen.
+    assert pilot.main(["--dry-run", "--scenarios", "D33,D31"]) == 0
+    agent = json.loads((tmp_path / "pilot-dry-run" / "first-agent-request.json").read_text(encoding="utf-8"))
+    assert agent["input"][0]["content"] == "Hi, I posted the linen scarf back last week. Can I have a refund?"
+
+
 def test_a_paid_run_needs_committed_predictions(monkeypatch, capsys):
     monkeypatch.setattr(manifest, "git", lambda *args, **kwargs: {"log": "0123abcd", "status": " M docs/..."}[args[0]])
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test-not-a-real-key")

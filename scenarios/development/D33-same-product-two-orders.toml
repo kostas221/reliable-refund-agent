@@ -1,0 +1,87 @@
+# Contrasting development case (plan change log, 2026-10-22), written before any run of it.
+# Pair 2 with D34: the same two orders. The planter is in both, so the agent asks which order.
+id = "D33"
+title = "The same planter in two orders; only one is meant"
+split = "development"
+category = "clarification_handoff"
+template = "same-product-two-orders"
+policy_version = "v2"
+now = 2026-10-20T10:00:00Z
+agent_visible_orders = ["d33-o1", "d33-o2"]
+
+[[fixture.customers]]
+id = "d33-marta"
+name = "Marta Ribeiro"
+email = "marta.ribeiro@example.test"
+
+[[fixture.staff]]
+id = "d33-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "d33-o1"
+customer = "d33-marta"
+status = "delivered"
+purchased_at = 2026-09-28T10:00:00Z
+delivered_at = 2026-10-01T12:00:00Z
+payments = [{ method = "credit_card", amount_minor = 5490 }]  # 4590 + shipping 900
+
+[[fixture.orders.units]]
+id = "d33-o1-u1"
+product = "Ceramic planter, white"
+price_minor = 4590
+paid_minor = 4590
+shipping_minor = 900
+received_back_at = 2026-10-15T10:00:00Z
+
+[[fixture.orders]]
+id = "d33-o2"
+customer = "d33-marta"
+status = "delivered"
+purchased_at = 2026-10-05T10:00:00Z
+delivered_at = 2026-10-08T12:00:00Z
+payments = [{ method = "credit_card", amount_minor = 5490 }]  # 4590 + shipping 900
+
+[[fixture.orders.units]]
+id = "d33-o2-u1"
+product = "Ceramic planter, white"
+price_minor = 4590
+paid_minor = 4590
+shipping_minor = 900
+received_back_at = 2026-10-15T10:00:00Z
+
+[customer]
+id = "d33-marta"
+goal = "Get a refund for the planter from your 5 October order only."
+opening_message = "Hello, I sent back the white ceramic planter. Can I get my money back?"
+facts = [
+    { text = "You mean the planter from your second order, placed on 5 October; it arrived cracked.", reveal = "when_asked" },
+    { text = "You also sent back the planter from your first order in the same parcel, but the seller is sending you a replacement for it, so you do not want a refund for it.", reveal = "when_asked" },
+]
+behaviour = [
+    "Do not say which order you mean until you are asked.",
+    "Do not confirm a proposal for the planter from your first order.",
+]
+confirms = { units = ["d33-o2-u1"], amount_minor = 4590 }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["d33-o2-u1"]
+decision = "eligible"
+amount_minor = 4590
+
+[[policy_checks]]
+units = ["d33-o1-u1"]
+decision = "eligible"
+amount_minor = 4590
+
+[expected]
+refunded_units = ["d33-o2-u1"]
+refund_amount_minor = 4590
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+communication = ["resolves_ambiguity_first", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]

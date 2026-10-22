@@ -3,7 +3,8 @@
 A scenario is the hand-written oracle for one conversation between the agent and a simulated customer. There are
 10 development scenarios written to build and tune the system, and 20 held-out scenarios, frozen before the first
 live run and used only in the final evaluation of v1 (plan section 10.2). Since that evaluation, the development set
-also holds a copy of each held-out scenario, D11 to D30 (item 5 below). The development set is listed in
+also holds a copy of each held-out scenario, D11 to D30 (item 5 below), and twelve contrasting cases, D31 to D42
+(item 6 below). The development set is listed in
 [development-scenarios.md](development-scenarios.md); the files are in `scenarios/development/`; the schema and
 loader are in `refund_agent/scenarios.py`.
 
@@ -171,6 +172,15 @@ where configuration C pays.
    source in `derived_from`, so a development run of D11 compares with the final run of H01
    (`python -m refund_agent.evaluation.report compare`). The held-out file and `FROZEN` never change. H01 to H20
    were copied to D11 to D30 on 2026-10-20.
+6. **Contrasting cases, D31 to D42 (2026-10-22):** six pairs, each the same situation with the one difference that
+   decides the right behaviour, so a change is measured on both sides and cannot pass by always doing one thing:
+   asking which item, or proposing what the customer named (D31 and D32, D33 and D34; the second of each pair is
+   checked by `proposes_without_asking`); a status question, or a clear request for someone (D35, D36); a yes or a
+   no to an offered staff member (D37, D38); a question about shipping, or a request to refund it (D39, D40); a
+   question after a paid refund, or a new request (D41, D42). They were written with new products, amounts and
+   wording before any run of them, and each has a mock script that passes, so its expectations are reachable. They
+   are development cases, written by the person who wrote the system, and say nothing on their own about unseen
+   cases.
 
 | ID | Group | Template | Situation | Closest development scenario and the difference |
 |---|---|---|---|---|

@@ -1,0 +1,63 @@
+# Contrasting development case (plan change log, 2026-10-22), written before any run of it.
+# Pair 4 with D38: the same order in transit. The customer accepts the staff member offered for cancelling: the agent hands off on that yes.
+id = "D37"
+title = "The customer accepts an offered staff member for a cancellation"
+split = "development"
+category = "clarification_handoff"
+template = "yes-to-offered-staff"
+policy_version = "v2"
+now = 2026-10-20T10:00:00Z
+agent_visible_orders = ["d37-o1"]
+
+[[fixture.customers]]
+id = "d37-paulo"
+name = "Paulo Nunes"
+email = "paulo.nunes@example.test"
+
+[[fixture.staff]]
+id = "d37-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "d37-o1"
+customer = "d37-paulo"
+status = "shipped"
+purchased_at = 2026-10-17T10:00:00Z
+payments = [{ method = "credit_card", amount_minor = 17490 }]  # 15990 + shipping 1500
+
+[[fixture.orders.units]]
+id = "d37-o1-u1"
+product = "Electric rice cooker"
+price_minor = 15990
+paid_minor = 15990
+shipping_minor = 1500
+
+[customer]
+id = "d37-paulo"
+goal = "Cancel your rice cooker order, which is still on its way."
+opening_message = "Hello, my rice cooker order is still on its way, but I don't need it any more. Can I cancel it?"
+facts = [
+    { text = "You ordered it three days ago.", reveal = "when_asked" },
+]
+behaviour = [
+    "If you are offered a staff member to help with cancelling, say yes.",
+    "If you are not offered one, ask once whether someone from the team can help you cancel.",
+    "If you are told a person will take over, thank them and end the conversation.",
+]
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["d37-o1-u1"]
+decision = "refused"
+reasons = ["eligible-orders", "return"]
+
+[expected]
+refund_amount_minor = 0
+last_proposal_status = ["none", "ineligible"]
+handoff = "required"
+handoff_origins = ["customer"]
+cites = ["refund-policy/v2/eligible-orders"]
+communication = ["announces_handoff"]

@@ -1,0 +1,86 @@
+# Contrasting development case (plan change log, 2026-10-22), written before any run of it.
+# Pair 1 with D32: the same order. 'The linen scarf' fits two returned scarves, so the agent asks which.
+id = "D31"
+title = "Two scarves fit the customer's words; only one is meant"
+split = "development"
+category = "clarification_handoff"
+template = "vague-one-of-two-colours"
+policy_version = "v2"
+now = 2026-10-20T10:00:00Z
+agent_visible_orders = ["d31-o1"]
+
+[[fixture.customers]]
+id = "d31-lucia"
+name = "Lucia Pereira"
+email = "lucia.pereira@example.test"
+
+[[fixture.staff]]
+id = "d31-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "d31-o1"
+customer = "d31-lucia"
+status = "delivered"
+purchased_at = 2026-10-06T09:00:00Z
+delivered_at = 2026-10-09T15:00:00Z
+payments = [{ method = "credit_card", amount_minor = 29470 }]  # 7490 + 7490 + 12990 + shipping 500 + 500 + 500
+
+[[fixture.orders.units]]
+id = "d31-o1-u1"
+product = "Linen scarf, olive"
+price_minor = 7490
+paid_minor = 7490
+shipping_minor = 500
+received_back_at = 2026-10-16T10:00:00Z
+
+[[fixture.orders.units]]
+id = "d31-o1-u2"
+product = "Linen scarf, rust"
+price_minor = 7490
+paid_minor = 7490
+shipping_minor = 500
+received_back_at = 2026-10-16T10:00:00Z
+
+[[fixture.orders.units]]
+id = "d31-o1-u3"
+product = "Leather gloves"
+price_minor = 12990
+paid_minor = 12990
+shipping_minor = 500
+
+[customer]
+id = "d31-lucia"
+goal = "Get a refund for the olive linen scarf only."
+opening_message = "Hi, I posted the linen scarf back last week. Can I have a refund?"
+facts = [
+    { text = "You want the refund for the olive scarf.", reveal = "when_asked" },
+    { text = "You also sent back the rust scarf in the same parcel, but the seller is exchanging it for another colour, so you do not want a refund for it.", reveal = "when_asked" },
+]
+behaviour = [
+    "Do not say which colour you mean until you are asked.",
+    "Do not confirm a proposal that includes the rust scarf.",
+]
+confirms = { units = ["d31-o1-u1"], amount_minor = 7490 }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["d31-o1-u1"]
+decision = "eligible"
+amount_minor = 7490
+
+[[policy_checks]]
+units = ["d31-o1-u1", "d31-o1-u2"]
+decision = "eligible"
+amount_minor = 14980
+
+[expected]
+refunded_units = ["d31-o1-u1"]
+refund_amount_minor = 7490
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+communication = ["resolves_ambiguity_first", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]

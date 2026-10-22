@@ -1,0 +1,85 @@
+# Contrasting development case (plan change log, 2026-10-22), written before any run of it.
+# Pair 2 with D33: the same two orders. The customer names the order by the date it was placed, so the agent proposes without asking.
+id = "D34"
+title = "The customer names the order by its date"
+split = "development"
+category = "eligible"
+template = "order-named-by-date"
+policy_version = "v2"
+now = 2026-10-20T10:00:00Z
+agent_visible_orders = ["d34-o1", "d34-o2"]
+
+[[fixture.customers]]
+id = "d34-rita"
+name = "Rita Almeida"
+email = "rita.almeida@example.test"
+
+[[fixture.staff]]
+id = "d34-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "d34-o1"
+customer = "d34-rita"
+status = "delivered"
+purchased_at = 2026-09-28T10:00:00Z
+delivered_at = 2026-10-01T12:00:00Z
+payments = [{ method = "credit_card", amount_minor = 5490 }]  # 4590 + shipping 900
+
+[[fixture.orders.units]]
+id = "d34-o1-u1"
+product = "Ceramic planter, white"
+price_minor = 4590
+paid_minor = 4590
+shipping_minor = 900
+received_back_at = 2026-10-15T10:00:00Z
+
+[[fixture.orders]]
+id = "d34-o2"
+customer = "d34-rita"
+status = "delivered"
+purchased_at = 2026-10-05T10:00:00Z
+delivered_at = 2026-10-08T12:00:00Z
+payments = [{ method = "credit_card", amount_minor = 5490 }]  # 4590 + shipping 900
+
+[[fixture.orders.units]]
+id = "d34-o2-u1"
+product = "Ceramic planter, white"
+price_minor = 4590
+paid_minor = 4590
+shipping_minor = 900
+received_back_at = 2026-10-15T10:00:00Z
+
+[customer]
+id = "d34-rita"
+goal = "Get a refund for the planter from your 5 October order only."
+opening_message = "Hello, I sent back the white ceramic planter from the order I placed on 5 October. Can I get my money back?"
+facts = [
+    { text = "You also returned the planter from your first order, but the seller is replacing it, so you do not want a refund for it.", reveal = "when_asked" },
+]
+behaviour = [
+    "Confirm a refund proposal for the planter from the 5 October order only.",
+]
+confirms = { units = ["d34-o2-u1"], amount_minor = 4590 }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["d34-o2-u1"]
+decision = "eligible"
+amount_minor = 4590
+
+[[policy_checks]]
+units = ["d34-o1-u1"]
+decision = "eligible"
+amount_minor = 4590
+
+[expected]
+refunded_units = ["d34-o2-u1"]
+refund_amount_minor = 4590
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+communication = ["proposes_without_asking", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]

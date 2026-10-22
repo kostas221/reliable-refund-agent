@@ -4,7 +4,8 @@
     uv run --env-file .env python -m refund_agent.evaluation.pilot --reasoning low --budget-usd 1 --prices-checked DATE
 
 A dry run sends nothing and needs no key. It writes the first request of the agent and of the simulated customer for
-D01 to runs/pilot-dry-run/, so each can be read in full, and prints an estimate of a whole pilot's cost.
+the first scenario chosen (D01 by default) to runs/pilot-dry-run/, so each can be read in full, and prints an
+estimate of a whole pilot's cost.
 
 A paid run refuses to start unless docs/pilot/predictions.md is committed and unchanged (the question and the
 predictions are written before the run), an OPENAI_API_KEY is present (only its presence is checked; it is never read
@@ -88,18 +89,18 @@ def check_ready(args: argparse.Namespace) -> str:
 def dry_run(args: argparse.Namespace, scenarios: dict) -> None:
     out = RUNS / "pilot-dry-run"
     out.mkdir(parents=True, exist_ok=True)
-    d01 = scenarios["D01"]
+    first = scenarios[min(scenarios)]  # the first scenario chosen: D01 unless --scenarios names others
     instructions = load_instructions(policy=policy_for(scenarios.values()))
     agent = OpenAIResponses(args.model, args.reasoning, role="agent")
     simulator = OpenAIResponses(args.model, args.simulator_reasoning, role="simulator")
     first_agent = agent.request(
-        instructions.text, [{"role": "customer", "text": d01.customer.opening_message}], tool_definitions()
+        instructions.text, [{"role": "customer", "text": first.customer.opening_message}], tool_definitions()
     )
     seen_by_simulator = [
-        {"role": "agent", "text": d01.customer.opening_message, "tool_calls": [], "continuation": []},
+        {"role": "agent", "text": first.customer.opening_message, "tool_calls": [], "continuation": []},
         {"role": "customer", "text": "(the agent's first answer would be here)"},
     ]
-    first_simulator = simulator.request(simulator_instructions(d01), seen_by_simulator, [])
+    first_simulator = simulator.request(simulator_instructions(first), seen_by_simulator, [])
     for name, request in (("first-agent-request.json", first_agent), ("first-simulator-request.json", first_simulator)):
         (out / name).write_text(json.dumps(request, indent=2, ensure_ascii=False), encoding="utf-8", newline="\n")
     per_scenario = AGENT_REQUESTS * agent.worst_case_usd(first_agent) * 2  # later requests carry more context
