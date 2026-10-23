@@ -664,3 +664,89 @@ tries. Paired by scenario with `python -m refund_agent.evaluation.report compare
 
 All three stay if predictions 1, 2, 4, 7 and 8 hold and no loss among the 112 is attributed to one of them. A change
 that causes a loss is repaired or withdrawn before the next step (D39, D20, D15).
+
+## Luna none and Sol low on the corrected version: written on 2026-10-23, before the runs
+
+### The question
+
+On the version that holds the corrections after the review of the selection check, which agent configuration does
+the plan's rule choose (section 9: the cost per correctly resolved case), Luna with reasoning none or Sol with
+reasoning low, and what does the stronger model change?
+
+### What runs
+
+Two runs of all 42 development scenarios, 3 tries each, from commit `fb4bc4b`, on the same day, one after the other:
+
+1. Luna none: `--reasoning none`, budget $0.50.
+2. Sol low: `--model gpt-6.1-sol --reasoning low`, budget $3.00. The runner reserves each request's worst case
+   before sending it, about $0.05 for Sol, so a budget near the expected cost could stop the run early.
+
+In both, the simulated customer is Luna with reasoning low (`--simulator-model gpt-6-luna`), and the instructions
+(v7), policy (v2), tool definitions, scenarios, approval script and evaluator are the same. The dry runs of both
+(2026-10-23) differ only in the agent's model and reasoning; the simulated customer's first request is the same. The
+corrections are in the plan's change log of 2026-10-23: the selection check read clause by clause, `shipping_refund`
+on the customer's latest words, the `remaining` citation beside a paid request's receipt, D15's role revised, and the
+runner (simulated customer held fixed, a failed database drop survived, the computer kept awake).
+
+### What it is compared with
+
+- The Luna run with the last run (`runs/pilot-20261023T144102Z-gpt-6-luna-none`, 118 of 126, D42 try 3 missing),
+  paired by scenario. D15 is reported apart, since its customer's role changed.
+- The Sol run with the Luna run, paired by scenario over all 42.
+
+Replayed on the last run's logs, the corrections decide as follows: the selection check refuses the same 9 proposals
+as before; all 6 shipping handoffs (D39 and D40) are now refused at first, since none quoted the customer. What the
+agent says after that refusal is what these runs measure.
+
+### The decision rule
+
+1. A configuration qualifies when no refund in its run is unauthorized or paid twice, and it reaches the quality
+   targets on these 42 scenarios: at least 85% of conversations succeed and at least 70% of scenarios succeed in all
+   three tries. The targets were written for the final evaluation (docs/quality-targets.md); here they only decide
+   which configurations qualify.
+2. Among those that qualify, the lower agent cost per correctly resolved case is chosen.
+3. If one qualifies, it is chosen; if neither does, the one with the higher success is chosen, and the miss is
+   recorded.
+4. The paired difference, Sol minus Luna, is reported with its 95% interval and the agent cost of each extra
+   conversation Sol resolves. If the interval lies wholly above zero, it is recorded as a quality gain at that price;
+   the rule above still decides.
+5. If the Luna run loses at least 6 conversations, by scenario, of those that passed in the last run (D15 and D42
+   aside), the corrections are read for the cause before any choice is made.
+
+The configuration chosen is then frozen for the final evaluation of v1.1 on new held-out scenarios, where Sol runs
+as the reference configuration B in any case.
+
+### Predictions
+
+Luna none:
+
+1. No unauthorized or duplicate committed refund.
+2. 114 to 125 of 126 conversations succeed (last run 118, with one try missing).
+3. D39: 0 to 3 of 3 (last run 0). Every handoff in D39, if any, quotes the customer's question.
+4. D40: 2 or 3 of 3, every handoff resting on the customer's words; the first attempt with no words is refused.
+5. D20: 2 or 3 of 3 (last run 1).
+6. D15, with the revised role: 2 or 3 of 3.
+7. The clarifying question in D09, D17, D31 and D33: 10 to 12 of 12; D32 and D34 6 of 6 proposed at once; no
+   selection refusal outside these six scenarios.
+8. 26 or 27 of the 27 required handoffs (D40 is the risk).
+9. Agent cost per resolved case within 20% of the last run's $0.00045; the run under $0.15.
+
+Sol low:
+
+10. No unauthorized or duplicate committed refund.
+11. 114 to 126 of 126 conversations succeed.
+12. Paired by scenario, Sol minus Luna: -5 to +8 points. The development set is near Luna's ceiling, so a gain here,
+    if any, is small; on unseen cases in v1, Sol led by 15 points.
+13. Sol's agent cost per resolved case is 10 to 30 times Luna's; the run costs $0.60 to $2.00.
+14. Sol's median agent response time is above Luna's (in v1, 6.4 s against 4.1 s).
+
+The choice:
+
+15. Both qualify, and the rule chooses Luna none.
+
+### How the results are read
+
+- Claude reads all conversations of both runs; the user reads, in Greek and without Claude's verdicts, those whose
+  outcome a reader's judgment can change, every scenario where the two configurations differ in one try or more, and
+  one example of the new shipping refusal at work.
+- Nothing in the agent changes between these runs and their report.
