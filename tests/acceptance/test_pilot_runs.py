@@ -6,6 +6,7 @@ database."""
 import argparse
 import json
 import sys
+from contextlib import contextmanager
 from datetime import date
 
 import pytest
@@ -22,6 +23,7 @@ from tests.acceptance.flows import DEVELOPMENT
 ARGS = argparse.Namespace(
     model="gpt-6-luna",
     reasoning="none",
+    simulator_model="gpt-6-luna",
     simulator_reasoning="low",
     budget_usd=1.0,
     prices_checked=date(2026, 10, 18),
@@ -144,6 +146,56 @@ def test_a_failed_save_keeps_the_database(recorded, monkeypatch):
         pilot.paid_run(ARGS, TWO, "abc123")
     (kept,) = [name for kind, name in recorded if kind == "create" and not name.endswith("_template")]
     assert exists(kept)
+
+
+def judged_at_once(scenario, *_, **__):
+    return RunResult(scenario.id, "A", Verdict(scenario.id, ()), [], 0, None)
+
+
+@pytest.mark.parametrize("failures", [1, 99])
+def test_a_database_that_cannot_be_dropped_after_its_result_is_saved_does_not_stop_the_run(
+    recorded, monkeypatch, tmp_path, failures
+):
+    # D42 try 2 of 2026-10-23: the result was saved, dropping its database timed out after the computer woke, and the
+    # run stopped before try 3. A drop is tried again; a database still not dropped is kept and named, and the run
+    # goes on.
+    monkeypatch.setattr(trials, "run_scenario", judged_at_once)
+    monkeypatch.setattr(trials, "DROP_RETRY_SECONDS", (0, 0, 0))
+    drop, left = database.drop_database, {"count": failures}
+
+    def unreachable_at_first(name):
+        saved = any(tmp_path.glob("pilot-*/D01/try1/result.json"))  # create_database drops a namesake first
+        if "_d01_" in name and saved and left["count"] > 0:
+            left["count"] -= 1
+            raise OperationalError("DROP DATABASE", {}, Exception("connection timeout expired"))
+        drop(name)
+
+    monkeypatch.setattr(database, "drop_database", unreachable_at_first)
+    assert pilot.paid_run(ARGS, TWO, "abc123") == 0
+    assert (folder_of(tmp_path, "D04") / "result.json").exists()  # the next try ran
+    d01 = next(name for kind, name in recorded if kind == "create" and "_d01_" in name)
+    kept = folder_of(tmp_path, "D01") / "kept_database.json"
+    if failures == 1:  # dropped at the second attempt
+        assert not kept.exists() and not exists(d01)
+    else:
+        assert json.loads(kept.read_text(encoding="utf-8"))["database"] == d01 and exists(d01)
+
+
+def test_a_paid_run_keeps_the_computer_awake_and_names_the_simulated_customers_model(recorded, monkeypatch, tmp_path):
+    monkeypatch.setattr(trials, "run_scenario", judged_at_once)
+    entered = []
+
+    @contextmanager
+    def awake():
+        entered.append(True)
+        yield
+
+    monkeypatch.setattr(pilot, "awake", awake)
+    assert pilot.paid_run(ARGS, {"D01": DEVELOPMENT["D01"]}, "abc123") == 0
+    assert entered == [True]
+    (run,) = tmp_path.glob("pilot-*")
+    identity = json.loads((run / "manifest.json").read_text(encoding="utf-8"))["identity"]
+    assert (identity["model"], identity["simulator_model"]) == ("gpt-6-luna", "gpt-6-luna")
 
 
 def test_two_pilots_never_share_a_database(recorded, monkeypatch):

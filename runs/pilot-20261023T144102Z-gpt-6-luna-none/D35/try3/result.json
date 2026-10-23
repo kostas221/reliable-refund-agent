@@ -1,0 +1,139 @@
+{
+  "scenario": "D35",
+  "try": 3,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['none', 'ineligible']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v2/eligible-orders",
+      "status": "passed",
+      "evidence": "shown in an agent message"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 3,
+  "refusals": [
+    {
+      "event": "hand_off",
+      "check": "handoff_reason",
+      "actor": "agent"
+    }
+  ],
+  "handoff_origins": [],
+  "agent_seconds": [
+    6.107
+  ],
+  "spent_usd": {
+    "agent": 0.00022542500000000826,
+    "simulator": 0.00015180000000000055
+  },
+  "attempts_sent": 4,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hi, my reading lamp still hasn't arrived. Can you tell me where it is?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_lwcrLvMJg3CHUy5NV1EjRiGq",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_lwcrLvMJg3CHUy5NV1EjRiGq",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"d35-o1\", \"status\": \"shipped\", \"purchased_at\": \"2026-10-16T10:00:00+00:00\", \"delivered_at\": null, \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"d35-o1-u1\", \"product\": \"Reading lamp\", \"paid_minor\": 8990, \"received_back\": false, \"refunded\": false}], \"requests\": []}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_TMnMCLKBgiTXCJn8hydowXwI",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\":\"customer_asked\",\"order_id\":\"\",\"unit_ids\":[],\"customer_words\":\"\",\"reason\":\"The reading lamp order is still in shipped status, and the customer asks where it is; delivery tracking and changes are outside the refund process.\",\"customer_goal\":\"Find out where the reading lamp is and when it may arrive.\",\"confirmed_facts\":\"Order d35-o1 for a Reading lamp is marked shipped and has no delivery time.\",\"decision_needed\":\"Check the shipment status and advise the customer.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_TMnMCLKBgiTXCJn8hydowXwI",
+      "name": "request_handoff",
+      "content": "{\"ok\": false, \"refused\": \"handoff_reason\", \"explanation\": \"customer_words must give the customer's own words that ask for a person. Copy the customer's words that ask for a person exactly. If the customer has not asked for one, answer from the policy, and offer a person only where it says to; the customer's yes to that offer is a request for one. If a rule refuses the request, give its reason and what the policy allows, without offering a person. Hand off with customer_asked only when the customer clearly asks for a person.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Your reading lamp order is marked as shipped. I can’t see its live location or an estimated arrival time. Delivery tracking is outside this refund process, but I can offer to connect you with a staff member to check. (refund-policy/v2/eligible-orders)",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "Your reading lamp order is marked as shipped. I can’t see its live location or an estimated arrival time. Delivery tracking is outside this refund process, but I can offer to connect you with a staff member to check. (refund-policy/v2/eligible-orders)",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

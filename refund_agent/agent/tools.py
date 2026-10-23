@@ -114,7 +114,9 @@ class HandoffArgs(_Args):
         "shop_decided, the latest proposal's result in this conversation says a staff member takes the case; "
         "return_disputed, the customer says units were sent that the records do not show received; "
         "delivery_disputed, the customer says an order recorded as delivered never arrived; shipping_refund, the "
-        "customer asks for shipping to be refunded. The backend checks the cases it can see in its data."
+        "customer asks for the shipping charge to be refunded, in the words given in customer_words (a question "
+        "whether shipping is refunded is answered from the policy). The backend checks the cases it can see in its "
+        "data."
     )
     order_id: str = Field(
         default="",
@@ -129,8 +131,9 @@ class HandoffArgs(_Args):
     customer_words: str = Field(
         default="",
         max_length=500,
-        description="For customer_asked, the customer's own words that ask for a person, copied exactly from their "
-        "message: words that name a person, or their yes to your offer of one; empty otherwise.",
+        description="The customer's own words, copied exactly from their latest message: for customer_asked, words "
+        "that name a person, or their yes to your offer of one; for shipping_refund, words that ask for the shipping "
+        "charge to be refunded; empty otherwise.",
     )
     reason: str = Field(min_length=1, max_length=500, description="Why a person is needed, in a sentence.")
     customer_goal: str = Field(max_length=1000, description="What the customer wants, in their terms.")
@@ -158,6 +161,11 @@ def _orders(ctx: ToolContext) -> list[dict]:
     for order in mine:
         if found.get(order["order_id"]):
             order["seller_message"] = {"untrusted_text": found[order["order_id"]], "note": UNTRUSTED}
+        # A paid request carries the section that says its units are not refunded again, beside its receipt, where
+        # the agent reads the fact (D20 of 2026-10-23 gave the receipt without it; review after the selection check).
+        for request in order["requests"]:
+            if request["receipt_number"]:
+                request["policy_citation"] = ctx.policy.citation("remaining")
     return mine
 
 
@@ -354,11 +362,14 @@ def request_handoff(ctx: ToolContext, args: HandoffArgs, call_id: str) -> dict:
     )
     # The staff member sees the words the request rests on, and whether they ask for a person or accept an offer of one.
     basis = {"names_person": "which names a person", "accepts_offer": "a yes to the agent's offer of a person"}
-    quoted = (
-        f' The customer wrote: "{args.customer_words}" (message {found["customer_message"]}, {basis[found["basis"]]}).'
-        if args.reason_code == "customer_asked"
-        else ""
-    )
+    quoted = ""
+    if args.reason_code == "customer_asked":
+        quoted = (
+            f' The customer wrote: "{args.customer_words}" (message {found["customer_message"]}, '
+            f"{basis[found['basis']]})."
+        )
+    elif args.reason_code == "shipping_refund":
+        quoted = f' The customer wrote: "{args.customer_words}" (message {found["customer_message"]}).'
     handoff_id = hand_off(
         ctx.engine,
         agent,

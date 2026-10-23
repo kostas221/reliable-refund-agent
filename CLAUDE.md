@@ -115,9 +115,23 @@ answer to a question that named them); a question brake in the graph (an answer 
 its calls answered as not run); the person-request rule repaired (scoped negation and withdrawal, "cannot", wish-form
 offers, the speaker's own role, a separate refusal for a yes with no offer in view). Replayed on the saved logs
 (`python -m refund_agent.evaluation.replay`): 32 of 602 proposals refused, all first proposals of failed D09, D17,
-D31, D33 tries; 3 of 3,946 answers held; 2 of 68 handoff decisions changed (D38 try 1, D37 try 3). Next: the user's
-full suite, then a paid run on all 42 with predictions written first; then the shipping question (D39), the D20
-remaining citation and a new version of D15, one at a time. The user reads 10 conversations
+D31, D33 tries; 3 of 3,946 answers held; 2 of 68 handoff decisions changed (D38 try 1, D37 try 3). Their run
+(`runs/pilot-20261023T144102Z-gpt-6-luna-none`, commit a8b5869, results in `docs/pilot/results.md`): 125 of 126 (the
+computer slept during D42 try 2, the runner stopped on a database drop, D42 try 3 is missing and counts as failed),
+118 of 126, pass^3 37 of 42, 0 unsafe, 27/27 required handoffs, 13/13 predictions right; paired +4.8 against the last
+run (95% -2.4 to +12.7), +17.8 against v1 on 30 (+6.7 to +31.1). Clarification 12 of 12 (was 3 of 12): 9 proposals
+refused by `units_named`, each followed by the question; D32 and D34 6 of 6 at once; the brake was never exercised.
+Failures: D39 x3 (shipping question), D20 x2 (citation), D15 try 2 (scenario ambiguity), D13 try 1 (a false
+"deadline passed", a date error). Review after the selection check (`docs/review-after-selection-check-2026-10-23.md`):
+its 5 selection counterexamples reproduced and fixed (the check reads messages in order, clause by clause: excluded
+words, the latest word per item, "only", counts with the item's name, a yes to a question that named that item
+alone; the same 41 refusals in 697 recorded proposals); `shipping_refund` needs the customer's latest words naming the
+shipping charge (all 16 recorded attempts had none); the `remaining` citation beside a paid request's receipt; D15's
+role revised (the customer defers an offered person; D15 reported apart across that date); the runner holds the
+simulator model fixed (`--simulator-model`), survives a failed database drop and keeps Windows awake. 18 planted bugs
+caught. Next: a paid comparison of Luna none and Sol low on this version, same scenarios and simulator, predictions
+and the decision rule written first. The user reads 6
+conversations of the selection check run (`user-review/`), and 10 conversations
 of step 1 and 9 of each of steps 3, 2 and the repairs (`user-review/`); Claude's verdicts are shown after. Development
 runs: Claude reads all, the user reads what Claude fails or notes. Phase 7 (video, code licence, external test, CI on a
 remote) after v1.1.

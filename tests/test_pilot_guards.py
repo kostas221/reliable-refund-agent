@@ -8,7 +8,7 @@ from datetime import date
 import openai
 import pytest
 
-from refund_agent.evaluation import manifest, pilot
+from refund_agent.evaluation import manifest, pilot, trials
 
 
 @pytest.fixture(autouse=True)
@@ -34,6 +34,23 @@ def test_the_dry_run_writes_the_first_requests_and_sends_nothing(tmp_path, capsy
     assert (agent["model"], agent["reasoning"], len(agent["tools"])) == ("gpt-6-luna", {"effort": "low"}, 7)
     assert "tools" not in simulator and "Your goal:" in simulator["instructions"]
     assert "nothing sent" in capsys.readouterr().out
+
+
+def test_the_simulated_customer_keeps_its_model_when_the_agent_changes_model(tmp_path):
+    # A comparison of agent models holds the simulated customer fixed (plan section 9); --model used to set both.
+    assert pilot.main(["--dry-run", "--model", "gpt-6.1-sol", "--reasoning", "low"]) == 0
+    agent = json.loads((tmp_path / "pilot-dry-run" / "first-agent-request.json").read_text(encoding="utf-8"))
+    simulator = json.loads((tmp_path / "pilot-dry-run" / "first-simulator-request.json").read_text(encoding="utf-8"))
+    assert (agent["model"], agent["reasoning"]) == ("gpt-6.1-sol", {"effort": "low"})
+    assert (simulator["model"], simulator["reasoning"]) == ("gpt-6-luna", {"effort": "low"})
+
+
+def test_the_computer_is_kept_awake_while_the_block_runs_and_released_after():
+    # D42 try 2 of 2026-10-23: the computer slept for 117 minutes in the middle of a paid run.
+    calls = []
+    with trials.awake(setter=calls.append):
+        assert calls == [0x80000001]  # ES_CONTINUOUS | ES_SYSTEM_REQUIRED
+    assert calls == [0x80000001, 0x80000000]  # ES_CONTINUOUS alone: sleep allowed again
 
 
 def test_the_dry_run_reads_the_first_scenario_chosen(tmp_path):

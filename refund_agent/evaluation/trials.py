@@ -8,16 +8,26 @@ evaluation, so both follow the same rules (review of 2026-10-19, R3 and R7).
 - An unexpected failure (of the harness, the graph or the database) is saved as crash.json, with what was spent, and
   its database is kept for diagnosis. The agent's and the simulator's own failures are not crashes: the runner records
   them in the result.
+- A database that cannot be dropped once its try's result is saved is tried again and, if it still cannot be, kept
+  and named in kept_database.json; the run goes on, since the try's evidence is saved (D42 try 2 of 2026-10-23: the
+  computer slept, the drop timed out on waking, and the run stopped before try 3). awake() keeps Windows from sleeping
+  while a run is in progress.
 """
 
 from __future__ import annotations
 
+import ctypes
 import json
+import sys
+import time
 import uuid
-from dataclasses import asdict, dataclass
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
 from langgraph.checkpoint.postgres import PostgresSaver
+from sqlalchemy.exc import OperationalError
 
 from refund_agent import db as database
 from refund_agent.agent.costs import Budget
@@ -27,6 +37,24 @@ from refund_agent.evaluation.runner import RunResult, run_scenario
 from refund_agent.policy import Policy
 from refund_agent.refunds import Configuration
 from refund_agent.scenarios import Scenario
+
+DROP_RETRY_SECONDS = (2, 5, 10)  # waits between attempts to drop a database whose try's result is saved
+_ES_CONTINUOUS, _ES_SYSTEM_REQUIRED = 0x80000000, 0x00000001
+
+
+@contextmanager
+def awake(setter: Callable[[int], object] | None = None) -> Iterator[None]:
+    """Keep Windows from sleeping while the block runs, and allow it again after. Elsewhere it does nothing. setter:
+    the system call, SetThreadExecutionState; tests pass a recorder."""
+    if setter is None and sys.platform == "win32":
+        setter = ctypes.windll.kernel32.SetThreadExecutionState
+    if setter is not None:
+        setter(_ES_CONTINUOUS | _ES_SYSTEM_REQUIRED)
+    try:
+        yield
+    finally:
+        if setter is not None:
+            setter(_ES_CONTINUOUS)
 
 
 def write_json(path: Path, record: dict) -> None:
@@ -61,6 +89,23 @@ class Outcome:
     spent: dict[str, float]  # by role
     attempts: int  # attempts sent, retries included
     uncertain_usd: float  # worst cases counted where the charge is unknown
+    kept: bool = False  # the database could not be dropped after the result was saved, and is kept
+
+
+def _drop_after_save(run: str, folder: Path) -> bool:
+    """Drop the try's database; True when it could not be dropped and is kept, named in kept_database.json."""
+    for wait in (*DROP_RETRY_SECONDS, None):
+        try:
+            database.drop_database(run)
+            return False
+        except OperationalError as error:
+            if wait is None:
+                write_json(
+                    folder / "kept_database.json", {"database": run, "error": f"{type(error).__name__}: {error}"}
+                )
+                return True
+            time.sleep(wait)
+    raise AssertionError("unreachable")
 
 
 def save_result(folder: Path, result: RunResult, attempt: int, outcome_cost: dict) -> None:
@@ -139,5 +184,6 @@ def run_try(
         )
         return outcome
     save_result(folder, result, attempt, cost)  # saved first: a failed save keeps the database
-    database.drop_database(run)
+    if _drop_after_save(run, folder):
+        return replace(outcome, kept=True)
     return outcome

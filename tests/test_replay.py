@@ -32,3 +32,18 @@ def test_the_checks_stop_the_nine_clarification_failures_of_the_last_run_and_not
     # D37 try 3: the customer's yes to "Would you like me to ask a staff member to help?" is now a request.
     assert found.changed == [f"{RUN.name} D37 try3: accepted 'Yes, please.'"]
     assert found.handoffs == 29
+
+
+LATEST = REPO_ROOT / "runs" / "pilot-20261023T144102Z-gpt-6-luna-none"
+
+
+def test_the_checks_of_the_review_after_the_selection_check_on_the_run_it_read():
+    found = replay([LATEST])
+    # The repaired selection check refuses exactly the proposals the run's own check refused, one per conversation.
+    assert (len(found.refused), found.proposals) == (9, 95)
+    assert sorted(line.split()[1] for line in found.refused) == ["D09"] * 3 + ["D17"] * 2 + ["D31"] * 3 + ["D33"]
+    # Every shipping handoff of the run (D39 and D40, three each) had no words of the customer's: each now gets the
+    # refusal that tells the agent how to read a question about shipping.
+    assert found.shipping == 6 and len(found.shipping_changed) == 6
+    assert {line.split()[1] for line in found.shipping_changed} == {"D39", "D40"}
+    assert (found.changed, found.handoffs) == ([], 28)

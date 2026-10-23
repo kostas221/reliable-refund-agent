@@ -121,6 +121,125 @@ CASES = {
         [("customer", "Please refund the rust scarf.")],
         False,
     ),
+    # The review after the selection check (2026-10-23): five counterexamples, each with its positive opposite.
+    # A word excluded by "not", "keep", "except" or "instead of" names nothing.
+    "a negated mention": (SCARVES, ["o1-u1"], [("customer", "Not the olive one. Please refund the rust one.")], False),
+    "the other item after a negated mention": (
+        SCARVES,
+        ["o1-u2"],
+        [("customer", "Not the olive one. Please refund the rust one.")],
+        True,
+    ),
+    # The customer's latest word about an item counts, and "only" or "just" leaves out the others.
+    "an item the customer changed their mind about": (
+        SCARVES,
+        ["o1-u1"],
+        [
+            ("customer", "Please refund the olive scarf."),
+            ("agent", "Sure."),
+            ("customer", "Actually, keep the olive one. Refund only the rust scarf."),
+        ],
+        False,
+    ),
+    "the item chosen after the change": (
+        SCARVES,
+        ["o1-u2"],
+        [
+            ("customer", "Please refund the olive scarf."),
+            ("agent", "Sure."),
+            ("customer", "Actually, keep the olive one. Refund only the rust scarf."),
+        ],
+        True,
+    ),
+    "an item left out by 'only' after both were named": (
+        SCARVES,
+        ["o1-u1"],
+        [
+            ("customer", "Please refund the olive and the rust scarf."),
+            ("agent", "Sure."),
+            ("customer", "Actually, refund only the rust scarf."),
+        ],
+        False,
+    ),
+    "the item kept by 'only' after both were named": (
+        SCARVES,
+        ["o1-u2"],
+        [
+            ("customer", "Please refund the olive and the rust scarf."),
+            ("agent", "Sure."),
+            ("customer", "Actually, refund only the rust scarf."),
+        ],
+        True,
+    ),
+    "an item added in a later message": (
+        SCARVES,
+        ["o1-u1", "o1-u2"],
+        [("customer", "I returned the olive scarf."), ("agent", "Noted."), ("customer", "And the rust one too.")],
+        True,
+    ),
+    "just one size, the other left out": (
+        SHIRTS,
+        ["t1-u1"],
+        [*VAGUE_SHIRT, ("agent", "Size M or size L?"), ("customer", "Just the size L, please.")],
+        False,
+    ),
+    "the size named with 'only', 'not both'": (
+        SHIRTS,
+        ["t1-u2"],
+        [*VAGUE_SHIRT, ("customer", "I want a refund for the size L shirt only, not both shirts.")],
+        True,
+    ),
+    "a refusal and the choice split by a dash": (
+        SHIRTS,
+        ["t1-u2"],
+        [*VAGUE_SHIRT, ("customer", "That's not what I want—I'm only requesting a refund for the size L shirt.")],
+        True,
+    ),
+    # A number is "all of them" only with the items it counts.
+    "a number that counts weeks": (
+        SCARVES,
+        ["o1-u1", "o1-u2"],
+        [("customer", "I sent the scarf back two weeks ago. Please refund it.")],
+        False,
+    ),
+    "a number that counts the scarves": (
+        SCARVES,
+        ["o1-u1", "o1-u2"],
+        [("customer", "I sent back the two scarves two weeks ago. Please refund them.")],
+        True,
+    ),
+    "all of them": (SCARVES, ["o1-u1", "o1-u2"], [*VAGUE_SCARF, ("customer", "Please refund all of them.")], True),
+    # An answer resolves the agent's question only when it is a yes to a question that named this item alone.
+    "a no to a question that names the item": (
+        SCARVES,
+        ["o1-u1"],
+        [*VAGUE_SCARF, ("agent", "Do you mean the olive one?"), ("customer", "No.")],
+        False,
+    ),
+    "a thanks to a question that names the item": (
+        SCARVES,
+        ["o1-u1"],
+        [*VAGUE_SCARF, ("agent", "Do you mean the olive one?"), ("customer", "Thanks.")],
+        False,
+    ),
+    "a no, then the other item": (
+        SCARVES,
+        ["o1-u2"],
+        [*VAGUE_SCARF, ("agent", "Do you mean the olive one?"), ("customer", "No, the rust one.")],
+        True,
+    ),
+    "a yes to a question that names both": (
+        SCARVES,
+        ["o1-u1"],
+        [*VAGUE_SCARF, ("agent", "The olive or the rust one?"), ("customer", "Yes.")],
+        False,
+    ),
+    "the positive control of the review": (
+        SCARVES,
+        ["o1-u1"],
+        [("customer", "Please refund only the olive scarf.")],
+        True,
+    ),
 }
 
 

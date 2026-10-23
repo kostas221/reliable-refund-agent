@@ -267,11 +267,12 @@ def not_run(agent, conversation):
     [
         (PROPOSE_MUG, "proposals"),
         (
-            call_of(
+            call_of(  # a handoff the backend accepts here (d01-o1 is recorded as delivered): only the brake stops it
                 "request_handoff",
                 "call-1",
-                reason_code="shipping_refund",
-                reason="Shipping.",
+                reason_code="delivery_disputed",
+                order_id="d01-o1",
+                reason="Delivery.",
                 customer_goal="",
                 confirmed_facts="",
                 decision_needed="",

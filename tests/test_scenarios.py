@@ -101,6 +101,18 @@ def test_contrasting_cases_come_in_pairs_that_differ_in_the_right_behaviour():
         ), (first.id, second.id)
 
 
+def test_a_customer_who_may_be_offered_a_person_where_a_handoff_is_forbidden_knows_what_to_say():
+    # For an order on its way the policy has the agent offer a person (section eligible-orders). D15's role said
+    # nothing of it, and its simulated customer accepted the offer in tries 2 and 3 of 2026-10-22 and try 2 of
+    # 2026-10-23, against a scenario that forbids any handoff. Revised on 2026-10-23 (review after the selection
+    # check): its customer defers the offer; D37 is the case whose customer accepts it.
+    for s in DEVELOPMENT:
+        on_its_way = [o for o in s.fixture.orders if o.customer == s.customer.id and o.status != "delivered"]
+        if on_its_way and s.expected.handoff == "forbidden":
+            behaviour = " ".join(s.customer.behaviour).casefold()
+            assert "staff member" in behaviour or "person" in behaviour, s.id
+
+
 def test_a_development_copy_is_its_source_but_for_id_split_and_origin():
     sources = {s.id: s for s in HELD_OUT}
     for copy in COPIES:

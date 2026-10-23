@@ -38,7 +38,7 @@ from refund_agent.agent.tools import tool_definitions
 from refund_agent.evaluation import manifest
 from refund_agent.evaluation.customers import SIMULATOR_INSTRUCTIONS, simulator_instructions
 from refund_agent.evaluation.runner import CUT_OFF
-from refund_agent.evaluation.trials import Batch, run_try
+from refund_agent.evaluation.trials import Batch, awake, run_try
 from refund_agent.policy import REPO_ROOT
 from refund_agent.scenarios import load_split, policy_for
 
@@ -61,6 +61,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--dry-run", action="store_true", help="write the first requests to files and send nothing")
     parser.add_argument("--model", default="gpt-6-luna", choices=sorted(PRICES))
     parser.add_argument("--reasoning", default="low", help="the agent's reasoning effort, e.g. low or none")
+    parser.add_argument(
+        "--simulator-model",
+        default="gpt-6-luna",
+        choices=sorted(PRICES),
+        help="the simulated customer's model, held fixed when agent models are compared",
+    )
     parser.add_argument("--simulator-reasoning", default="low", help="the simulated customer's, fixed for a pilot")
     parser.add_argument("--budget-usd", type=float, default=1.0, help="stop before any request that could cross it")
     parser.add_argument(
@@ -92,7 +98,7 @@ def dry_run(args: argparse.Namespace, scenarios: dict) -> None:
     first = scenarios[min(scenarios)]  # the first scenario chosen: D01 unless --scenarios names others
     instructions = load_instructions(policy=policy_for(scenarios.values()))
     agent = OpenAIResponses(args.model, args.reasoning, role="agent")
-    simulator = OpenAIResponses(args.model, args.simulator_reasoning, role="simulator")
+    simulator = OpenAIResponses(args.simulator_model, args.simulator_reasoning, role="simulator")
     first_agent = agent.request(
         instructions.text, [{"role": "customer", "text": first.customer.opening_message}], tool_definitions()
     )
@@ -126,11 +132,13 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
         "kind": "pilot",
         "model": args.model,
         "agent_reasoning": args.reasoning,
+        "simulator_model": args.simulator_model,
         "simulator_reasoning": args.simulator_reasoning,
         "configuration": "A",
         "repeats": args.repeats,
         "scenarios": sorted(scenarios),
         "prices_usd_per_1m": PRICES[args.model],
+        "simulator_prices_usd_per_1m": PRICES[args.simulator_model],
         "prices_checked": args.prices_checked.isoformat(),
         "budget_usd": args.budget_usd,
         "agent_instructions_sha256": load_instructions(policy=policy).sha256,
@@ -141,12 +149,13 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
     (out / "manifest.json").write_text(json.dumps(manifest.build(identity), indent=2), encoding="utf-8", newline="\n")
     print(
         f"Pilot {_shown(out)}: {args.model}, reasoning {args.reasoning}, {args.repeats} tries per scenario, "
-        f"budget ${args.budget_usd:.2f}"
+        f"budget ${args.budget_usd:.2f}; simulated customer {args.simulator_model}, reasoning "
+        f"{args.simulator_reasoning}"
     )
     clean: dict[str, int] = {}  # tries without a machine failure or an error, per scenario
     not_tested = 0  # tries in which an attack planted in the data never reached the agent
     try:
-        with Batch("refund_pilot") as batch:
+        with Batch("refund_pilot") as batch, awake():
             for scenario_id, attempt in [(s, t) for s in sorted(scenarios) for t in range(1, args.repeats + 1)]:
                 outcome = run_try(
                     batch,
@@ -154,7 +163,9 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
                     attempt,
                     out / scenario_id / f"try{attempt}",
                     agent=OpenAIResponses(args.model, args.reasoning, role="agent", budget=budget),
-                    simulator=OpenAIResponses(args.model, args.simulator_reasoning, role="simulator", budget=budget),
+                    simulator=OpenAIResponses(
+                        args.simulator_model, args.simulator_reasoning, role="simulator", budget=budget
+                    ),
                     budget=budget,
                     policy=policy,
                 )
@@ -180,6 +191,7 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
                     f"{'; NOT EXERCISED: ' + ', '.join(untested) if untested else ''}"
                     f"{'; CUT OFF: ' + result.ended if result.ended in CUT_OFF else ''}"
                     f"{'; ERROR: ' + '; '.join(errors) if errors else ''}  (${sum(outcome.spent.values()):.4f})"
+                    f"{'; its database could not be dropped and is kept: ' + outcome.database if outcome.kept else ''}"
                 )
     finally:
         print(

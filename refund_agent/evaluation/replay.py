@@ -8,6 +8,8 @@ decides, never what the model would have said after a different tool result; onl
   asks the customer something.
 - Request for a person (refunds.request_for_person): every recorded customer_asked attempt, against what the backend
   answered at the time.
+- Request to refund shipping (refunds.request_for_shipping_refund, review after the selection check): every recorded
+  shipping_refund attempt, against what the backend answered at the time.
 
 Run: uv run python -m refund_agent.evaluation.replay runs/pilot-20261022T165428Z-gpt-6-luna-none [more runs]
 """
@@ -19,7 +21,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from refund_agent.refunds import request_for_person
+from refund_agent.refunds import request_for_person, request_for_shipping_refund
 from refund_agent.scenarios import Scenario, load_split
 from refund_agent.selection import Kind, asks_customer, look_alikes_unnamed
 
@@ -33,6 +35,8 @@ class Replayed:
     agent_answers: int = 0
     handoffs: int = 0
     changed: list[str] = field(default_factory=list)  # customer_asked attempts the rule now decides differently
+    shipping: int = 0
+    shipping_changed: list[str] = field(default_factory=list)  # shipping_refund attempts now decided differently
 
 
 def kinds_of(scenario: Scenario, paid: set[str]) -> list[Kind]:
@@ -94,6 +98,14 @@ def replay_try(saved: dict, scenario: Scenario, where: str, into: Replayed) -> N
                         into.changed.append(
                             f"{where}: {'accepted' if now else 'refused'} {arguments['customer_words']!r}"
                         )
+                elif call["name"] == "request_handoff" and arguments.get("reason_code") == "shipping_refund":
+                    into.shipping += 1
+                    numbered = [(f"m{n}", author, text) for n, (author, text) in enumerate(said)]
+                    words = arguments.get("customer_words", "")
+                    now = request_for_shipping_refund(numbered, words)[0] is not None
+                    recorded = _recorded_answer(saved, call["call_id"])
+                    if recorded is not None and now != recorded:
+                        into.shipping_changed.append(f"{where}: {'accepted' if now else 'refused'} {words!r}")
         elif role == "customer" and message.get("text"):
             said.append(("customer", message["text"]))
 
@@ -133,6 +145,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  {line}")
     print(f"Request for a person: {len(found.changed)} of {found.handoffs} customer_asked attempts decided differently")
     for line in found.changed:
+        print(f"  {line}")
+    print(
+        f"Request to refund shipping: {len(found.shipping_changed)} of {found.shipping} shipping_refund attempts "
+        "decided differently"
+    )
+    for line in found.shipping_changed:
         print(f"  {line}")
     return 0
 

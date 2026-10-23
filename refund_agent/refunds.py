@@ -1026,6 +1026,37 @@ def _accepts(text_: str) -> bool:
     return bool(_ACCEPT.match(first)) and not _NEGATION.search(first) and not _WITHDRAWN.search(plain)
 
 
+def _latest_customer_words(messages: Sequence[tuple[str, str, str]], words: str, asking: str) -> tuple[int | None, str]:
+    """The place of the customer's latest message when the quoted words are in it, or None and why not. An earlier
+    request may have been withdrawn, so only the message in front of the agent counts. asking: what the words must
+    ask, for the reason given when there are none."""
+    if not words.strip():
+        return None, f"customer_words must give the customer's own words that {asking}"
+    customer = [i for i, (_, author, _) in enumerate(messages) if author == "customer"]
+    if not any(_quoted(words, [messages[i][2]]) for i in customer):
+        return None, "customer_words are not words the customer wrote in this conversation"
+    if not _quoted(words, [messages[customer[-1]][2]]):
+        return None, "those words are not in the customer's latest message, which is the request in front of you"
+    return customer[-1], ""
+
+
+# The shipping charge, in the words customers use for it.
+_SHIPPING = re.compile(r"\b(shipping|postage|freight|delivery (?:charge|fee|cost))\b")
+
+
+def request_for_shipping_refund(messages: Sequence[tuple[str, str, str]], words: str) -> tuple[str | None, str]:
+    """The customer message a request to refund shipping rests on, or None and why not (review after the selection
+    check, 2026-10-23). The quoted words must be in the customer's latest message and name the shipping charge. Whether
+    they ask for the charge to be refunded or ask whether it is (D39: "Will the shipping I paid be refunded too, or
+    just the kettle?") is the agent's reading; the refusal of a request without words tells it how to read one."""
+    latest, unmet = _latest_customer_words(messages, words, "ask for the shipping charge to be refunded")
+    if latest is None:
+        return None, unmet
+    if not _SHIPPING.search(_plain(words)):
+        return None, "those words do not name the shipping charge"
+    return messages[latest][0], ""
+
+
 class PersonRequest(NamedTuple):
     message_id: str | None  # the customer message the request rests on, or None
     basis: str  # "names_person" or "accepts_offer" when there is a request; empty otherwise
@@ -1041,17 +1072,10 @@ def request_for_person(messages: Sequence[tuple[str, str, str]], words: str) -> 
     the offer of a person the agent made in the message just before it (_offers_person, _accepts). A yes with no
     offer in view gets its own reason, so the agent asks the offer plainly instead of asking the customer to word the
     request again (D37 try 3)."""
-    if not words.strip():
-        return PersonRequest(None, "", "customer_words must give the customer's own words that ask for a person")
-    customer = [i for i, (_, author, _) in enumerate(messages) if author == "customer"]
-    if not any(_quoted(words, [messages[i][2]]) for i in customer):
-        return PersonRequest(None, "", "customer_words are not words the customer wrote in this conversation")
-    latest = customer[-1]
+    latest, unmet = _latest_customer_words(messages, words, "ask for a person")
+    if latest is None:
+        return PersonRequest(None, "", unmet)
     message_id, _, said = messages[latest]
-    if not _quoted(words, [said]):
-        return PersonRequest(
-            None, "", "those words are not in the customer's latest message, which is the request in front of you"
-        )
     if _asks_for_person(said):
         return PersonRequest(message_id, "names_person", "")
     if _accepts(said):
@@ -1062,6 +1086,18 @@ def request_for_person(messages: Sequence[tuple[str, str, str]], words: str) -> 
     return PersonRequest(
         None, "", "that message does not ask for a person: it names none, or declines one, or answers no offer of one"
     )
+
+
+def _written(conn: Connection, conversation_id: str) -> list[tuple[str, str, str]]:
+    """What the customer and the agent wrote in this conversation, as (id, author, text), in order."""
+    rows = conn.execute(
+        text(
+            "SELECT id, author, content_untrusted FROM messages "
+            "WHERE conversation_id = :id AND author IN ('customer', 'agent') ORDER BY seq"
+        ),
+        {"id": conversation_id},
+    ).all()
+    return [tuple(row) for row in rows]
 
 
 def check_handoff_reason(
@@ -1083,9 +1119,11 @@ def check_handoff_reason(
     and that message asks for one (request_for_person). Code cannot read consent, so a request that passes may still
     be misread: that reading stays the agent's, and the words are kept with the handoff for whoever reads it. A request
     worded otherwise still has a path: the agent offers a person, and the customer's yes is the request. A request to
-    refund shipping is in the conversation's words and stays the agent's claim. A refusal says what to do instead and
-    is recorded like any other; the customer's button and a staff member's takeover never come here. Returns what
-    the check found, for the record: for customer_asked, the ID of the customer message the request rests on."""
+    refund shipping rests the same way on the customer's latest words, which must name the shipping charge
+    (request_for_shipping_refund); whether they ask for it or about it stays the agent's reading. A refusal says what
+    to do instead and is recorded like any other; the customer's button and a staff member's takeover never come
+    here. Returns what the check found, for the record: for customer_asked and shipping_refund, the ID of the customer
+    message the request rests on."""
     try:
         with engine.connect() as conn:
             conversation = _one(conn, "SELECT customer_id FROM conversations WHERE id = :id", id=conversation_id)
@@ -1152,15 +1190,20 @@ def check_handoff_reason(
                         "A unit received back is requested with propose_refund; a refunded unit is reported with its "
                         f"receipt ({policy.citation('remaining')})."
                     )
+            elif reason == "shipping_refund":
+                found, unmet = request_for_shipping_refund(_written(conn, conversation_id), customer_words)
+                holds = found is not None
+                evidence["customer_message"] = found
+                then = (
+                    f"A question whether shipping is refunded is answered from ({policy.citation('shipping')}): "
+                    "shipping is never refunded automatically, and a request to refund it goes to a person; then go on "
+                    "with the refund of the item. Hand off with shipping_refund only when the customer asks for the "
+                    "shipping charge itself to be refunded, copying those words exactly; if you cannot tell which the "
+                    "customer means, ask them."
+                )
+                tail = ""
             elif reason == "customer_asked":
-                written = conn.execute(
-                    text(
-                        "SELECT id, author, content_untrusted FROM messages "
-                        "WHERE conversation_id = :id AND author IN ('customer', 'agent') ORDER BY seq"
-                    ),
-                    {"id": conversation_id},
-                ).all()
-                request = request_for_person([tuple(row) for row in written], customer_words)
+                request = request_for_person(_written(conn, conversation_id), customer_words)
                 holds, unmet = request.message_id is not None, request.unmet
                 evidence["customer_message"], evidence["basis"] = request.message_id, request.basis
                 if unmet == YES_WITHOUT_OFFER:

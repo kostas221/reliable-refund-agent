@@ -982,3 +982,109 @@ Claude read all 126 (`audit-claude.toml`). The user reads 6 conversations, in Gr
 verdicts (`user-review/`): D15 try 2 (with the question whether its scenario should allow a handoff the customer
 accepts), D38 try 1, D33 try 1, D37 try 3 (with the question whether the agent's words after the false refusal are
 acceptable), D31 try 2 and D35 try 1. The user's verdicts are added here when they are in.
+
+## Selection check, question brake and person-request rule
+
+`runs/pilot-20261023T144102Z-gpt-6-luna-none`, 2026-10-23, commit `a8b5869` (clean tree): instructions v7, policy v2,
+the simulated customer and the scenarios unchanged; three changes in code (plan change log, 2026-10-23): the selection
+check in the backend (`units_named`), the question brake in the graph, and the repaired person-request rule. All 42
+development scenarios, 3 tries each, $0.0662 ($0.0528 the agent, $0.0135 the simulated customer). Predictions:
+[predictions.md](predictions.md), "Selection check, question brake and person-request rule".
+
+**125 of 126 conversations.** The computer slept for 117 minutes during D42 try 2 (no database activity from 15:17 to
+17:13 UTC). The try finished normally, every request answered at its first attempt, and its result was saved; then
+dropping its database timed out (3-second connection limit, the Docker disk slow after waking) and the runner stopped.
+D42 try 3 never started. The report counts it as missing, never as passed (review of 2026-10-19, R4): D42 is 2 of 3
+and not settled for pass^3. Its database, `refund_pilot_d8e1fd25_d42_2`, was kept.
+
+### Result
+
+Claude read all 125; no pending item is unread and no conversation is marked a simulator fault.
+
+| | This run | Last run (2026-10-22) |
+|---|---|---|
+| All 42 | 118 of 126 (125 run; 118 of 125 valid) | 112 of 126 |
+| Scenarios passed in all three tries | 37 of 42 (D42 not settled) | 35 of 42 |
+| Unauthorized or duplicate refunds | 0 of 125 | 0 of 126 |
+| Required handoffs | 27 of 27 | 27 of 27 |
+| Required citations | 54 of 56 | 56 of 57 |
+| Agent cost per resolved case | $0.00045 | $0.00047 |
+
+| Paired by scenario, against | Difference | 95% interval | Better / same / worse |
+|---|---|---|---|
+| The last run, D42 try 3 counted as failed | +4.8 points | -2.4 to +12.7 | 5 / 33 / 4 |
+| The last run, D42 on its two tries | +5.6 points | -1.6 to +13.5 | 5 / 34 / 3 |
+| v1 (pilot of 2026-10-19 for D01 to D10, final A for D11 to D30), 30 scenarios | +17.8 points | +6.7 to +31.1 | 9 / 20 / 1 |
+
+Better: D09, D17, D31, D33 (the clarification failures) and D15. Worse: D13, D20, D39 (one conversation each) and D42
+(the missing try).
+
+### What the changes did
+
+- **Selection check: the clarifying question 12 of 12** (last run 3 of 12). The backend refused 9 proposals, all the
+  first proposal of a D09, D17, D31 or D33 conversation, each for both look-alikes or one the customer had not named;
+  after each refusal the agent asked which item, naming each by colour, size or order date, and proposed only the one
+  the customer named. In the other 3 conversations (D17 try 2, D33 tries 2 and 3) the agent asked before any proposal.
+  No refusal outside these four scenarios, none in D32 and D34 (6 of 6 proposed at once), and no conversation refused
+  twice.
+- **Question brake: not exercised.** No answer held a question and a tool call together (last run: 3, all D33). Every
+  D33 question went out alone. The brake's effect is untested in a live run; its tests are the only evidence.
+- **Person-request rule:** no `customer_asked` handoff on words that ask for no person, 16 handoffs begun by the
+  customer, each on a genuine request (D05, D27, D30, D36, D37 three each; D15 try 2). The 13 handoff refusals were
+  all correct: "Can I cancel it?" (D37, D38), "Can you tell me where it is?" (D35), an empty quote (D15, D19, D35, D37)
+  and one `shop_decided` with no decision (D19). No yes was refused; in D37 the customer answered the offer with
+  "Yes, please connect me with a staff member.", which names a person, so the new offer reading was not needed.
+
+### The failures, by reading
+
+- **D13 try 1, a false reason (new).** After paying for the two returned items, the agent told the customer that the
+  blanket's deadline, 1 November, had passed (the scenario's date is 16 October) and refused an exception as late; the
+  assessment had refused the blanket only for not being returned. The other two tries said the blanket must arrive
+  first. A date error in the agent's text, not linked to the changes.
+- **D20 tries 1 and 2:** the receipt and the payout explained, the `remaining` citation missed.
+- **D39 tries 1 to 3:** the shipping question handed off as `shipping_refund`; the kettle not refunded.
+- **D15 try 2:** the customer accepted the offered staff member and asked to be connected; the scenario forbids any
+  handoff. The scenario's ambiguity, as in the last run.
+
+### Predictions against results
+
+| # | Prediction | Result | |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate refund | 0 of 125 | right |
+| 2 | No selection refusal outside the look-alike scenarios; at most 1 in D32 and D34 | 0; 0 | right |
+| 3 | D09, D17, D31, D33: pre-check at least 10 of 12; 7 to 12 succeed | 12; 12 | right |
+| 4 | D32 and D34: 5 or 6 of 6, proposed at once | 6 | right |
+| 5 | At most 2 conversations with the selection refused twice; none cut off by it | 0; 0 | right |
+| 6 | D37 3 of 3; no genuine yes refused | 3; none | right |
+| 7 | No `customer_asked` handoff on words that ask for no person; D35 and D38 3 of 3 | 0; 3 and 3 | right |
+| 8 | All 27 required handoffs | 27 | right |
+| 9 | Of the 112 that passed in the last run, at least 106 pass, every loss read | 108 (3 lost, 1 missing) | right |
+| 10 | 110 to 124 of 126 | 118 | right |
+| 11 | D15 0 to 3, D20 1 to 3, D39 0 to 3 | 2, 1, 0 | right |
+| 12 | -2 to +10 points against the last run | +4.8 | right |
+| 13 | Under $0.15 | $0.0662 | right |
+
+Prediction 9 counts by scenario: D13, D20 and D39 each lost one conversation; D42 try 3 is missing. None of the three
+losses is attributed to a change: a date error, a missed citation, and a handoff the changes do not touch.
+
+### Keeping the changes
+
+All three stay: predictions 1, 2, 4, 7 and 8 hold, and no loss is attributed to them. The question brake stays on its
+tests alone, since the run never exercised it.
+
+### Limits
+
+- One run, with one try missing. Against the last run the interval still includes zero; against v1 it does not. The
+  scenarios are development cases written by the author of the system, the look-alike scenarios among them; the
+  selection check's family rule rests on the product names of this shop.
+- The 12 of 12 measures asking before proposing on four scenarios; the questions' wording is read, but how the check
+  behaves with customers who answer "the second one" or name an item by a synonym is untested here.
+- Claude's reading only, until the user's share is in.
+
+### Who read
+
+Claude read all 125 (`audit-claude.toml`). The user reads 6 conversations, in Greek and numbered without Claude's
+verdicts (`user-review/`): D28 try 1 (with the question whether a conditional answer about the cancellation, given
+without reading its status, is acceptable), D09 try 1 and D33 try 1 (a refused proposal and the question after it),
+D13 try 1, D37 try 1 and D15 try 2 (with last run's question about its scenario). The user's verdicts are added here
+when they are in.

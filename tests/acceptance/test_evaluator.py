@@ -64,12 +64,13 @@ def test_a_correct_run_passes_after_the_dialogue_audit(db, scenario_id):
 @pytest.fixture
 def without_the_selection_check(monkeypatch):
     """Since 2026-10-23 the backend refuses a proposal among look-alikes before the customer has said which
-    (refunds.units_named), so these wrong runs cannot be made through it. The evaluator keeps its own check, which
-    must still fail such a run if one is ever recorded: a configuration without the backend check, or a change to it."""
+    (refunds.units_named), and, since its review the same day, a proposal of the one the customer did not choose; so
+    these wrong runs cannot be made through it. The evaluator keeps its own check, which must still fail such a run if
+    one is ever recorded: a configuration without the backend check, or a change to it."""
     monkeypatch.setattr(refunds, "_look_alikes_unnamed", lambda *args: ())
 
 
-def test_the_wrong_unit_fails(db):
+def test_the_wrong_unit_fails(db, without_the_selection_check):
     _, app, baseline = seeded(db, "D09")
     c = Conversation(app, "D09")
     c.agent("You returned two navy T-shirts, sizes M and L. Which one do you mean?")
@@ -244,7 +245,7 @@ def test_the_receipt_of_another_refund_fails(db):
     assert verdict.names("failed") == ["communication:gives_this_receipt"]
 
 
-def test_a_correct_last_proposal_does_not_hide_an_earlier_wrong_refund(db):
+def test_a_correct_last_proposal_does_not_hide_an_earlier_wrong_refund(db, without_the_selection_check):
     _, app, baseline = seeded(db, "D09")
     c = Conversation(app, "D09")
     c.agent("You returned two navy T-shirts, sizes M and L. Which one do you mean?")

@@ -307,6 +307,7 @@ MOCK = {
                 "request_handoff",
                 {
                     "reason_code": "shipping_refund",
+                    "customer_words": "I want the shipping refunded.",
                     "reason": "The customer asks for the shipping of a refunded kettle to be refunded.",
                     "customer_goal": "To have the shipping of the broken kettle refunded.",
                     "confirmed_facts": "The kettle was refunded on 13 October, receipt R-D40-0001.",

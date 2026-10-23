@@ -139,6 +139,19 @@ def test_the_agent_sees_the_customers_earlier_requests(db):
     assert call(ctx, "get_my_order", order_id="d10-o1")["order"]["requests"] == order["requests"]
 
 
+def test_a_paid_request_carries_the_section_that_explains_its_units_are_settled(db):
+    # D20, tries 1 and 2 of 2026-10-23: the agent gave the receipt and left out (refund-policy/v2/remaining), which
+    # the instructions already ask for; the citation now sits beside the receipt the agent reads (review after the
+    # selection check). A request not paid has none.
+    (paid,) = call(agent_for(db, "D20"), "list_my_orders")["orders"][0]["requests"]
+    assert (paid["receipt_number"], paid["policy_citation"]) == ("R-H10-0001", "refund-policy/v2/remaining")
+
+
+def test_a_request_not_paid_carries_no_such_section(db):
+    (expired,) = call(agent_for(db, "D10"), "get_my_order", order_id="d10-o1")["order"]["requests"]
+    assert "policy_citation" not in expired
+
+
 def test_another_customers_request_is_not_found(db):
     ctx = agent_for(db, "D07")
     _, hugos = proposed(ctx.engine, "d07-hugo", "d07-o2", ["d07-o2-u1"], "propose-hugo", ctx.clock())
@@ -378,10 +391,66 @@ def test_a_dispute_names_an_order_of_the_signed_in_customer(db):
     assert "name the customer's order" in handoff(ctx, "delivery_disputed", "d07-o2")["explanation"]
 
 
-def test_what_only_the_conversation_shows_stays_the_agents_claim(db):
-    ctx = agent_for(db, "D01")
-    assert handoff(ctx, "shipping_refund")["ok"] is True
-    assert rows(ctx.engine, "SELECT origin FROM handoffs") == [("agent",)]
+# A request to refund shipping rests on the customer's words (review after the selection check, 2026-10-23)
+
+
+def shipping(ctx, words, call_id="hand-1"):
+    return call(
+        ctx,
+        "request_handoff",
+        call_id,
+        reason_code="shipping_refund",
+        customer_words=words,
+        reason="A test of the handoff check.",
+        customer_goal="",
+        confirmed_facts="",
+        decision_needed="",
+    )
+
+
+def test_a_question_about_shipping_is_answered_and_the_refund_goes_on(db):
+    # D39, all three tries of 2026-10-23: the agent handed off "Will the shipping I paid be refunded too, or just the
+    # kettle?" with no words of the customer's, and the kettle was never refunded.
+    ctx = agent_for(db, "D39")
+    said(ctx, "Hi, I returned the glass kettle. Will the shipping I paid be refunded too, or just the kettle?")
+    refused = shipping(ctx, "")
+    assert refused["refused"] == "handoff_reason"
+    unmet = "customer_words must give the customer's own words that ask for the shipping charge to be refunded"
+    assert refused["explanation"].split(".")[0] == unmet
+    assert (
+        "A question whether shipping is refunded is answered from (refund-policy/v2/shipping)" in refused["explanation"]
+    )
+    assert "go on with the refund of the item" in refused["explanation"]
+    assert "customer_asked" not in refused["explanation"]  # the tail for a request for a person does not apply
+    assert control(ctx) == [("agent",)]
+
+
+def test_a_request_to_refund_shipping_rests_on_the_customers_latest_words(db):
+    ctx = agent_for(db, "D40")
+    said(
+        ctx,
+        "Hello, you refunded my kettle last week, thank you, but I also paid 18 reais shipping for a kettle that "
+        "arrived broken. I want the shipping refunded.",
+    )
+    for words, unmet in (
+        ("I want my shipping back", "customer_words are not words the customer wrote in this conversation"),
+        ("you refunded my kettle last week", "those words do not name the shipping charge"),
+    ):
+        refused = shipping(ctx, words)
+        assert (refused["refused"], refused["explanation"].split(".")[0]) == ("handoff_reason", unmet)
+    said(ctx, "Is anyone there?")
+    refused = shipping(ctx, "I want the shipping refunded.", "hand-2")
+    assert refused["explanation"].startswith("those words are not in the customer's latest message")
+    said(ctx, "I want the shipping refunded, please.")
+    assert shipping(ctx, "I want the shipping refunded", "hand-3")["ok"] is True
+    request = f"{ctx.conversation_id}/m0002"  # the staff member sees the words the request rests on
+    assert rows(ctx.engine, "SELECT origin, reason FROM handoffs") == [
+        (
+            "agent",
+            'shipping_refund: A test of the handoff check. The customer wrote: "I want the shipping refunded" '
+            f"(message {request}).",
+        )
+    ]
 
 
 # The model's mistakes

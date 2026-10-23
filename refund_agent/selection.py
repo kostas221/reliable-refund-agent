@@ -14,9 +14,22 @@ its products; a catalog with product and variant codes would group by those inst
 
 What tells a kind apart from the others of its group: a word of its variant that the others do not have ("olive",
 the "l" of "size L"), its order's ID, or the date its order was placed or delivered when no other kind shares that
-date. All the kinds of a group are picked out when the customer names each of them, or says "both", "each", "every",
-a number, or "all" followed by "of", "the" or "my". Words are read, not meant: "not the rust one" names the rust
-scarf, and "the second one" names nothing; the agent asks, and the customer's answer settles it.
+date. The customer's messages are read in order, clause by clause, and each kind keeps what the customer said of it
+last (review after the selection check, 2026-10-23):
+
+- A kind is selected where words tell it apart, and unselected where a word such as "not", "keep", "except" or
+  "instead of" comes before them in the clause: "Not the olive one. Please refund the rust one." selects the rust
+  scarf only.
+- A message that says "only" or "just" unselects the kinds of the group it does not select: "Actually, keep the
+  olive one. Refund only the rust scarf." leaves the olive scarf out, whatever was said of it before.
+- All the kinds at once: "both", or "each", "every", "all" or a number followed within three words by "of them" or a
+  word of the family's name ("the two scarves"); "two weeks ago" selects nothing.
+- An answer to the agent's question selects only when it is a yes, with no negation, to a question that named some
+  kinds of the group and not all of them ("Do you mean the olive one?" and "Yes, that one"); a "no" unselects the kinds
+  the question named; "Thanks" changes nothing.
+
+Words are read, not meant: "the second one" and "the large one" select nothing, so the agent asks again. A notice
+from the backend is not the customer's answer.
 """
 
 from __future__ import annotations
@@ -30,7 +43,14 @@ from datetime import date
 _PLAIN_QUOTES = str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"'})
 _WORD = re.compile(r"[a-z0-9]+(?:'[a-z]+)?")  # "i'm" is one word, so its "m" is not a size M
 _QUOTED = re.compile(r"\"[^\"]*\"|(?<![a-z0-9])'[^']*'(?![a-z0-9])")
-_ALL_OF_THEM = re.compile(r"\b(both|each|every|two|three|four|five|all (?:of|the|my))\b")
+_CLAUSE = re.compile(r"[.,;:!?—–]|\s-\s|\bbut\b|\band\b")  # a hyphen inside "t-shirt" ends nothing
+_EXCLUDED = re.compile(
+    r"\b(no|not|never|nobody|without|except|keep|instead of|rather than|other than|apart from|cannot)\b|n't\b"
+)
+_ONLY = re.compile(r"\b(only|just)\b")
+_COUNT = re.compile(r"\b(?:each|every|all|two|three|four|five|[2-5])\b((?:\s+\S+){1,3})")
+_YES = re.compile(r"(yes|yeah|yep|yup|sure|correct|right|exactly|that one|that's (?:the one|it|right))\b")
+_NO = re.compile(r"(no|nope)\b")
 _MONTHS = (
     "january",
     "february",
@@ -82,68 +102,98 @@ class Kind:
         return _words(",".join(self.product.split(",")[1:]))
 
 
-def _names_date(text: str, day: date) -> bool:
+def _date_at(text: str, day: date) -> int | None:
     month = _MONTHS[day.month - 1]
     months = f"(?:{month}|{month[:3]})"
     nth = f"{day.day}(?:st|nd|rd|th)?"
-    return bool(
-        re.search(rf"\b{nth}(?: of)? {months}\b", text)
-        or re.search(rf"\b{months}\.? {nth}\b", text)
-        or re.search(rf"\b{day.isoformat()}\b", text)
-    )
+    for pattern in (rf"\b{nth}(?: of)? {months}\b", rf"\b{months}\.? {nth}\b", rf"\b{day.isoformat()}\b"):
+        found = re.search(pattern, text)
+        if found:
+            return found.start()
+    return None
 
 
-def _tells_apart(kind: Kind, others: Sequence[Kind], text: str) -> bool:
-    """Whether these words pick out this kind among the others of its group."""
-    said = plain(text)
-    if kind.variant - set().union(*(other.variant for other in others)) & _words(text):
-        return True
-    if all(other.order_id != kind.order_id for other in others) and re.search(
-        rf"\b{re.escape(plain(kind.order_id))}\b", said
-    ):
-        return True
-    taken = {d for other in others for d in (other.placed, other.delivered)}
-    return any(day is not None and day not in taken and _names_date(said, day) for day in (kind.placed, kind.delivered))
+def _named_at(kind: Kind, others: Sequence[Kind], clause: str) -> int | None:
+    """Where in the clause words tell this kind apart from the others of its group, or None."""
+    own = kind.variant - set().union(*(other.variant for other in others))
+    for word in _WORD.finditer(clause):  # whole words: the "m" of "i'm" is not a size M
+        if word.group() in own:
+            return word.start()
+    if all(other.order_id != kind.order_id for other in others):
+        found = re.search(rf"\b{re.escape(plain(kind.order_id))}\b", clause)
+        if found:
+            return found.start()
+    taken = {day for other in others for day in (other.placed, other.delivered)}
+    for day in (kind.placed, kind.delivered):
+        at = _date_at(clause, day) if day is not None and day not in taken else None
+        if at is not None:
+            return at
+    return None
 
 
-def _picked(chosen: Sequence[Kind], group: Sequence[Kind], text: str, *, all_words: bool) -> bool:
-    """Whether these words pick out exactly the chosen kinds of the group."""
-    if len(chosen) == len(group):
-        if all_words and _ALL_OF_THEM.search(plain(text)):
-            return True
-        return all(_tells_apart(kind, [k for k in group if k != kind], text) for kind in chosen)
-    others = [kind for kind in group if kind not in chosen]
-    return all(_tells_apart(kind, others, text) for kind in chosen)
+def _all_of_them_at(clause: str, family: str) -> int | None:
+    """Where the clause names every kind of the family at once, or None."""
+    found = re.search(r"\bboth\b", clause)
+    if found:
+        return found.start()
+    stems = [word[:-1] for word in _WORD.findall(family) if len(word) > 3]  # "scar" for scarf and scarves
+    for found in _COUNT.finditer(clause):
+        if re.search(r"\bof them\b", found.group(1)) or any(stem in found.group(1) for stem in stems):
+            return found.start()
+    return None
+
+
+def _selected(group: Sequence[Kind], messages: Sequence[tuple[str, str]]) -> dict[Kind, bool]:
+    """Which kinds of the group the customer selects now: their messages read in order, clause by clause."""
+    state = dict.fromkeys(group, False)
+    for index, (author, text) in enumerate(messages):
+        if author != "customer":
+            continue
+        selected_here: set[Kind] = set()
+        for clause in (part for part in _CLAUSE.split(plain(text)) if part.strip()):
+            whole = _all_of_them_at(clause, group[0].family)
+            if whole is not None and not _EXCLUDED.search(clause[:whole]):  # "not both" alone selects nothing
+                state.update(dict.fromkeys(group, True))
+                selected_here.update(group)
+            for kind in group:
+                at = _named_at(kind, [other for other in group if other != kind], clause)
+                if at is not None:
+                    state[kind] = not _EXCLUDED.search(clause[:at])
+                    if state[kind]:
+                        selected_here.add(kind)
+        if selected_here and _ONLY.search(plain(text)):
+            state.update({kind: False for kind in group if kind not in selected_here})
+        before = messages[index - 1] if index else None
+        if before and before[0] == "agent" and asks_customer(before[1]):
+            question = plain(before[1])
+            asked = [kind for kind in group if _named_at(kind, [o for o in group if o != kind], question) is not None]
+            reply = re.split(r"[.!?]", plain(text))[0].strip()
+            if asked and len(asked) < len(group):
+                if _YES.match(reply) and not _EXCLUDED.search(reply):
+                    state.update(dict.fromkeys(asked, True))
+                elif _NO.match(reply):
+                    state.update({kind: False for kind in asked if kind not in selected_here})
+    return state
 
 
 def look_alikes_unnamed(
     kinds: Sequence[Kind], unit_ids: Sequence[str], messages: Sequence[tuple[str, str]]
 ) -> tuple[Kind, ...]:
-    """The group of look-alikes that the customer's words do not yet tell apart for this selection, or () when the
-    selection may be proposed.
+    """The group of look-alikes whose chosen kinds the customer does not select now, or () when the selection may be
+    proposed.
 
     kinds: the customer's products, each in one order, with the units not yet refunded. messages: the conversation's
-    (author, text), customer and agent only, in order. The selection is picked out when the customer's words, in any
-    of their messages, tell the chosen kinds apart; or when the customer's latest message comes right after an agent
-    message that asks a question and names the chosen kinds in a way that tells them apart ("Do you mean the olive
-    one?" and "Yes"). An answer the agent reads stays the agent's reading; a notice from the backend is not the
-    customer's answer."""
+    (author, text), customer and agent only, in order. What selects a kind is in the module's docstring; an answer
+    the agent reads stays the agent's reading, and a notice from the backend is not the customer's answer."""
     kind_of = {unit: kind for kind in kinds for unit in kind.unit_ids}
     chosen = list(dict.fromkeys(kind_of[unit] for unit in unit_ids if unit in kind_of))
-    customer = " \n ".join(text for author, text in messages if author == "customer")
-    latest = max((i for i, (author, _) in enumerate(messages) if author == "customer"), default=None)
-    question = messages[latest - 1] if latest else None
-    asked = question[1] if question and question[0] == "agent" and asks_customer(question[1]) else ""
     for family in dict.fromkeys(kind.family for kind in chosen):
         group = tuple(kind for kind in kinds if kind.family == family)
         if len(group) < 2:
             continue
-        mine = [kind for kind in chosen if kind.family == family]
-        if _picked(mine, group, customer, all_words=True):
-            continue
-        if asked and _picked(mine, group, asked, all_words=False):
-            continue
-        return group
+        state = _selected(group, messages)
+        if not all(state[kind] for kind in chosen if kind.family == family):
+            return group
     return ()
 
 
