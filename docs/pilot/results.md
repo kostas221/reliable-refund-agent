@@ -878,3 +878,107 @@ question whether D39 opens with a question or a request), two clarifying questio
 items without asking, a proposal of both named items, a genuine "yes" to an offered staff member, a "no", the
 ledger line after "card or store credit", and the true "I haven't created a proposal". The user's verdicts are added
 here when they are in.
+
+## Code fixes after the contrasting baseline
+
+`runs/pilot-20261022T165428Z-gpt-6-luna-none`, 2026-10-22, commit `f1a3eed`: instructions v7, policy v2 and the
+simulated customer unchanged; four changes in code (plan change log, 2026-10-22: the adapter's text items, the
+`customer_asked` check, the named case read from every refusal reason, a repeated proposal call's status). All 42
+development scenarios, 126 conversations, $0.0661 ($0.0530 the agent, $0.0131 the simulated customer). Every
+conversation ended normally. Predictions: [predictions.md](predictions.md), "Bug fixes after the contrasting baseline".
+
+### Result
+
+Claude read all 126; no pending item failed and no conversation is marked a simulator fault (D15, below).
+
+| | This run | Last run of each scenario |
+|---|---|---|
+| All 42 | 112 of 126 | 112 of 126 (81 repairs + 31 baseline) |
+| Scenarios passed in all three tries | 35 of 42 | 33 of 42 |
+| Unauthorized or duplicate refunds | 0 of 126 | 0 |
+| Required handoffs | 27 of 27 | 27 of 27 |
+| Agent cost per resolved case | $0.00047 | $0.00046 (repairs) |
+
+Paired by scenario against each scenario's last run: +0.0 points (95% interval -5.6 to +5.6); 5 better (D12, D13,
+D17, D20, D38), 33 the same, 4 worse (D09, D15, D31, D33).
+
+### What the changes did
+
+- **`customer_asked`:** no handoff on words that ask for no person. The backend refused "Can you tell me where it
+  is?" (D35, 3 of 3) and "Can I cancel it?" (D37 tries 1 and 2, D38 tries 1 and 3); each time the agent answered
+  and offered a person, and D38 went from 2 of 3 to 3 of 3. One false refusal: in D37 try 3 the offer "Would you
+  like me to ask a staff member to help?" was not recognized as one, so "Yes, please." was refused; the agent told
+  the customer the yes was not enough, and handed off when the customer asked again. The conversation passed; the
+  check's offer rule is a defect to repair.
+- **The adapter:** no agent message held the same text twice (0 of 275). The case the display fix handles, a
+  response with both a commentary and a final answer, did not occur, so the fix was not exercised; the log now
+  shows each text item's label (272 responses with a final answer only, 3 with commentary only, 431 with tool calls
+  only).
+- **The named case and the repeated proposal call:** no run reached either; they changed no measured text the agent
+  read.
+
+### What the run shows
+
+- **Asking which item: 3 of 12** (D09 1, D17 1, D31 0, D33 1; the last runs of these scenarios, 6 of 12). D32 and D34
+  proposed at once in 6 of 6. Two mechanisms:
+  - In D09, D17 and D31 the agent assessed and proposed without asking, as before (7 of 9 tries).
+  - In D33 tries 1 and 3 the agent wrote the question as commentary together with a tool call, and the graph went on
+    to the proposal without waiting for the answer. These are the only three responses in the run with text and a
+    tool call together; in the two runs before there were none. The question's input to the model is the same as in
+    the baseline, so the change of form is the model's variation, not one of the fixes; what the graph lacks is a
+    rule that a question to the customer ends the agent's turn. The baseline's doubled question was, most likely,
+    the same habit: the question as commentary, then again as the final answer.
+- **D15, 1 of 3:** in tries 2 and 3 the agent answered the shipment question and offered a person, as the exceptions
+  section says; the simulated customer accepted and the agent handed off. The role neither asks nor forbids accepting
+  an offered person, so this is the scenario ambiguity the second review named; it is not marked a simulator fault
+  here (the repairs run marked the same pattern as one), and it waits for the simulator's fixed version.
+- **D39, 1 of 3, and D20, 2 of 3:** as before, a question about shipping handed off as a request, and the remaining
+  citation missed once.
+- The proposal-denial diagnostic counted 1 (D42 try 2); the message is true, about the phone case.
+
+### Predictions against results
+
+| # | Prediction | Result | |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate refund | 0 of 126 | right |
+| 2 | No agent message holds the same text twice | 0 of 275; the case was not exercised | right |
+| 3 | No `customer_asked` handoff on words that ask for no person | 0 | right |
+| 4 | All 27 required handoffs | 27 | right |
+| 5 | D38: 3 of 3 | 3 | right |
+| 6 | Of the 112 that passed last time, at least 106 pass | 107 by scenario counts (5 lost, 5 gained) | right |
+| 7 | 106 to 120 of 126 | 112 | right |
+| 8 | Asking side 3 to 8 of 12; D32 and D34 6 of 6 | 3; 6 | right |
+| 9 | D39: 0 to 3 | 1 | right |
+| 10 | -6 to +8 points | +0.0 | right |
+| 11 | Under $0.15 | $0.0661 | right |
+
+Prediction 6 counts by scenario, since tries are independent: a scenario that passed 2 of 3 and now passes 1 lost one.
+
+### Keeping the changes
+
+All four stay: predictions 1, 3 and 4 hold, and no loss is attributed to a change by reading (D09 and D31 asked
+nothing, as before; D33's question form is the model's; D15 is the scenario's ambiguity). The false refusal in D37
+is repaired before the next measured step.
+
+### Limits
+
+- One run. The paired difference is zero with an interval of about six points either way; the clarification count
+  moves with the model's variation more than with anything changed here.
+- Claude's reading only, until the user's share is in. D15's verdict rests on reading its role.
+
+### What follows
+
+1. Repair the offer rule: a sentence that names a person and asks a question, or names one with an offer verb, is
+   an offer; when a yes answers no offer the backend can see, its refusal tells the agent to ask the offer as a
+   question, not the customer to ask again. D37 try 3's words become a permanent test.
+2. A question to the customer ends the agent's turn: after the agent's text in the current turn asks the customer a
+   question, the graph refuses a proposal, a payment or a handoff until the customer or a backend notice answers.
+3. The clarifying question itself (D09, D17, D31), the shipping question (D39) and the remaining citation (D20), one
+   at a time, with the pairs measuring both sides.
+
+### Who read
+
+Claude read all 126 (`audit-claude.toml`). The user reads 6 conversations, in Greek and numbered without Claude's
+verdicts (`user-review/`): D15 try 2 (with the question whether its scenario should allow a handoff the customer
+accepts), D38 try 1, D33 try 1, D37 try 3 (with the question whether the agent's words after the false refusal are
+acceptable), D31 try 2 and D35 try 1. The user's verdicts are added here when they are in.

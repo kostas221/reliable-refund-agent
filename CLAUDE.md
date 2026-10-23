@@ -101,11 +101,16 @@ negation, to the agent's offer of one in the message just before (12 contrasting
 `tests/test_request_for_person.py`, after a third review found the first rule too loose; replayed on the last three
 runs: keeps the 30 genuine, refuses only D38's); the refusal's named case reads every reason, never for an order in
 transit, and names only the units a dispute can carry; a repeated proposal call tells its status and next step from one
-read, and a rejection's reason. Predictions "Bug fixes after the contrasting
-baseline"; next, the user's run on all 42 (126 conversations, about $0.07). After it: the clarifying question (the
-order of the instructions plus a reminder at the proposal, labelled as a package, or the graph's pending-selection
-state); the shipping question (D39); the D20 remaining citation; the simulator fixed and frozen before the final
-evaluation. The user reads 10 conversations
+read, and a rejection's reason. Their run (`runs/pilot-20261022T165428Z-gpt-6-luna-none`, results in
+`docs/pilot/results.md`): 112/126, the same as each scenario's last run (paired +0.0, 95% -5.6 to +5.6), 0 unsafe,
+27/27 required handoffs, 11/11 predictions right; no handoff on words that ask for no person, but one false refusal of
+a genuine yes to an offer the rule did not recognize (D37 try 3); no doubled message, though the case was not
+exercised; clarification 3/12: D09, D17, D31 never ask, and in D33 the question went out as commentary with a tool
+call and the agent proposed without waiting. Next, proposed to the user: repair the offer rule; a question to the
+customer ends the agent's turn (no proposal, payment or handoff until the customer or a notice answers); then the
+clarifying question itself, the shipping question (D39) and the D20 remaining citation, one at a time; D15 (the
+simulated customer accepts an offered person where the scenario forbids a handoff) waits for the simulator's fixed
+version, frozen before the final evaluation. The user reads 10 conversations
 of step 1 and 9 of each of steps 3, 2 and the repairs (`user-review/`); Claude's verdicts are shown after. Development
 runs: Claude reads all, the user reads what Claude fails or notes. Phase 7 (video, code licence, external test, CI on a
 remote) after v1.1.
