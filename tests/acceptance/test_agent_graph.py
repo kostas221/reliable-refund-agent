@@ -32,10 +32,10 @@ class Shop:
         customer = Actor("customer", self.scenario.customer.id)
         self.conversation = open_conversation(self.app, customer, self.scenario.now)
 
-    def agent(self, script, engine=None, **options):
+    def agent(self, script, engine=None, model=None, **options):
         connection = database.checkpoint_connection("app", self.app.url.database)
         self.connections.append(connection)
-        model = ScriptedModel(script)
+        model = model or ScriptedModel(script)
         engine = engine or self.app
         return Agent(engine, POLICY, model, PostgresSaver(connection), lambda: self.scenario.now, **options), model
 
@@ -204,26 +204,39 @@ def test_an_agent_that_never_answers_is_stopped(shop):
     assert rows(s.app, "SELECT count(*) FROM proposals") == [(0,)]
 
 
-class AsksAndProposesAtOnce:
-    """A model that, in one answer, asks which item is meant and also proposes a refund, as a real model can."""
+def call_of(name, call_id, **arguments):
+    return {"call_id": call_id, "name": name, "arguments": json.dumps(arguments)}
 
-    name = "asks-and-proposes"
+
+class Turns:
+    """A model that gives these answers in order, one per request: unlike the script, an answer can hold text for the
+    customer and a tool call together, as a real model's can."""
+
+    name = "turns"
+
+    def __init__(self, *turns):
+        self.turns, self.requests = list(turns), []
 
     def respond(self, instructions, messages, tools):
-        if any(m["role"] == "tool" for m in messages):
-            return ModelTurn(text="Please confirm on the card below.")
-        call = {"order_id": "d01-o1", "unit_ids": ["d01-o1-u1"]}
-        propose = {"call_id": "call-1", "name": "propose_refund", "arguments": json.dumps(call)}
-        return ModelTurn(text="Which item do you mean?", tool_calls=(propose,))
+        self.requests.append(list(messages))
+        if len(self.requests) > len(self.turns):
+            raise AssertionError(f"the model was asked {len(self.requests)} times; it has {len(self.turns)} answers")
+        return self.turns[len(self.requests) - 1]
+
+
+PROPOSE_MUG = call_of("propose_refund", "call-1", order_id="d01-o1", unit_ids=["d01-o1-u1"])
 
 
 def test_what_the_agent_says_is_stored_before_the_tools_of_the_same_answer_act(shop):
     # Outside review of 2026-10-15: a turn's messages were stored when the turn ended, after its actions, so a question
-    # and a proposal could not be put in order. Each step now stores what was said before the next step runs.
+    # and a proposal could not be put in order. Each step now stores what was said before the next step runs. Text
+    # that asks nothing goes on to the tools of its answer; a question ends the turn (the tests below).
     s = shop()
-    connection = database.checkpoint_connection("app", s.app.url.database)
-    s.connections.append(connection)
-    agent = Agent(s.app, POLICY, AsksAndProposesAtOnce(), PostgresSaver(connection), lambda: s.scenario.now)
+    model = Turns(
+        ModelTurn(text="Let me record that for you.", tool_calls=(PROPOSE_MUG,)),
+        ModelTurn(text="Please confirm on the card below."),
+    )
+    agent, _ = s.agent([], model=model)
     agent.receive(s.conversation, "Please refund my mug.")
     order = rows(
         s.app,
@@ -232,10 +245,141 @@ def test_what_the_agent_says_is_stored_before_the_tools_of_the_same_answer_act(s
     )
     assert order == [
         ("said: Please refund my mug.",),
-        ("said: Which item do you mean?",),
+        ("said: Let me record that for you.",),
         ("did: propose",),
         ("said: Please confirm on the card below.",),
     ]
+
+
+# A question to the customer ends the agent's turn (plan change log, 2026-10-23)
+
+
+def not_run(agent, conversation):
+    return [
+        (m["call_id"], json.loads(m["content"])["not_run"])
+        for m in agent.messages(conversation)
+        if m["role"] == "tool" and "not_run" in json.loads(m["content"])
+    ]
+
+
+@pytest.mark.parametrize(
+    "call, table",
+    [
+        (PROPOSE_MUG, "proposals"),
+        (
+            call_of(
+                "request_handoff",
+                "call-1",
+                reason_code="shipping_refund",
+                reason="Shipping.",
+                customer_goal="",
+                confirmed_facts="",
+                decision_needed="",
+            ),
+            "handoffs",
+        ),
+        (call_of("assess_refund", "call-1", order_id="d01-o1", unit_ids=["d01-o1-u1"]), "proposals"),
+    ],
+    ids=["proposal", "handoff", "read"],
+)
+def test_a_question_ends_the_turn_and_the_calls_given_with_it_do_not_run(shop, call, table):
+    # D33 tries 1 and 3 of 2026-10-22: the question went to the customer with a call, the graph went on, and the agent
+    # proposed before the customer answered. A read is held back too: after it the agent would speak again.
+    s = shop()
+    model = Turns(ModelTurn(text="Which mug do you mean?", tool_calls=(call,)), ModelTurn(text="Thank you."))
+    agent, _ = s.agent([], model=model)
+    agent.receive(s.conversation, "Please refund my mug.")
+    assert len(model.requests) == 1  # the turn ended at the question: the model was not asked again
+    assert rows(s.app, f"SELECT count(*) FROM {table}") == [(0,)]
+    assert not_run(agent, s.conversation) == [("call-1", "question_to_customer")]
+    assert s.said() == [("customer", "Please refund my mug."), ("agent", "Which mug do you mean?")]
+    agent.receive(s.conversation, "The blue one.")
+    assert '"not_run": "question_to_customer"' in model.requests[1][-2]["content"]  # the model sees what did not run
+    assert rows(s.app, f"SELECT count(*) FROM {table}") == [(0,)]
+
+
+D33_QUESTION = (  # D33 try 1 of runs/pilot-20261022T165428Z-gpt-6-luna-none, with its assessment call
+    "I found two returned white ceramic planters, one in each order. Which would you like refunded: the one in order "
+    "d33-o2 or the one in order d33-o1?"
+)
+
+
+def test_the_customers_answer_to_the_question_lets_the_proposal_through(shop):
+    s = shop("D33")
+    second = call_of("propose_refund", "call-2", order_id="d33-o2", unit_ids=["d33-o2-u1"])
+    model = Turns(
+        ModelTurn(
+            text=D33_QUESTION,
+            tool_calls=(call_of("assess_refund", "call-1", order_id="d33-o2", unit_ids=["d33-o2-u1"]),),
+        ),
+        ModelTurn(text="", tool_calls=(second,)),
+        ModelTurn(text="Please confirm the proposal on its card."),
+    )
+    agent, _ = s.agent([], model=model)
+    agent.receive(s.conversation, s.scenario.customer.opening_message)
+    assert rows(s.app, "SELECT count(*) FROM proposals") == [(0,)]
+    agent.receive(s.conversation, "The one from my order of 5 October.")
+    units = "SELECT p.status, pu.order_unit_id FROM proposals p JOIN proposal_units pu ON pu.proposal_id = p.id"
+    assert rows(s.app, units) == [("awaiting_customer_confirmation", "d33-o2-u1")]
+
+
+def test_an_instruction_without_a_question_mark_is_stopped_by_the_selection_check(shop):
+    # The review of 2026-10-23: "Please choose ..." asks for input with no question mark, so the graph lets its call
+    # run; the backend refuses a proposal among look-alikes until the customer's words say which.
+    s = shop("D33")
+    choose = "Please choose the planter from order d33-o1 or order d33-o2."
+    model = Turns(
+        ModelTurn(
+            text=choose, tool_calls=(call_of("propose_refund", "call-1", order_id="d33-o2", unit_ids=["d33-o2-u1"]),)
+        ),
+        ModelTurn(text=choose),
+    )
+    agent, _ = s.agent([], model=model)
+    agent.receive(s.conversation, s.scenario.customer.opening_message)
+    assert rows(s.app, "SELECT count(*) FROM proposals") == [(0,)]
+    assert '"refused": "units_named"' in model.requests[1][-1]["content"]
+
+
+def test_a_crash_before_the_held_calls_are_marked_runs_none_of_them_after_a_restart(shop, monkeypatch):
+    # The turn's answer is saved before its calls are marked as not run. A crash in between leaves the run to be
+    # finished; the next message finishes it first, and the held call still does not run.
+    s = shop()
+
+    def dies(state):
+        raise RuntimeError("the process died before the held calls were marked")
+
+    monkeypatch.setattr(Agent, "_hold", staticmethod(dies))
+    first = Turns(ModelTurn(text="Which mug do you mean?", tool_calls=(PROPOSE_MUG,)))
+    agent, _ = s.agent([], model=first)
+    with pytest.raises(RuntimeError):
+        agent.receive(s.conversation, "Please refund my mug.")
+    monkeypatch.undo()  # a new process, with the real node
+    later = Turns(ModelTurn(text="Thank you, I will look at the blue mug."))
+    restarted, _ = s.agent([], model=later)
+    restarted.receive(s.conversation, "The blue one.")
+    assert rows(s.app, "SELECT count(*) FROM proposals") == [(0,)]
+    assert not_run(restarted, s.conversation) == [("call-1", "question_to_customer")]  # marked once, never run
+    assert [m["role"] for m in later.requests[0][-3:]] == ["agent", "tool", "customer"]
+
+
+def test_a_notice_while_a_question_waits_still_pays_the_approved_request(shop):
+    # A question waits for the customer's answer about its own subject; it does not stop the payment of a request the
+    # customer confirmed and a staff member approved.
+    s = shop()
+    model = Turns(
+        ModelTurn(text="", tool_calls=(PROPOSE_MUG,)),
+        ModelTurn(text="Please confirm the proposal on its card."),
+        ModelTurn(text="Which other order do you mean?", tool_calls=(call_of("list_my_orders", "call-3"),)),
+        ModelTurn(text="", tool_calls=(call_of("execute_refund", "call-4"),)),
+        ModelTurn(text="Your refund is done."),
+    )
+    agent, _ = s.agent([], model=model)
+    agent.receive(s.conversation, "Please refund my mug.")
+    s.approve(proposal_of(agent, s.conversation))
+    agent.receive(s.conversation, "Can you also look at my other order?")
+    assert not_run(agent, s.conversation) == [("call-3", "question_to_customer")]
+    agent.notify(s.conversation, "The request was confirmed and approved, so it is ready to be paid.")
+    assert rows(s.app, "SELECT count(*) FROM refund_operations") == [(1,)]
 
 
 def test_checkpoints_live_apart_from_the_business_tables(shop):

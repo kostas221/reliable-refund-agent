@@ -59,3 +59,25 @@ def test_a_message_denying_a_proposal_made_before_it_is_counted():
     assert proposal_denials([eligible, denial, honest]) == 1
     assert proposal_denials([denial, eligible, honest]) == 0  # before any proposal it may be true
     assert proposal_denials([refused, denial]) == 0  # a refused request is no proposal to confirm
+
+
+def test_the_checks_of_2026_10_23_are_counted_where_they_acted():
+    # How often the question brake held a call, the selection check refused a proposal, and the handoff check refused
+    # a yes it could not pair with an offer: the next run shows whether each acted, and a repeated refusal of the
+    # selection in one conversation shows a loop.
+    from refund_agent.evaluation.diagnostics import checks_acted, summarize
+    from refund_agent.refunds import YES_WITHOUT_OFFER
+
+    held = tool("propose_refund", {"ok": False, "not_run": "question_to_customer", "explanation": "Not run"})
+    unnamed = tool("propose_refund", {"ok": False, "refused": "units_named", "explanation": "..."})
+    yes = tool("request_handoff", {"ok": False, "refused": "handoff_reason", "explanation": f"{YES_WITHOUT_OFFER}."})
+    other = tool("request_handoff", {"ok": False, "refused": "handoff_reason", "explanation": "that message does not"})
+    counted = checks_acted([held, unnamed, unnamed, yes, other])
+    assert counted == {
+        "calls held after a question": 1,
+        "proposals refused, the customer's words do not say which": 2,
+        "handoffs refused, a yes to no offer in view": 1,
+        "handoffs refused, other reasons": 1,
+    }
+    per_try = [{"citations": {}, "handoffs": {}, "proposals_after_receipt": 0, "checks_acted": counted}]
+    assert summarize(per_try)["checks_acted"]["conversations with the selection refused twice or more"] == 1

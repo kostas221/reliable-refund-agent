@@ -26,6 +26,7 @@ from pathlib import Path
 
 from refund_agent.evaluation import diagnostics
 from refund_agent.evaluation.audit import AUDIT, CORRECTED, Audited, apply, gaps
+from refund_agent.evaluation.diagnostics import CHECKS_ACTED, REPEATED_SELECTION
 from refund_agent.scenarios import Scenario, load_split, policy_for
 
 CLAUDE = "audit-claude.toml"
@@ -351,6 +352,12 @@ def render(report: dict) -> str:
         + " | ".join(str(c["diagnostics"].get("proposal_denials", 0)) for c in conf.values())
         + " |"
     )
+    for kind in (*CHECKS_ACTED, REPEATED_SELECTION):
+        lines.append(
+            f"| {kind[0].upper()}{kind[1:]} | "
+            + " | ".join(str(c["diagnostics"].get("checks_acted", {}).get(kind, 0)) for c in conf.values())
+            + " |"
+        )
     lines += ["", "## Who read the conversations", ""]
     for name, c in conf.items():
         readers = ", ".join(f"{k} {v}" for k, v in sorted(c["readers"].items()))

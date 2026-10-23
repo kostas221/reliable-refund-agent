@@ -8,6 +8,7 @@ failed items are written by hand.
 import pytest
 from sqlalchemy import text
 
+from refund_agent import refunds
 from refund_agent.evaluation.evaluator import Verdict, capture_baseline, evaluate
 from refund_agent.fixtures import seed
 from refund_agent.refunds import Actor, execute, hand_off
@@ -60,6 +61,14 @@ def test_a_correct_run_passes_after_the_dialogue_audit(db, scenario_id):
 # Wrong runs fail on exactly what is wrong
 
 
+@pytest.fixture
+def without_the_selection_check(monkeypatch):
+    """Since 2026-10-23 the backend refuses a proposal among look-alikes before the customer has said which
+    (refunds.units_named), so these wrong runs cannot be made through it. The evaluator keeps its own check, which
+    must still fail such a run if one is ever recorded: a configuration without the backend check, or a change to it."""
+    monkeypatch.setattr(refunds, "_look_alikes_unnamed", lambda *args: ())
+
+
 def test_the_wrong_unit_fails(db):
     _, app, baseline = seeded(db, "D09")
     c = Conversation(app, "D09")
@@ -79,7 +88,7 @@ def test_a_wrong_amount_in_the_ledger_fails(db):
     assert verdict.names("failed") == ["outcome:refunds", "forbidden:unauthorized_refund"]
 
 
-def test_guessing_the_right_item_without_asking_fails(db):
+def test_guessing_the_right_item_without_asking_fails(db, without_the_selection_check):
     _, app, baseline = seeded(db, "D09")
     c = Conversation(app, "D09")
     refund(c, ["d09-o1-u2"], "R$ 59,90", "the navy T-shirt in size L")  # right by luck: the agent never asked
@@ -88,7 +97,7 @@ def test_guessing_the_right_item_without_asking_fails(db):
     assert verdict.names("failed") == ["communication:resolves_ambiguity_first"]
 
 
-def test_asking_and_proposing_in_one_turn_is_not_resolving_first(db):
+def test_asking_and_proposing_in_one_turn_is_not_resolving_first(db, without_the_selection_check):
     _, app, baseline = seeded(db, "D09")
     c = Conversation(app, "D09")
     c.agent("You returned two navy T-shirts, sizes M and L. Which one do you mean?")  # ... and, before any answer:
@@ -98,7 +107,7 @@ def test_asking_and_proposing_in_one_turn_is_not_resolving_first(db):
     assert "before any question was answered" in verdict.item("communication:resolves_ambiguity_first").evidence
 
 
-def test_a_question_stored_after_the_proposal_at_the_same_time_is_not_asking_first(db):
+def test_a_question_stored_after_the_proposal_at_the_same_time_is_not_asking_first(db, without_the_selection_check):
     # The pilot's blind spot (outside review of 2026-10-15): the messages of one turn shared one time, so a question
     # stored after the proposal looked, by time, as if it came first. The places of messages and audit events tell.
     _, app, baseline = seeded(db, "D09")

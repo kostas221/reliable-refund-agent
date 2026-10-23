@@ -4,6 +4,9 @@ PostgreSQL, and grants nothing.
 A run starts when something new arrives in a conversation (a customer message, or a backend event such as an
 approval) and ends when the agent says something to the customer. Inside a run the graph alternates two nodes:
 "agent" asks the model, and "tools" runs the calls the model made, each through call_tool with the call's own ID.
+An answer that asks the customer a question ends the run even when it also calls tools: "hold" answers each of those
+calls as not run, so nothing is proposed, paid or handed off before the customer replies (plan change log,
+2026-10-23). Which items a proposal may name is the backend's check (refunds.units_named), not the graph's.
 After every node the state is checkpointed in the graph schema, so after a crash resume() continues from the last
 step, and a tool call that runs again gets the same request key: no second proposal and no second refund.
 
@@ -36,6 +39,7 @@ from refund_agent.agent.model import Instructions, ModelAdapter, load_instructio
 from refund_agent.agent.tools import ToolContext, call_tool, tool_definitions
 from refund_agent.policy import Policy
 from refund_agent.refunds import Configuration
+from refund_agent.selection import asks_customer
 
 
 class State(TypedDict):
@@ -74,9 +78,11 @@ class Agent:
         graph = StateGraph(State)
         graph.add_node("agent", self._agent)
         graph.add_node("tools", self._tools)
+        graph.add_node("hold", self._hold)
         graph.add_edge(START, "agent")
-        graph.add_conditional_edges("agent", self._route, {"tools": "tools", "end": END})
+        graph.add_conditional_edges("agent", self._route, {"tools": "tools", "hold": "hold", "end": END})
         graph.add_edge("tools", "agent")
+        graph.add_edge("hold", END)
         self.graph = graph.compile(checkpointer=checkpointer)
 
     # Nodes
@@ -87,7 +93,36 @@ class Agent:
 
     @staticmethod
     def _route(state: State) -> str:
-        return "tools" if state["messages"][-1].get("tool_calls") else "end"
+        """A question to the customer ends the turn, even when the same answer also calls tools (plan change log,
+        2026-10-23): in D33 the question went out with a call, and the agent proposed before the customer answered."""
+        last = state["messages"][-1]
+        if not last.get("tool_calls"):
+            return "end"
+        return "hold" if asks_customer(last.get("text", "")) else "tools"
+
+    @staticmethod
+    def _hold(state: State) -> dict:
+        """The calls given with a question do not run: each gets an answer that says so, under its own call ID, as
+        the provider requires and so the model sees why, and the turn ends without asking the model again. Routing
+        follows the stored answer, so a run finished after a crash comes here again, never to the tools."""
+        return {
+            "messages": [
+                {
+                    "role": "tool",
+                    "call_id": call["call_id"],
+                    "name": call["name"],
+                    "content": json.dumps(
+                        {
+                            "ok": False,
+                            "not_run": "question_to_customer",
+                            "explanation": "Not run: your message asks the customer a question, so your turn ended "
+                            "there. Their answer comes first; call this again after it if it is still needed.",
+                        }
+                    ),
+                }
+                for call in state["messages"][-1]["tool_calls"]
+            ]
+        }
 
     def _tools(self, state: State, config: RunnableConfig) -> dict:
         ctx = self._context(config["configurable"]["thread_id"])

@@ -106,11 +106,18 @@ read, and a rejection's reason. Their run (`runs/pilot-20261022T165428Z-gpt-6-lu
 27/27 required handoffs, 11/11 predictions right; no handoff on words that ask for no person, but one false refusal of
 a genuine yes to an offer the rule did not recognize (D37 try 3); no doubled message, though the case was not
 exercised; clarification 3/12: D09, D17, D31 never ask, and in D33 the question went out as commentary with a tool
-call and the agent proposed without waiting. Next, proposed to the user: repair the offer rule; a question to the
-customer ends the agent's turn (no proposal, payment or handoff until the customer or a notice answers); then the
-clarifying question itself, the shipping question (D39) and the D20 remaining citation, one at a time; D15 (the
-simulated customer accepts an offered person where the scenario forbids a handoff) waits for the simulator's fixed
-version, frozen before the final evaluation. The user reads 10 conversations
+call and the agent proposed without waiting. Review after the 126 conversations (2026-10-23,
+`docs/review-after-126-conversations-2026-10-23.md`): reproduced, direction adopted, its new components (an
+`ask_customer` tool, a selection ID, a recorded offer state, an intent model) deferred with a trigger (plan change log,
+2026-10-23). Three code changes written, not yet measured: a selection check in `refunds.propose` (`units_named`,
+`refund_agent/selection.py`: among look-alikes, a proposal needs the customer's words that tell them apart, or their
+answer to a question that named them); a question brake in the graph (an answer that asks the customer ends the turn,
+its calls answered as not run); the person-request rule repaired (scoped negation and withdrawal, "cannot", wish-form
+offers, the speaker's own role, a separate refusal for a yes with no offer in view). Replayed on the saved logs
+(`python -m refund_agent.evaluation.replay`): 32 of 602 proposals refused, all first proposals of failed D09, D17,
+D31, D33 tries; 3 of 3,946 answers held; 2 of 68 handoff decisions changed (D38 try 1, D37 try 3). Next: the user's
+full suite, then a paid run on all 42 with predictions written first; then the shipping question (D39), the D20
+remaining citation and a new version of D15, one at a time. The user reads 10 conversations
 of step 1 and 9 of each of steps 3, 2 and the repairs (`user-review/`); Claude's verdicts are shown after. Development
 runs: Claude reads all, the user reads what Claude fails or notes. Phase 7 (video, code licence, external test, CI on a
 remote) after v1.1.

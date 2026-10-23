@@ -17,13 +17,13 @@ import re
 import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Literal
+from datetime import UTC, datetime
+from typing import Any, Literal, NamedTuple
 
 from sqlalchemy import Connection, Engine, RowMapping, text
 from sqlalchemy.exc import IntegrityError
 
-from refund_agent import eligibility
+from refund_agent import eligibility, selection
 from refund_agent.policy import Policy
 from refund_agent.states import LAB_TRANSITIONS, OPEN, TRANSITIONS, Status
 
@@ -283,6 +283,43 @@ def _earlier_on_time_units(
     return frozenset(found)
 
 
+def _look_alikes_unnamed(
+    conn: Connection, conversation_id: str, customer_id: str, unit_ids: list[str]
+) -> tuple[selection.Kind, ...]:
+    """The look-alikes among the customer's orders that the conversation does not yet tell apart for these units
+    (refund_agent/selection.py), read inside the proposal's transaction: every unit of the customer not yet refunded,
+    as kinds of one product in one order, and what the customer and the agent wrote, in order. Order dates are UTC."""
+    units = _all(
+        conn,
+        "SELECT u.id, u.order_id, u.product_name, o.purchased_at, o.delivered_at FROM order_units u "
+        "JOIN orders o ON o.id = u.order_id WHERE o.customer_id = :customer "
+        "AND NOT EXISTS (SELECT 1 FROM ledger_lines l WHERE l.order_unit_id = u.id) "
+        "ORDER BY o.purchased_at, u.order_id, u.unit_no",
+        customer=customer_id,
+    )
+    grouped: dict[tuple[str, str], list[RowMapping]] = {}
+    for unit in units:
+        grouped.setdefault((unit["order_id"], unit["product_name"]), []).append(unit)
+    kinds = [
+        selection.Kind(
+            order_id,
+            product,
+            same[0]["purchased_at"].astimezone(UTC).date(),
+            same[0]["delivered_at"].astimezone(UTC).date() if same[0]["delivered_at"] else None,
+            tuple(unit["id"] for unit in same),
+        )
+        for (order_id, product), same in grouped.items()
+    ]
+    written = conn.execute(
+        text(
+            "SELECT author, content_untrusted FROM messages "
+            "WHERE conversation_id = :id AND author IN ('customer', 'agent') ORDER BY seq"
+        ),
+        {"id": conversation_id},
+    ).all()
+    return selection.look_alikes_unnamed(kinds, unit_ids, [(author, said) for author, said in written])
+
+
 def _result(proposal: RowMapping) -> ProposalResult:
     outcome = proposal["status_reason"] if proposal["status"] == Status.INELIGIBLE else "eligible"
     return ProposalResult(
@@ -336,7 +373,8 @@ def propose(
     """Store a proposal for these units with the amount the backend computes, eligible or not.
 
     Checks in the order of the propose transition: actor_owns, agent_in_control, request_key_consistent,
-    valid_values, then (for an eligible request) no_confirmed_open_proposal and policy_eligible.
+    valid_values, units_named, then (for an eligible request) no_confirmed_open_proposal and policy_eligible. A
+    repeated request key returns its proposal before units_named, whatever the conversation said since.
     """
     request_hash = _digest({"conversation": conversation_id, "order": order_id, "units": sorted(unit_ids)})
     try:
@@ -368,6 +406,9 @@ def propose(
             )
             if not unit_ids or len(set(unit_ids)) != len(unit_ids) or len(units) != len(unit_ids):
                 raise Refused("valid_values", "the units must be distinct units of this order")
+            look_alikes = _look_alikes_unnamed(conn, conversation_id, actor.user_id, list(unit_ids))
+            if look_alikes:
+                raise Refused("units_named", selection.refusal(look_alikes))
 
             # An out-of-date open proposal is closed first, so it never blocks a new one.
             open_proposal = _one(
@@ -908,12 +949,7 @@ def assess(
     )
 
 
-# Curly quotation marks as their plain forms, written as escapes so the source stays ASCII.
-_PLAIN_QUOTES = str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"'})
-
-
-def _plain(text_: str) -> str:
-    return " ".join(text_.translate(_PLAIN_QUOTES).casefold().split())
+_plain = selection.plain  # one way of comparing words, shared with the selection check
 
 
 def _quoted(words: str, messages: Sequence[str]) -> bool:
@@ -927,65 +963,105 @@ def _quoted(words: str, messages: Sequence[str]) -> bool:
     return any(all(part in _plain(message) for part in parts) for message in messages)
 
 
-# What a request for a person looks like in words (plan change log, 2026-10-22). In the contrasting baseline the agent
-# quoted "Can I cancel it?", the customer's words, which ask for no one (D38). Code cannot read consent: this check
-# refuses words that plainly ask for no one, and lets the reading of the rest stay the agent's. The request no
-# reading can doubt is the customer's own button (POST /api/conversations/{id}/handoff).
+# What a request for a person looks like in words (plan change log, 2026-10-22 and 2026-10-23). In the contrasting
+# baseline the agent quoted "Can I cancel it?", the customer's words, which ask for no one (D38). Code cannot read
+# consent: this check refuses words that plainly ask for no one, and lets the reading of the rest stay the agent's.
+# Negation and withdrawal count only where they apply (review of 2026-10-23): "Yes, please. My order has not arrived."
+# accepts, and "Never mind the refund, I want to talk to a person." asks. Who a named person is, and what a question
+# offers, need a reading of meaning that this check does not make (tests/test_request_for_person.py, known limits).
+# The request no reading can doubt is the customer's own button (POST /api/conversations/{id}/handoff).
 _PERSON = re.compile(
     r"\b(persons?|people|humans?|someone|somebody|anyone|anybody|staff|team|agents?|representatives?|reps?|"
     r"managers?|supervisors?|employees?|colleagues?|operators?)\b"
 )
-_NEGATION = re.compile(r"\b(no|not|never|nobody|nope|without)\b|n't\b")
+_NEGATION = re.compile(r"\b(no|not|never|nobody|nope|without|cannot)\b|n't\b")
 _WITHDRAWN = re.compile(r"\b(never ?mind|forget it)\b")
 _OFFER = re.compile(
     r"\b(connect|transfer|put you in touch|hand (?:you|this|it|the conversation) over|pass (?:you|this|it)|"
     r"talk (?:to|with)|speak (?:to|with)|chat with|offer|help (?:you|with))\b"
 )
+# A question about what the customer wants, or a condition on it: "Would you like me to ask a staff member to help?"
+# (D37 try 3) offers a person without naming a way of contact.
+_WISH = re.compile(
+    r"\b(would you like|would you prefer|do you want|shall i|should i|want me to|"
+    r"if you(?:'d| would)? like|if you want|if you wish|if you prefer)\b"
+)
+# The speaker's own role, as in "As a manager, I authorize a refund" (D23): a person word that names no one to talk to.
+_OWN_ROLE = re.compile(r"\b(?:as|i'?m|i am) (?:a|an|the)(?: \w+)? $")
 _ACCEPT = re.compile(r"(yes|yeah|yep|yup|sure|please do|please connect|go ahead|that would|i'?d like that)\b")
+YES_WITHOUT_OFFER = (
+    "that message is a yes, but your message just before it offers no person in words this check can read"
+)
+
+
+def _names_person(clause: str) -> bool:
+    """A person word in the clause that is not the speaker's own role."""
+    return any(not _OWN_ROLE.search(clause[: found.start()]) for found in _PERSON.finditer(clause))
 
 
 def _asks_for_person(text_: str) -> bool:
-    """A clause of the message names a person with no negation before it ("not an assistant" comes after)."""
-    for clause in re.split(r"[.,;:!?]|\bbut\b", _plain(text_)):
-        found = _PERSON.search(clause)
-        if found and not _NEGATION.search(clause[: found.start()]):
-            return True
-    return False
+    """A clause names a person with no negation anywhere in that clause, and nothing from it on withdraws the request:
+    "I want to speak to a person, please, not an assistant" asks; "A human is not needed" and "Can I talk to a person?
+    Actually, never mind." do not."""
+    clauses = re.split(r"[.,;:!?]|\bbut\b", _plain(text_))
+    asking = [i for i, clause in enumerate(clauses) if _names_person(clause) and not _NEGATION.search(clause)]
+    return bool(asking) and not any(_WITHDRAWN.search(clause) for clause in clauses[asking[-1] :])
 
 
 def _offers_person(text_: str) -> bool:
-    """One sentence of the agent's names a person and offers contact with one, question mark or not."""
-    return any(_PERSON.search(part) and _OFFER.search(part) for part in re.split(r"[.!?]", _plain(text_)))
+    """A part of one of the agent's sentences, cut again at a semicolon or "but", names a person, offers contact with
+    one or asks whether the customer wants it, and holds no negation: "I cannot connect you with a staff member"
+    offers no one, while in "I can't cancel it here, but I can connect you with a staff member" the offer stands."""
+    return any(
+        _PERSON.search(part) and (_OFFER.search(part) or _WISH.search(part)) and not _NEGATION.search(part)
+        for part in re.split(r"[.!?;]|\bbut\b", _plain(text_))
+    )
 
 
 def _accepts(text_: str) -> bool:
-    """The message opens with a yes and holds no negation: "No, thanks" and "Yes, but not now" accept nothing."""
+    """The message's first sentence is a yes with no negation, and nothing after it withdraws it: "No, thanks" and
+    "Yes, but not now" accept nothing, and "Yes, please. My order has not arrived." accepts."""
     plain = _plain(text_).lstrip(" \"'")
-    return bool(_ACCEPT.match(plain)) and not _NEGATION.search(plain)
+    first = re.split(r"[.!?]", plain)[0]
+    return bool(_ACCEPT.match(first)) and not _NEGATION.search(first) and not _WITHDRAWN.search(plain)
 
 
-def request_for_person(messages: Sequence[tuple[str, str, str]], words: str) -> tuple[str | None, str]:
-    """The customer message a request for a person rests on, or None and why not.
+class PersonRequest(NamedTuple):
+    message_id: str | None  # the customer message the request rests on, or None
+    basis: str  # "names_person" or "accepts_offer" when there is a request; empty otherwise
+    unmet: str  # why there is no request; empty when there is one
+
+
+def request_for_person(messages: Sequence[tuple[str, str, str]], words: str) -> PersonRequest:
+    """The customer message a request for a person rests on and what it rests on, or why there is none.
 
     messages: the conversation's (id, author, text), customer and agent only, in order. The quoted words must be in
     the customer's latest message, the one in front of the agent, since an earlier request may have been withdrawn.
-    That message asks for a person when a clause of it names one with no negation before it, or when it accepts,
-    with a yes and no negation, the offer of a person the agent made in the message just before it. A message that
-    says "never mind" or "forget it" asks for nothing."""
+    That message asks for a person when a clause of it names one (_asks_for_person), or when it accepts, with a yes,
+    the offer of a person the agent made in the message just before it (_offers_person, _accepts). A yes with no
+    offer in view gets its own reason, so the agent asks the offer plainly instead of asking the customer to word the
+    request again (D37 try 3)."""
     if not words.strip():
-        return None, "customer_words must give the customer's own words that ask for a person"
+        return PersonRequest(None, "", "customer_words must give the customer's own words that ask for a person")
     customer = [i for i, (_, author, _) in enumerate(messages) if author == "customer"]
     if not any(_quoted(words, [messages[i][2]]) for i in customer):
-        return None, "customer_words are not words the customer wrote in this conversation"
+        return PersonRequest(None, "", "customer_words are not words the customer wrote in this conversation")
     latest = customer[-1]
     message_id, _, said = messages[latest]
     if not _quoted(words, [said]):
-        return None, "those words are not in the customer's latest message, which is the request in front of you"
-    before = messages[latest - 1] if latest > 0 else None
-    offered = before is not None and before[1] == "agent" and _offers_person(before[2])
-    if not _WITHDRAWN.search(_plain(said)) and (_asks_for_person(said) or (offered and _accepts(said))):
-        return message_id, ""
-    return None, "that message does not ask for a person: it names none, or declines one, or answers no offer of one"
+        return PersonRequest(
+            None, "", "those words are not in the customer's latest message, which is the request in front of you"
+        )
+    if _asks_for_person(said):
+        return PersonRequest(message_id, "names_person", "")
+    if _accepts(said):
+        before = messages[latest - 1] if latest > 0 else None
+        if before is not None and before[1] == "agent" and _offers_person(before[2]):
+            return PersonRequest(message_id, "accepts_offer", "")
+        return PersonRequest(None, "", YES_WITHOUT_OFFER)
+    return PersonRequest(
+        None, "", "that message does not ask for a person: it names none, or declines one, or answers no offer of one"
+    )
 
 
 def check_handoff_reason(
@@ -1025,6 +1101,11 @@ def check_handoff_reason(
                 if not order or order["customer_id"] != actor.user_id:
                     raise Refused("handoff_reason", "name the customer's order the dispute is about")
             holds, unmet, then = True, "", ""
+            # What any refusal of a handoff adds; a yes to an offer the check could not read is the exception.
+            tail = (
+                " If a rule refuses the request, give its reason and what the policy allows, without offering a "
+                "person. Hand off with customer_asked only when the customer clearly asks for a person."
+            )
             evidence: dict[str, Any] = {}
             if reason == "shop_decided":
                 # The request in front of the agent, not any earlier one: the conversation's latest decision.
@@ -1079,14 +1160,22 @@ def check_handoff_reason(
                     ),
                     {"id": conversation_id},
                 ).all()
-                found, unmet = request_for_person([tuple(row) for row in written], customer_words)
-                holds = found is not None
-                evidence["customer_message"] = found
-                then = (
-                    "Copy the customer's words that ask for a person exactly. If the customer has not asked for one, "
-                    "answer from the policy, and offer a person only where it says to; the customer's yes to that "
-                    "offer is a request for one."
-                )
+                request = request_for_person([tuple(row) for row in written], customer_words)
+                holds, unmet = request.message_id is not None, request.unmet
+                evidence["customer_message"], evidence["basis"] = request.message_id, request.basis
+                if unmet == YES_WITHOUT_OFFER:
+                    then = (
+                        "If you meant to offer a person, ask the customer plainly, for example: Would you like me to "
+                        "connect you with a staff member? Their yes to that question is the request; do not ask them "
+                        "to word the request again themselves."
+                    )
+                    tail = ""
+                else:
+                    then = (
+                        "Copy the customer's words that ask for a person exactly. If the customer has not asked for "
+                        "one, answer from the policy, and offer a person only where it says to; the customer's yes to "
+                        "that offer is a request for one."
+                    )
             elif reason == "delivery_disputed":
                 holds = order["status"] == "delivered"
                 unmet = "that order is not recorded as delivered, so it is on its way, not disputed"
@@ -1095,12 +1184,7 @@ def check_handoff_reason(
                     f"offer a person for that ({policy.citation('eligible-orders')})."
                 )
             if not holds:
-                raise Refused(
-                    "handoff_reason",
-                    f"{unmet}. {then} If a rule refuses the request, give its reason and what the policy allows, "
-                    "without offering a person. Hand off with customer_asked only when the customer clearly asks for "
-                    "a person.",
-                )
+                raise Refused("handoff_reason", f"{unmet}. {then}{tail}")
     except Refused as refusal:
         _record_rejection(engine, now, actor, "hand_off", refusal, conversation_id=conversation_id)
         raise

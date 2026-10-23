@@ -352,9 +352,10 @@ def request_handoff(ctx: ToolContext, args: HandoffArgs, call_id: str) -> dict:
         args.unit_ids,
         args.customer_words,
     )
-    # The staff member sees the words the request rests on.
+    # The staff member sees the words the request rests on, and whether they ask for a person or accept an offer of one.
+    basis = {"names_person": "which names a person", "accepts_offer": "a yes to the agent's offer of a person"}
     quoted = (
-        f' The customer wrote: "{args.customer_words}" (message {found["customer_message"]}).'
+        f' The customer wrote: "{args.customer_words}" (message {found["customer_message"]}, {basis[found["basis"]]}).'
         if args.reason_code == "customer_asked"
         else ""
     )

@@ -10,6 +10,10 @@
 - Proposal denials: an agent message that says no proposal was made, after this conversation made an eligible one
   (plan change log, 2026-10-22). A pattern over the agent's words: it finds the claims of step 2's D17 and is read
   in the audit; it changes no verdict.
+- Checks of 2026-10-23, where they acted: calls held because the agent's answer asked the customer a question, proposals
+  refused because the customer's words do not yet say which look-alike they mean (and conversations where that
+  happened twice or more, a sign of a loop), and handoffs refused because a yes answered no offer the check could
+  read, apart from other refusals of a handoff. They show whether each change was exercised, not whether it helped.
 """
 
 from __future__ import annotations
@@ -20,6 +24,7 @@ from collections import Counter
 from pathlib import Path
 
 from refund_agent.policy import Policy
+from refund_agent.refunds import YES_WITHOUT_OFFER
 from refund_agent.scenarios import Scenario
 
 CITATION = re.compile(r"refund-policy/v[0-9]+/[a-z-]+")
@@ -67,6 +72,31 @@ def proposal_denials(messages: list[dict]) -> int:
     return count
 
 
+CHECKS_ACTED = (
+    "calls held after a question",
+    "proposals refused, the customer's words do not say which",
+    "handoffs refused, a yes to no offer in view",
+    "handoffs refused, other reasons",
+)
+REPEATED_SELECTION = "conversations with the selection refused twice or more"
+
+
+def checks_acted(messages: list[dict]) -> Counter:
+    counted = Counter()
+    for message in messages:
+        if message["role"] != "tool":
+            continue
+        result = json.loads(message["content"])
+        if result.get("not_run") == "question_to_customer":
+            counted[CHECKS_ACTED[0]] += 1
+        elif result.get("refused") == "units_named":
+            counted[CHECKS_ACTED[1]] += 1
+        elif result.get("refused") == "handoff_reason":
+            yes = result.get("explanation", "").startswith(YES_WITHOUT_OFFER)
+            counted[CHECKS_ACTED[2] if yes else CHECKS_ACTED[3]] += 1
+    return counted
+
+
 def of_try(
     saved: dict, failed: set[str], items: dict[str, str], scenario: Scenario, instructions: str, policy: Policy
 ) -> dict:
@@ -89,19 +119,24 @@ def of_try(
         "handoffs": handoffs,
         "proposals_after_receipt": proposals_after_receipt(saved.get("messages", [])),
         "proposal_denials": proposal_denials(saved.get("messages", [])),
+        "checks_acted": checks_acted(saved.get("messages", [])),
     }
 
 
 def summarize(per_try: list[dict]) -> dict:
     total = {"citations": Counter(), "handoffs": Counter(), "proposals_after_receipt": 0, "proposal_denials": 0}
+    acted = Counter({name: 0 for name in (*CHECKS_ACTED, REPEATED_SELECTION)})
     for d in per_try:
+        acted.update(d.get("checks_acted", {}))
+        acted[REPEATED_SELECTION] += d.get("checks_acted", {}).get(CHECKS_ACTED[1], 0) >= 2
         total["citations"].update(d["citations"])
         total["handoffs"].update(d["handoffs"])
         total["proposals_after_receipt"] += d["proposals_after_receipt"]
-        total["proposal_denials"] += d["proposal_denials"]
+        total["proposal_denials"] += d.get("proposal_denials", 0)
     return {
         "citations": dict(sorted(total["citations"].items())),
         "handoffs": dict(sorted(total["handoffs"].items())),
         "proposals_after_receipt": total["proposals_after_receipt"],
         "proposal_denials": total["proposal_denials"],
+        "checks_acted": dict(acted),
     }

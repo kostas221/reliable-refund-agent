@@ -592,3 +592,75 @@ The four changes (plan change log, 2026-10-22):
 ### Keeping the changes
 
 All four stay if predictions 1, 3 and 4 hold and no loss among the 112 is attributed to one of them.
+
+## Selection check, question brake and person-request rule: written on 2026-10-23, before the run
+
+### The question
+
+Do three changes in code, none in the instructions, make the agent find out which item the customer means before it
+proposes, without unnecessary questions, and without costing anything the agent already did right?
+
+### What runs
+
+All 42 development scenarios, 3 tries each: 126 conversations. Budget $0.50. The agent on gpt-6-luna with reasoning
+none, the simulated customer on gpt-6-luna with reasoning low, as in the last run. Instructions v7, policy v2, the
+simulated customer and the scenarios are unchanged; the agent's first request, instructions and tool definitions are
+byte for byte those of the last run (dry run, 2026-10-23). What changes is what the backend answers and when the turn
+ends (plan change log, 2026-10-23):
+
+1. **Selection check** (`units_named`, in the proposal's transaction, configurations A and C): when the customer's
+   orders hold look-alike items (one product family, the name before the first comma, in two or more kinds, a kind
+   being one product in one order), a proposal among them needs the customer's words that tell the proposed ones
+   apart (a variant word, the order's date or ID, "both" for all of them), or the customer's latest message must
+   answer an agent question that named them. Otherwise it is refused with the list of look-alikes and "ask which,
+   and wait for the answer". Only D09, D17 and D31 to D34 have look-alikes.
+2. **Question brake**: an answer that asks the customer a question (a question mark outside quotation marks) ends
+   the agent's turn; the calls given with it are answered as not run.
+3. **Person-request rule**: negation and withdrawal count only where they apply, "cannot" is a negation,
+   "Would you like me to ..." with a person is an offer, the speaker's own role ("As a manager") asks for no one, and
+   a yes with no offer in view gets its own refusal, which tells the agent to ask the offer plainly.
+
+Replayed on the last run with the production code (`python -m refund_agent.evaluation.replay`): the selection check
+refuses 9 of its 91 proposal calls, the first proposal of each of the 9 clarification failures (D09 tries 1 and 2,
+D17 tries 1 and 2, D31 tries 1 to 3, D33 tries 1 and 3), and no other; the brake holds 3 of its 706 answers, the D33
+questions; the rule changes 1 of 29 `customer_asked` decisions, D37 try 3, to accepted. A replay shows what the checks
+decide, not what the model says after a refusal it never received: that is what this run measures.
+
+### What it is compared with
+
+`runs/pilot-20261022T165428Z-gpt-6-luna-none`, the same 42 scenarios: 112 of 126, 35 of 42 scenarios in all three
+tries. Paired by scenario with `python -m refund_agent.evaluation.report compare`.
+
+### Predictions
+
+1. No unauthorized or duplicate committed refund.
+2. The selection check refuses no proposal in the 36 scenarios without look-alikes, and at most 1 in D32 and D34
+   together (their customers name the items at once).
+3. D09, D17, D31 and D33: the pre-check of `resolves_ambiguity_first` passes in at least 10 of 12, and 7 to 12 of the
+   12 conversations succeed (last run: 3). What can still fail: the question's wording, the customer's answer read
+   wrongly, or a refusal repeated until the round limit.
+4. D32 and D34: 5 or 6 of 6, with no customer message before the first proposal.
+5. At most 2 conversations have the selection refused twice or more, and none ends at the round limit for it.
+6. D37: 3 of 3, and no refusal of a `customer_asked` handoff that rests on a genuine yes, by Claude's reading.
+7. No `customer_asked` handoff on words that ask for no person; D35 and D38 3 of 3 each.
+8. All 27 required handoffs.
+9. Of the 112 conversations that passed in the last run, at least 106 pass, and every loss is read and attributed to
+   a change or to the run's variation.
+10. 110 to 124 of the 126 conversations succeed (the worst cases of predictions 3 and 9 together give 110).
+11. Nothing targets D15, D20 or D39: D15 0 to 3, D20 1 to 3, D39 0 to 3.
+12. Paired by scenario against the last run: -2 to +10 points.
+13. Cost: under $0.15.
+
+### How the results are read
+
+- Claude reads all 126; the user reads, in Greek and without Claude's verdicts, the ones whose outcome a reader's
+  judgment can change, and one example of each change at work: a refused proposal and the question after it, a held
+  call, and a yes accepted after an offer the old rule missed.
+- The report's new counts show where each change acted: calls held after a question, proposals refused for the
+  customer's words, and handoffs refused for a yes with no offer in view.
+- Nothing in the agent changes between this run and its report.
+
+### Keeping the changes
+
+All three stay if predictions 1, 2, 4, 7 and 8 hold and no loss among the 112 is attributed to one of them. A change
+that causes a loss is repaired or withdrawn before the next step (D39, D20, D15).

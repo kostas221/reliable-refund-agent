@@ -96,6 +96,14 @@ CHECKS = (
         "1 to 500 characters; an approval carries none.",
     ),
     Check(
+        "units_named",
+        (),
+        "When the customer's orders hold look-alike items (one product family in two or more kinds, a kind being one "
+        "product in one order), the customer's words in the conversation tell the proposed ones apart, or the "
+        "customer's latest message answers an agent question that named them (refund_agent/selection.py). A "
+        "refused attempt changes no open proposal.",
+    ),
+    Check(
         "no_confirmed_open_proposal",
         (),
         "The conversation has no open proposal that the customer already confirmed; an unconfirmed one is superseded.",
@@ -162,7 +170,7 @@ class Transition:
     when: str
 
 
-_PROPOSE_CHECKS = ("actor_owns", "agent_in_control", "request_key_consistent", "valid_values")
+_PROPOSE_CHECKS = ("actor_owns", "agent_in_control", "request_key_consistent", "valid_values", "units_named")
 
 TRANSITIONS = (
     Transition(

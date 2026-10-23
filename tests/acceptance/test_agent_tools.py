@@ -66,7 +66,8 @@ def approve(ctx, proposal_id, staff):
 def test_every_tool_answers_on_every_fixture(db, scenario_id):
     """A paid run must not stop on a fixture shape the development set lacks (an order not delivered, two payments,
     a second customer): every read, and a proposal for each unit alone, own or not, answers with a result or a
-    refusal, never an error."""
+    refusal, never an error. With no customer message, a unit among look-alikes is refused for want of the
+    customer's words (units_named)."""
     scenario = SCENARIOS[scenario_id]
     policy = policy_of(scenario)
     seed(db("owner"), scenario, policy)
@@ -84,7 +85,10 @@ def test_every_tool_answers_on_every_fixture(db, scenario_id):
         assert call(tools(), "get_my_order", order_id=order.id)["ok"] == own, order.id
         for unit in order.units:
             answer = call(tools(), "propose_refund", order_id=order.id, unit_ids=[unit.id])
-            assert answer["ok"] if own else answer.get("refused") == "actor_owns", answer
+            if own:
+                assert answer["ok"] or answer["refused"] == "units_named", answer
+            else:
+                assert answer.get("refused") == "actor_owns", answer
 
 
 # What the agent can see
@@ -430,7 +434,7 @@ def test_a_request_for_a_person_needs_words_the_customer_wrote(db):
         (
             "customer",
             f'customer_asked: A test of the handoff check. The customer wrote: "\u201cyes, please do\u201d" '
-            f"(message {yes}).",
+            f"(message {yes}, a yes to the agent's offer of a person).",
         )
     ]
 
@@ -446,11 +450,90 @@ def test_a_request_for_a_person_names_one_or_answers_an_offer_of_one(db):
     said(ctx, "Your order is on its way, so I can't cancel it here.", author="agent")  # no offer of a person
     said(ctx, "Yes, please.")
     refused = asked(ctx, "Yes, please.", "hand-2")
-    assert (refused["refused"], refused["explanation"].split(".")[0]) == ("handoff_reason", no_person)
+    no_offer = "that message is a yes, but your message just before it offers no person in words this check can read"
+    assert (refused["refused"], refused["explanation"].split(".")[0]) == ("handoff_reason", no_offer)
     assert control(ctx) == [("agent",)]
     said(ctx, "Then I'd like to talk to someone from your team.")
     assert asked(ctx, "I'd like to talk to someone from your team", "hand-3")["ok"] is True
-    assert rows(ctx.engine, "SELECT origin FROM handoffs") == [("customer",)]
+    named = "SELECT origin, reason LIKE '%which names a person).' FROM handoffs"
+    assert rows(ctx.engine, named) == [("customer", True)]
+
+
+def test_a_yes_to_an_offer_the_check_cannot_read_asks_the_agent_to_offer_plainly(db):
+    # D37 try 3 (2026-10-22): after a false refusal of "Yes, please." the agent told the customer to ask for a staff
+    # member directly. The refusal now says to ask the offer plainly, so the customer's next yes is the request.
+    ctx = agent_for(db, "D37")
+    said(ctx, "Hello, my rice cooker order is still on its way, but I don't need it any more. Can I cancel it?")
+    said(ctx, "Cancelling is outside this process. Someone from the team could look at it.", author="agent")
+    said(ctx, "Yes, please.")
+    refused = asked(ctx, "Yes, please.")
+    assert refused["refused"] == "handoff_reason"
+    assert "Would you like me to connect you with a staff member?" in refused["explanation"]
+    assert "without offering a person" not in refused["explanation"]  # the tail for a refused request does not apply
+    said(ctx, "Would you like me to connect you with a staff member?", author="agent")
+    said(ctx, "Yes, please.")
+    assert asked(ctx, "Yes, please.", "hand-2")["ok"] is True
+
+
+# Look-alike items: a proposal waits for the customer's words that say which (plan change log, 2026-10-23)
+
+SCARF = "Hi, I posted the linen scarf back last week. Can I have a refund?"  # D31: fits the olive and the rust scarf
+
+
+def proposals(ctx):
+    return rows(
+        ctx.engine,
+        "SELECT status, (SELECT array_agg(order_unit_id ORDER BY order_unit_id) FROM proposal_units "
+        "WHERE proposal_id = p.id) FROM proposals p ORDER BY created_at, created_xact",
+    )
+
+
+@pytest.mark.parametrize("configuration", ["A", "C"])
+def test_a_proposal_among_look_alikes_waits_for_the_customers_words(db, configuration):
+    # D31 in the run of 2026-10-22: the agent proposed both scarves, or one it chose, without asking which.
+    ctx = agent_for(db, "D31", configuration)
+    said(ctx, SCARF)
+    for n, units in enumerate((["d31-o1-u1"], ["d31-o1-u1", "d31-o1-u2"])):
+        refused = call(ctx, "propose_refund", f"p-{n}", order_id="d31-o1", unit_ids=units)
+        assert refused["refused"] == "units_named", refused
+        assert "Linen scarf, olive (order d31-o1, placed 6 October, unit d31-o1-u1)" in refused["explanation"]
+        assert "Linen scarf, rust (order d31-o1, placed 6 October, unit d31-o1-u2)" in refused["explanation"]
+    assert proposals(ctx) == []
+    rejected = "SELECT reason FROM audit_events WHERE event = 'propose' AND outcome = 'rejected'"
+    assert rows(ctx.engine, rejected) == [("units_named",), ("units_named",)]  # recorded like any refused attempt
+    gloves = call(ctx, "propose_refund", "p-gloves", order_id="d31-o1", unit_ids=["d31-o1-u3"])
+    assert gloves["outcome"] == "refused"  # no look-alike: the policy decides (the gloves were not returned)
+    said(ctx, "Which one would you like refunded, the olive or the rust one?", author="agent")
+    said(ctx, "The olive one, please.")
+    made = call(ctx, "propose_refund", "p-olive", order_id="d31-o1", unit_ids=["d31-o1-u1"])
+    assert made["status"] == "awaiting_customer_confirmation"
+
+
+def test_items_the_customer_named_as_both_are_proposed_at_once(db):
+    ctx = agent_for(db, "D32")
+    said(ctx, "Hi, I sent back both linen scarves, the olive one and the rust one. Please refund both of them.")
+    made = call(ctx, "propose_refund", order_id="d32-o1", unit_ids=["d32-o1-u1", "d32-o1-u2"])
+    assert made["status"] == "awaiting_customer_confirmation"
+
+
+def test_an_item_the_customer_named_by_its_order_date_is_proposed_at_once(db):
+    ctx = agent_for(db, "D34")
+    said(ctx, "Hello, I sent back the white ceramic planter from the order I placed on 5 October. Can I get my money?")
+    assert call(ctx, "propose_refund", order_id="d34-o1", unit_ids=["d34-o1-u1"])["refused"] == "units_named"
+    made = call(ctx, "propose_refund", "call-2", order_id="d34-o2", unit_ids=["d34-o2-u1"])
+    assert made["status"] == "awaiting_customer_confirmation"
+
+
+def test_a_refused_look_alike_leaves_the_open_proposal_and_a_repeated_call_as_they_were(db):
+    ctx = agent_for(db, "D31")
+    said(ctx, "I sent back the olive linen scarf. Can I have a refund?")
+    olive = call(ctx, "propose_refund", "p-olive", order_id="d31-o1", unit_ids=["d31-o1-u1"])["proposal_id"]
+    rust = call(ctx, "propose_refund", "p-rust", order_id="d31-o1", unit_ids=["d31-o1-u2"])
+    assert rust["refused"] == "units_named"  # never named by the customer: it does not replace the open proposal
+    assert proposals(ctx) == [("awaiting_customer_confirmation", ["d31-o1-u1"])]
+    said(ctx, "Sorry, I am not sure any more.")
+    again = call(ctx, "propose_refund", "p-olive", order_id="d31-o1", unit_ids=["d31-o1-u1"])  # after a restart
+    assert again["proposal_id"] == olive
 
 
 # The assessment: the decision a proposal would get, with its facts, and nothing written (v1.1 step 2)
@@ -470,7 +553,10 @@ def test_an_assessment_writes_nothing_and_agrees_with_the_proposal(db, scenario_
     customer = scenario.customer.id
     conversation = open_conversation(app, Actor("customer", customer), scenario.now)
     ctx = ToolContext(app, policy, lambda: scenario.now, customer, conversation)
-    for order in (o for o in scenario.fixture.orders if o.customer == customer):
+    mine = [o for o in scenario.fixture.orders if o.customer == customer]
+    # The customer names every item and order, so a proposal among look-alikes is not refused for want of words.
+    said(ctx, "; ".join(f"{u.product} in order {o.id}" for o in mine for u in o.units) + ". All of them.")
+    for order in mine:
         units = [unit.id for unit in order.units]
         for n, selection in enumerate([[unit] for unit in units] + ([units] if len(units) > 1 else [])):
             before = counts(app)
