@@ -194,31 +194,54 @@ def test_the_server_delivers_pending_notices_when_it_starts(shop):
 # The customer's cancellation (review of the model comparison, 2026-10-24). In D28 the customer cancelled with the
 # button before the staff decision, and the agent, told nothing, answered "if you haven't already, use the cancel
 # button" and later that the handoff had closed the request. The cancellation now stores its notice like a decision.
+# It starts no run of the agent (confirmation run of 2026-10-24): a run with no customer message in front of it was
+# filled, in D28 tries 1 and 2, with a new proposal nobody asked for. The agent reads the notice at the customer's next
+# message.
 
 CANCELLED = [
     Call("list_my_orders"),
     Call("propose_refund", {"order_id": "d01-o1", "unit_ids": ["d01-o1-u1"]}),
     Say("I can refund {propose_refund.amount_minor|brl} for the blue mug. Please confirm on the proposal card."),
-    Say("You cancelled the request, so nothing will be paid."),
+    Say("No. You cancelled the request, so nothing will be paid."),
 ]
 
 
-def test_a_cancellation_stores_its_notice_and_the_agent_is_told_of_it(shop):
+def test_a_cancellation_is_told_to_the_agent_without_starting_a_run(shop):
     agent, model = shop.server(ScriptedModel(CANCELLED))
     agent.receive(shop.conversation, "Please refund my blue mug.")
     proposal = rows(shop.app, "SELECT id FROM proposals")[0][0]
     confirm(shop.app, CUSTOMER, proposal, "confirmed", NOW, POLICY)
     assert cancel(shop.app, CUSTOMER, proposal, NOW, POLICY) == "cancelled"
     assert rows(shop.app, NOTICES) == [("cancelled", 0, False, False)]
+    asked = len(model.requests)
     assert deliver_pending(shop.app, agent, lambda: NOW) == 1
-    event = model.requests[-1]["messages"][-1]
-    assert event == {
+    assert rows(shop.app, NOTICES) == [("cancelled", 1, True, False)]
+    assert len(model.requests) == asked  # the model was asked nothing, so it could propose nothing
+    event = {
         "role": "event",
         "text": f"The customer cancelled request {proposal} with the button on its card, so nothing will be paid.",
         "notice_id": f"notice-cancel-{proposal}",
     }
-    assert agent.messages(shop.conversation)[-1]["text"] == "You cancelled the request, so nothing will be paid."
+    assert agent.messages(shop.conversation)[-1] == event
+    assert rows(shop.app, "SELECT count(*) FROM proposals") == [(1,)]
+    # The customer's next message is answered with the notice in view, just before it.
+    answer = agent.receive(shop.conversation, "Will anything still be paid?")
+    assert model.requests[-1]["messages"][-2:] == [event, {"role": "customer", "text": "Will anything still be paid?"}]
+    assert answer[-1]["text"] == "No. You cancelled the request, so nothing will be paid."
     assert rows(shop.app, "SELECT count(*) FROM refund_operations") == [(0,)]
+
+
+def test_a_cancellation_told_twice_is_recorded_once(shop):
+    agent, model = shop.server(ScriptedModel(CANCELLED))
+    agent.receive(shop.conversation, "Please refund my blue mug.")
+    proposal = rows(shop.app, "SELECT id FROM proposals")[0][0]
+    cancel(shop.app, CUSTOMER, proposal, NOW, POLICY)
+    assert deliver_pending(shop.app, agent, lambda: NOW) == 1
+    with shop.db("owner").begin() as conn:  # a crash before the delivery was marked: the notice reads as pending
+        conn.exec_driver_sql("UPDATE agent_notices SET delivered_at = NULL, attempts = 0")
+    restarted, _ = shop.server(ScriptedModel(CANCELLED))
+    assert deliver_pending(shop.app, restarted, lambda: NOW) == 1
+    assert sum(1 for m in restarted.messages(shop.conversation) if m["role"] == "event") == 1
 
 
 def test_a_cancel_on_a_request_already_closed_tells_its_status(shop):
@@ -228,6 +251,6 @@ def test_a_cancel_on_a_request_already_closed_tells_its_status(shop):
     later = NOW + timedelta(hours=73)  # past the proposal's 72 hours: the button closes it as expired
     assert cancel(shop.app, CUSTOMER, proposal, later, POLICY) == "expired"
     assert deliver_pending(shop.app, agent, lambda: later) == 1
-    assert model.requests[-1]["messages"][-1]["text"] == (
+    assert agent.messages(shop.conversation)[-1]["text"] == (
         f"The customer pressed cancel on request {proposal}, which was already expired, so nothing will be paid."
     )

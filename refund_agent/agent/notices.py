@@ -10,9 +10,11 @@ customer learned only that the request was rejected).
 A staff decision stores its notice in the same transaction (table agent_notices), and deliver_pending() hands the
 stored notices to the agent. The customer's cancel button stores one too (review of the model comparison,
 2026-10-24): in D28 the customer cancelled before the staff decision, and the agent, told nothing, asked the customer
-to cancel with the button. The server calls it after a decision, when it starts and every few seconds, so a server
-that stops between the decision and the agent's run loses nothing (outside review of 2026-10-15). The evaluation
-runner calls it too, so it measures the product's path.
+to cancel with the button. That notice starts no run: the agent reads it at the customer's next message, since a run
+with no customer message in front of it was filled with a new proposal (confirmation run of 2026-10-24). The server
+calls deliver_pending() after a decision or a cancellation, when it starts and every few seconds, so a server that
+stops between the decision and the agent's run loses nothing (outside review of 2026-10-15). The evaluation runner
+calls it too, so it measures the product's path.
 """
 
 from __future__ import annotations
@@ -82,7 +84,10 @@ def deliver_pending(
     for notice in pending:
         try:
             event = notice_text(notice["proposal_id"], notice["decision"], notice["reason"], notice["status"])
-            agent.notify(notice["conversation_id"], event, notice_id=notice["id"])
+            # A staff decision wakes the agent, which pays an approved request or passes on a rejection's reason; the
+            # customer's cancellation is read at the customer's next message (confirmation run of 2026-10-24).
+            wake = notice["decision"] != "cancelled"
+            agent.notify(notice["conversation_id"], event, notice_id=notice["id"], wake=wake)
         except BudgetExceeded:
             raise  # a paid run's stop, not a failed delivery: the notice stays pending and the run ends
         except Exception as error:  # the decision stays stored; the notice is tried again later

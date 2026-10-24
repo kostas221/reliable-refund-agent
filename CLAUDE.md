@@ -146,10 +146,22 @@ from the records after an answer that states a refund paid before or an order no
 (migration 0007) and a handoff's result says what it closed; D13, D28, D39, D40 roles say how the customer answers an
 offered staff member (reported apart across the date). Replayed: the 9 shipping handoffs of the comparison refused at
 first, the fact line on exactly the 4 missed citations and 5 true places. 1352 tests and 4 browser tests pass, 18
-planted bugs caught. Next: the user runs one confirmation run of Luna none (predictions written:
-`docs/pilot/predictions.md`, "Final development confirmation"), then the freeze and 20 new held-out scenarios by an
-independent author, in their own locked set. 126/126 on development shows only that the cases the rules were built
-on are solved. The user reads 7 conversations of the comparison
+planted bugs caught. The confirmation run (`runs/pilot-20261024T120131Z-gpt-6-luna-none`, commit 41f7fab, $0.075,
+results in `docs/pilot/results.md`): 124/126, pass^3 41/42, 0 unsafe, 27/27 required handoffs, 57/57 required
+citations (1 by the fact line), 9 of 10 predictions right; paired +3.2 against the run of 2026-10-23 (95% -3.2 to
++10.3), +2.6 on the 38 unrevised scenarios (+0.0 to +7.0, no loss), +20.0 against v1 on 30 (+6.7 to +34.4). D39 0 to
+3, D40 3/3 on a yes, the question brake exercised live for the first time. Regression in D28 (1/3) from the
+cancellation notice: it starts an agent run with no customer message, and Luna answered it with a new proposal
+(unasked in try 2); the runner cancelled each, to the round limit (nothing paid). Fixed with the user's approval
+(plan change log, 2026-10-24): the cancellation notice is stored and delivered but starts no run
+(`Agent.notify(..., wake=False)`); the agent reads it at the customer's next message; staff decisions still wake it.
+Failing-first tests, 1350 tests and 8 browser and API-surface tests pass, 21 planted bugs caught. Next: the user runs
+D28 alone, 5 tries (predictions written: `docs/pilot/predictions.md`, "D28 after the silent cancellation notice");
+then the freeze and 20 new held-out scenarios by an independent author, in their own locked set, run with A (Luna
+none), B (Sol low) and C, so that which model is better on unseen scenarios can be stated (the user's request; the
+wording is written in the final predictions before the run). 126/126 on development would show only that the cases
+the rules were built on are solved. The user reads 5 conversations of the confirmation run (`user-review/`),
+7 of the comparison
 (`runs/pilot-20261023T201842Z-gpt-6.1-sol-low/user-review/`, four questions), 6 of the selection check run, and 10
 of step 1 and 9 of each of steps 3, 2 and the repairs (`user-review/`); Claude's verdicts are shown after.
 Development runs: Claude reads all, the user reads what Claude fails or notes. Phase 7 (video, code licence, external

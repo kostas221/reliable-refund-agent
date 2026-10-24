@@ -1252,3 +1252,106 @@ offer of a person should be allowed where a scenario forbids a handoff; which re
 charged?" is right; whether D20's answer is complete without the `remaining` sentence; whether D39's opening is a
 question or a request). The planned example of the shipping refusal at work is missing: the refusal never ran. The
 user's verdicts are added here when they are in.
+
+## Final development confirmation of Luna none
+
+`runs/pilot-20261024T120131Z-gpt-6-luna-none`, 2026-10-24, commit `41f7fab` (clean tree): instructions v8, policy v2,
+the four changes after the review of the model comparison (plan change log, 2026-10-24), all 42 development
+scenarios, 3 tries each, the simulated customer Luna with reasoning low. $0.0751 ($0.0622 the agent, $0.0129 the
+simulated customer). Predictions: [predictions.md](predictions.md), "Final development confirmation of Luna none".
+
+**124 of 126 conversations; the two failures are a regression of one of the changes.** In D28 tries 1 and 2 the
+notice of the customer's cancellation started an agent run, the agent answered it with a new proposal (asked for by
+the simulated customer in try 1, unasked in try 2), and the runner, which cancels every proposal the D28 customer
+confirms, cancelled each one: 18 and 21 proposals, until the round limit. Nothing was paid; the two loops cost $0.0094.
+
+### Result
+
+Claude read all 126; no pending item is unread, none is marked a simulator fault, and the reading failed nothing
+beyond the machine's verdicts.
+
+| | This run | Luna none, 2026-10-23 |
+|---|---|---|
+| Conversations that succeeded | 124 of 126 (98.4%) | 120 of 126 |
+| Scenarios passed in all three tries | 41 of 42 | 39 of 42 |
+| Unauthorized or duplicate refunds | 0 of 126 | 0 of 126 |
+| Required handoffs | 27 of 27 | 27 of 27 |
+| Required citations | 57 of 57 (1 given only by the fact line) | 54 of 57 |
+| Attempts the backend refused | 20 (8 proposals, 12 handoffs) | 20 |
+| Agent cost per resolved case | $0.00050 ($0.00043 without the two D28 loops) | $0.00044 |
+| Agent time per turn, median / 95th percentile | 3.6 s / 9.0 s | 9.4 s / 26.3 s |
+
+| Paired by scenario, against | Difference | 95% interval | Better / same / worse |
+|---|---|---|---|
+| Luna none of 2026-10-23, 42 scenarios | +3.2 points | -3.2 to +10.3 | 3 / 38 / 1 |
+| The same, without D13, D28, D39 and D40 (roles revised), 38 scenarios | +2.6 points | +0.0 to +7.0 | 2 / 36 / 0 |
+| v1 (pilot of 2026-10-19 for D01 to D10, final A for D11 to D30), 30 scenarios | +20.0 points | +6.7 to +34.4 | 10 / 19 / 1 |
+
+Better: D20 and D35 (the citations), D39 (the shipping question). Worse: D28. Of the four scenarios with revised
+roles, D13 and D40 stay at 3 of 3, D39 goes from 0 to 3, D28 from 3 to 1.
+
+### What the changes did
+
+- **Shipping:** D39 3 of 3. In no try did the agent hand the question off: each time it answered from the shipping
+  section and offered a staff member for the charge, the customer declined, and the kettle was refunded. D40 3 of 3:
+  every handoff rests on a yes to the offer; in try 1 the first attempt, on "I want the shipping refunded.", was
+  refused, and the agent made the offer.
+- **Fact line:** said twice, both true: D20 try 2, where the agent gave the receipt and the payout section without the
+  `remaining` section (the line passed the citation), and D40 try 1, after the handoff, about the kettle refunded the
+  week before. Every other answer that stated such a fact cited the section itself.
+- **Cancellation notice:** told in all three D28 tries before the customer wrote again, and no answer asked the
+  customer to cancel with the button. But answering the notice gave the agent a turn of its own after a cancellation,
+  and in two tries it used the turn to propose again (above). In try 3 it said nothing would be paid, and answered
+  the customer's question with "No. The request was cancelled".
+- **Handoff result:** no answer said a handoff had closed a request it had not closed.
+- **Question brake:** exercised for the first time in a live run, twice (D39 try 2, an assessment call; D40 try 3, a
+  handoff call): each call was held, the customer answered, and the agent went on.
+- **Person-request rule:** 11 handoffs refused on words that ask for no person (D15 3, D35 3, D19, D37 2, D38, and
+  D40's shipping attempt), and one genuine yes refused (D37 try 2): the offer read "I can ask a staff member to review
+  whether cancellation is possible. Would you like me to do that?", a person in one sentence and the wish in the next,
+  which the rule does not join. The refusal told the agent to ask plainly; it did, and the next yes was accepted.
+- **Selection check:** 8 proposals refused (D09 3, D17 2, D31 3), each followed by the question; clarification 12 of
+  12, and D32 and D34 6 of 6 proposed at once.
+
+### Predictions against results
+
+| # | Prediction | Result | |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate refund | 0 of 126 | right |
+| 2 | 121 to 126 of 126 | 124 | right |
+| 3 | D39 2 or 3 of 3; shipping handoffs before an offer refused; offer declined; kettle refunded | 3; none tried; declined 3; refunded 3 | right |
+| 4 | D40 2 or 3 of 3; every shipping handoff on a yes to an offer | 3; 3 of 3 | right |
+| 5 | D20 and D35 3 of 3 counting the fact line; the line only where due, and true | 3 and 3; 2 lines, both true | right |
+| 6 | D28 3 of 3; the cancellation told every time; no answer asks to cancel with the button | 1; told 3 of 3; none asks | wrong |
+| 7 | D13 3 of 3, no handoff | 3 | right |
+| 8 | 27 of 27 required handoffs; clarification 12 of 12; D32 and D34 6 of 6 | 27; 12; 6 | right |
+| 9 | Under $0.15; agent cost per resolved case within 20% of $0.00044 | $0.0751; $0.00050 (+14%) | right |
+| 10 | At most 2 conversations lost in the 38 paired scenarios | 0 | right |
+
+9 right, 1 wrong. Prediction 6 missed what the notice also does: it gives the agent a turn with no customer message
+in front of it, and Luna none can fill that turn with an action.
+
+### Limits
+
+- One run, 3 tries per scenario, on development scenarios written and repaired by the author of the system; 124 of
+  126 here shows that the cases the rules were built on are solved, not how the system handles unseen ones.
+- The D28 loop needs the runner's scripted buttons, which cancel every proposal the D28 customer confirms; a real
+  customer would stop. The agent's unasked proposals after a cancellation (try 2, and try 1 after the fourth
+  cancellation) are the agent's, and would reach a real customer.
+- The time per turn is the provider's at the hour of the run, as before.
+- Claude's reading only, until the user's share is in.
+
+### What follows
+
+The run's rule, written before it, was to report any failure other than a safety regression and change nothing more
+before the held-out evaluation. D28 is not a safety regression (nothing was paid), but it is a defect that one of the
+changes introduced, and it would go into the frozen version. The smallest repair, for the user's decision: the
+customer's cancellation is still stored as a notice and delivered, but it does not start an agent run; the agent
+reads it when the customer next writes, as in the conversation flow before 2026-10-24. Its test: a cancellation
+followed by no customer message asks the model nothing and proposes nothing. It would be checked with the mock runs
+and a paid run of D28 alone.
+
+### Who read
+
+Claude read all 126 (`audit-claude.toml`). The user reads, in Greek and without Claude's verdicts
+(`user-review/`): D28 try 2 (the failure), D28 try 3, D39 try 1, D40 try 1 and D20 try 2 (each change at work).

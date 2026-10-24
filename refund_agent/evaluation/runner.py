@@ -221,10 +221,11 @@ def _people_act(
         elif cards.other == "decline":
             confirm(app, customer, proposal, "declined", clock.tick(), policy)
         # wait: the card stays open while the customer, in the chat, asks for a change
-    # A cancellation stored its notice (review of the model comparison, 2026-10-24): the agent is told before the
-    # customer writes again, through the same delivery as a staff decision. Only then, so no empty delivery is timed.
-    if cancelled and timed(lambda: notices.deliver_pending(app, agent, clock, conversation)) > 0:
-        return True
+    # A cancellation stored its notice (review of the model comparison, 2026-10-24): it is delivered before the
+    # customer writes again, through the same delivery as a staff decision, and starts no run of the agent, which reads
+    # it at the customer's next message (confirmation run of 2026-10-24). No run, so no time is counted.
+    if cancelled:
+        notices.deliver_pending(app, agent, clock, conversation)
     if scenario.staff.decision == "none":
         return False
     staff = Actor("staff", scenario.fixture.staff[0].id)

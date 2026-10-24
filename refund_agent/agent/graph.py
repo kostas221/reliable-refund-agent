@@ -168,20 +168,32 @@ class Agent:
                 return []
             return self._run(conversation_id, {"messages": [message]})
 
-    def notify(self, conversation_id: str, event: str, notice_id: str | None = None) -> list[dict]:
+    def notify(
+        self, conversation_id: str, event: str, notice_id: str | None = None, *, wake: bool = True
+    ) -> list[dict]:
         """A backend event, such as an approval. Only text for the model: it proves nothing. It waits for a run in
         progress instead of being lost, and wakes nobody once a person has taken over. A notice with an ID is applied
         once: delivered again, after a crash between this run and the mark of its delivery, it changes nothing. If
         the run it started stopped before its end (the model failed), delivering it again finishes that run, so a
-        notice is never acknowledged with its work undone (review of 2026-10-19, R1)."""
+        notice is never acknowledged with its work undone (review of 2026-10-19, R1).
+
+        wake=False adds the event to the conversation without asking the model: it is read at the customer's next
+        message. A customer's cancellation is told this way (confirmation run of 2026-10-24): woken by it, with no
+        customer message in front of it, the agent proposed the cancelled refund again."""
         with self._turn(conversation_id, wait=True):
             if self._conversation(conversation_id)["control"] == "human_controlled":
                 return []
+            config = self._config(conversation_id)
             if notice_id and any(m.get("notice_id") == notice_id for m in self.messages(conversation_id)):
-                if self.graph.get_state(self._config(conversation_id)).next:
+                if self.graph.get_state(config).next:
                     return self._run(conversation_id, None)
                 return []
             message = {"role": "event", "text": event} | ({"notice_id": notice_id} if notice_id else {})
+            if not wake:
+                if self.graph.get_state(config).next:
+                    self._run(conversation_id, None)  # first finish a run that a crash cut short
+                self.graph.update_state(config, {"messages": [message]}, as_node="agent")  # recorded, not answered
+                return []
             return self._run(conversation_id, {"messages": [message]})
 
     def resume(self, conversation_id: str) -> list[dict]:

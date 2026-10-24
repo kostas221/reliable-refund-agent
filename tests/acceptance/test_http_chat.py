@@ -209,13 +209,14 @@ def test_without_an_agent_the_chat_door_says_so(shop):
     assert ana.post(f"/api/conversations/{conversation}/messages", {"text": "Hi"}).status_code == 503
 
 
-def test_a_cancellation_wakes_the_agent_too(shop):
-    # Review of the model comparison, 2026-10-24: the customer's cancel button is told to the agent like a decision.
+def test_a_cancellation_is_told_to_the_agent_without_waking_it(shop):
+    # Review of the model comparison and the confirmation run, 2026-10-24: the customer's cancel button is told to the
+    # agent like a decision, but wakes no run; the agent reads it at the customer's next message.
     script = [
         Call("list_my_orders"),
         Call("propose_refund", {"order_id": "d01-o1", "unit_ids": ["d01-o1-u1"]}),
         Say("I can refund {propose_refund.amount_minor|brl} for the blue mug. Please confirm on the proposal card."),
-        Say("You cancelled the request, so nothing will be paid."),
+        Say("No. You cancelled the request, so nothing will be paid."),
     ]
     s = shop(script=script)
     ana = s.browser("d01-ana")
@@ -223,7 +224,10 @@ def test_a_cancellation_wakes_the_agent_too(shop):
     ana.post(f"/api/conversations/{conversation}/messages", {"text": s.scenario.customer.opening_message})
     proposal = conversation_of(s, conversation)["proposals"][0]["proposal_id"]
     ana.post(f"/api/proposals/{proposal}/confirmation", {"decision": "confirmed"})
+    asked = len(s.model.requests)
     assert ana.post(f"/api/proposals/{proposal}/cancellation").json()["status"] == "cancelled"
     told = [m["text"] for m in s.agent.messages(conversation) if m["role"] == "event"]
     assert told == [notices.customer_cancelled(proposal, "cancelled")]
-    assert said(s, conversation)[-1] == ("agent", "You cancelled the request, so nothing will be paid.")
+    assert len(s.model.requests) == asked  # told, not woken
+    answer = ana.post(f"/api/conversations/{conversation}/messages", {"text": "Will anything still be paid?"})
+    assert answer.json() == {"answers": ["No. You cancelled the request, so nothing will be paid."]}

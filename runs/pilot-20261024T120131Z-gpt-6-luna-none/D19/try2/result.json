@@ -1,0 +1,161 @@
+{
+  "scenario": "D19",
+  "try": 2,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['ineligible', 'none']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; allowed, origins ['customer']"
+    },
+    {
+      "name": "cites:refund-policy/v2/eligible-orders",
+      "status": "passed",
+      "evidence": "shown in an agent message"
+    },
+    {
+      "name": "communication:explains_refusal_reason",
+      "status": "pending",
+      "evidence": "pre-check passed: 2 agent messages"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 4,
+  "refusals": [
+    {
+      "event": "hand_off",
+      "check": "handoff_reason",
+      "actor": "agent"
+    }
+  ],
+  "handoff_origins": [],
+  "agent_seconds": [
+    3.012,
+    3.92
+  ],
+  "spent_usd": {
+    "agent": 0.0003578150000000009,
+    "simulator": 0.00017230000000000023
+  },
+  "attempts_sent": 6,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hi, I ordered a cookware set a few days ago but I don't need it anymore. Can I get my money back?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_qRggYa9ight9Wga4jzGrITjU",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_qRggYa9ight9Wga4jzGrITjU",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h09-o1\", \"status\": \"shipped\", \"purchased_at\": \"2026-10-20T17:00:00+00:00\", \"delivered_at\": null, \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h09-o1-u1\", \"product\": \"Stainless steel cookware set\", \"paid_minor\": 14999, \"received_back\": false, \"refunded\": false}], \"requests\": []}]}"
+    },
+    {
+      "role": "agent",
+      "text": "Your cookware set order is still marked as **shipped**, not delivered. Refunds through this process are only available for delivered orders; I can’t request one now. Cancelling or changing delivery is outside this process, but I can connect you with a staff member to discuss that (refund-policy/v2/eligible-orders). Would you like me to do that?",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "Your cookware set order is still marked as **shipped**, not delivered. Refunds through this process are only available for delivered orders; I can’t request one now. Cancelling or changing delivery is outside this process, but I can connect you with a staff member to discuss that (refund-policy/v2/eligible-orders). Would you like me to do that?",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "customer",
+      "text": "What can I do to get a refund, then?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_FnsgXdlwhOhat2o2iupRJIzz",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\":\"customer_asked\",\"order_id\":\"\",\"unit_ids\":[],\"customer_words\":\"What can I do to get a refund, then?\",\"reason\":\"The order is still shipped and this refund process is only for delivered orders; the customer is seeking help with next steps.\",\"customer_goal\":\"Find out how to get a refund for the cookware set.\",\"confirmed_facts\":\"Order h09-o1 is marked shipped, not delivered; its unit has not been received back.\",\"decision_needed\":\"Advise whether cancellation or another option is available while the order is still shipped.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_FnsgXdlwhOhat2o2iupRJIzz",
+      "name": "request_handoff",
+      "content": "{\"ok\": false, \"refused\": \"handoff_reason\", \"explanation\": \"that message does not ask for a person: it names none, or declines one, or answers no offer of one. Copy the customer's words that ask for a person exactly. If the customer has not asked for one, answer from the policy, and offer a person only where it says to; the customer's yes to that offer is a request for one. If a rule refuses the request, give its reason and what the policy allows, without offering a person. Hand off with customer_asked only when the customer clearly asks for a person.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "For a refund through this process, the order must first be marked delivered. After delivery, the item must be returned and recorded as received by the shop, and the refund must be requested within 30 days of the recorded delivery time (refund-policy/v2/eligible-orders; refund-policy/v2/return; refund-policy/v2/window).\n\nYour order is still marked shipped, so I can’t request a refund now. Cancelling or changing delivery is outside this process. Would you like a staff member to help with that? (refund-policy/v2/eligible-orders)",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "For a refund through this process, the order must first be marked delivered. After delivery, the item must be returned and recorded as received by the shop, and the refund must be requested within 30 days of the recorded delivery time (refund-policy/v2/eligible-orders; refund-policy/v2/return; refund-policy/v2/window).\n\nYour order is still marked shipped, so I can’t request a refund now. Cancelling or changing delivery is outside this process. Would you like a staff member to help with that? (refund-policy/v2/eligible-orders)",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}
