@@ -1088,3 +1088,161 @@ verdicts (`user-review/`): D28 try 1 (with the question whether a conditional an
 without reading its status, is acceptable), D09 try 1 and D33 try 1 (a refused proposal and the question after it),
 D13 try 1, D37 try 1 and D15 try 2 (with last run's question about its scenario). The user's verdicts are added here
 when they are in.
+
+## Luna none and Sol low on the corrected version
+
+`runs/pilot-20261023T185612Z-gpt-6-luna-none` and `runs/pilot-20261023T201842Z-gpt-6.1-sol-low`, 2026-10-23, one
+after the other, both from commit `cb359eb` (clean tree: `fb4bc4b` and the predictions). Instructions v7, policy v2,
+the corrections after the review of the selection check (plan change log, 2026-10-23), all 42 development scenarios,
+3 tries each, and the same simulated customer (Luna, reasoning low); only the agent's model and reasoning differ. Luna
+none cost $0.0650 ($0.0523 the agent, $0.0127 the simulated customer), Sol low $0.6913 ($0.6772 and $0.0141).
+Predictions and the decision rule: [predictions.md](predictions.md), "Luna none and Sol low on the corrected
+version".
+
+**The rule chooses Luna none.** Both configurations qualify, and Luna costs 12.6 times less per resolved case. Sol
+resolves 3 more conversations of 126 (+2.4 points, 95% interval -3.2 to +8.7), at $0.21 of agent cost for each.
+
+### Result
+
+Claude read all 252 conversations; no pending item is unread, none is marked a simulator fault, and the reading
+failed nothing beyond the machine's verdicts.
+
+| | Luna none | Sol low |
+|---|---|---|
+| Conversations that succeeded | 120 of 126 (95.2%) | 123 of 126 (97.6%) |
+| Scenarios passed in all three tries | 39 of 42 (92.9%) | 39 of 42 (92.9%) |
+| Unauthorized or duplicate refunds | 0 of 126 | 0 of 126 |
+| Required handoffs | 27 of 27 | 27 of 27 |
+| Handoffs the scenarios forbid | 3 (D39, begun by the agent) | 2 (D13, D28: an offer the customer accepted) |
+| Required citations | 54 of 57 | 56 of 57 |
+| Attempts the backend refused | 20 (10 proposals, 10 handoffs) | 0 |
+| Agent cost per resolved case | $0.00044 | $0.00551 |
+| Agent time per turn, median / 95th percentile | 9.4 s / 26.3 s | 4.7 s / 8.7 s |
+
+| Paired by scenario | Difference | 95% interval | Better / same / worse |
+|---|---|---|---|
+| Sol against Luna, 42 scenarios | +2.4 points | -3.2 to +8.7 | 2 / 38 / 2 |
+| Luna against the last run, 42 scenarios | +1.6 points | -1.6 to +4.8 | 3 / 38 / 1 |
+| Luna against the last run, D15 and D42 aside, 40 scenarios | +0.0 points | -2.5 to +2.5 | 1 / 38 / 1 |
+| Luna against v1 (pilot of 2026-10-19 for D01 to D10, final A for D11 to D30), 30 scenarios | +20.0 points | +8.9 to +32.2 | 10 / 20 / 0 |
+
+The diagnostics' 3 Luna messages "saying no proposal was made, after one was" are all D42 and are true: the speaker's
+proposal was paid, and the agent says it made none for the phone case, which has not been returned. The diagnostic
+matches the phrase across the conversation, not per item.
+
+Sol is better in D39 (3 conversations) and D20 (2), worse in D13 and D28 (1 each). Against the last run, Luna is
+better in D13 (the date error of try 1 not repeated), D15 (the revised role, 3 of 3) and D42 (the try that was missing),
+and worse in D35 (one missed citation).
+
+### The decision rule, applied
+
+1. Both qualify: no unauthorized or duplicate refund in either; success 95.2% and 97.6%, above 85%; scenarios passed
+   in all three tries 92.9% in each, above 70%.
+2. The lower agent cost per resolved case is Luna's: $0.00044 against $0.00551. **Luna none is chosen.**
+3. Not needed: both qualify.
+4. Sol minus Luna is +2.4 points, and the interval includes zero, so it is not recorded as a quality gain. Each extra
+   conversation Sol resolves costs ($0.6772 - $0.0523) / 3 = $0.21 of agent cost.
+5. Of the conversations that passed in the last run, D15 and D42 aside, Luna lost 1 (D35 try 2), fewer than 6, so no
+   cause reading was required before the choice.
+
+Luna none is the configuration for the final evaluation of v1.1 on new held-out scenarios, where Sol low runs as the
+reference configuration B.
+
+### Where the two differ
+
+- **D39, Luna 0 of 3, Sol 3 of 3: a question about shipping.** The customer opens with "Will the shipping I paid be
+  refunded too, or just the kettle?". Sol answered from the shipping section, without a handoff, and refunded the
+  kettle. Luna handed off as `shipping_refund` at once, quoting the question as the customer's words, and the backend
+  accepted: the rule asks only that the words name the shipping charge, and a question names it as well as a request
+  does. The refusal written for this case never ran: in all 6 `shipping_refund` handoffs of the Luna run (D39 3, D40
+  3), the agent gave the customer's words at the first attempt. In two of the D39 conversations Luna also spoke of a
+  kettle refund that was never proposed (try 1: confirm it "using the button on its proposal card"; try 2: the
+  kettle's refund "is included").
+- **D20, Luna 1 of 3, Sol 3 of 3: the `remaining` citation.** In all 6 conversations the tool output showed
+  `refund-policy/v2/remaining` beside the receipt. Sol said each time, with the citation, that the items cannot be
+  refunded again; Luna answered the customer's question (when) with the receipt and the payout section, and added the
+  `remaining` sentence once.
+- **D13 try 3 and D28 try 1, Sol: a person offered for a side question, and accepted.** In D13, after the paid refund,
+  the customer asked how to send the blanket back; in D28 the customer asked "Will anything still be charged?" (its
+  role says "paid"), and Sol read it as a question about the seller's replacement. Each time Sol said the policy does
+  not answer it and offered a person, as the exceptions section says; the customer, whose role says nothing about
+  offers, said yes, and the backend accepted the yes. Both scenarios forbid any handoff. In D28 Sol also asked the
+  customer to cancel "if you haven't already" without reading the request's status (already cancelled by the button),
+  and after the handoff said the unpaid proposal was "now closed as part of the handoff". Luna got the same D28 words in
+  try 1 and answered that a refund proposal charges nothing. It is the scenario question that D15 raised: whether a
+  scenario that forbids a handoff should allow one the customer accepts.
+- **D35 try 2, both: the `eligible-orders` citation missed.** Luna cited nothing; Sol cited the exceptions section.
+
+### What the corrections did (Luna)
+
+- **Selection check:** 10 proposals refused, all first proposals in D09 (3), D17 (3), D31 (3) and D33 (1), each
+  followed by the question which item; clarification 12 of 12, and D32 and D34 6 of 6 proposed at once. Sol asked
+  before any proposal in all 12 and was never refused.
+- **Person-request rule:** 10 handoffs refused, all rightly by Claude's reading: "Will it reach my card within a few
+  days?" (D14, 2), "Can I cancel it?" (D37 3, D38 1), "What can I do to get a refund while the order is in transit?"
+  (D19), an empty quote (D15, 2) and `delivery_disputed` for a shipped order (D15, 1). No genuine request was refused;
+  "Yes, please." to an offer was accepted (D37 try 2).
+- **Shipping rule:** 6 of 6 accepted, none refused, D39's question among them (above).
+- **The `remaining` citation beside the receipt:** D20 1 of 3, as in the last run.
+- **D15's revised role:** 3 of 3 in both runs.
+- **Runner:** 126 of 126 tries in each run, no crash, no database kept. The question brake was not exercised in
+  either run.
+
+### Predictions against results
+
+| # | Prediction | Result | |
+|---|---|---|---|
+| 1 | Luna: no unauthorized or duplicate refund | 0 of 126 | right |
+| 2 | Luna: 114 to 125 of 126 | 120 | right |
+| 3 | D39 0 to 3 of 3; every handoff quotes the customer's question | 0; 3 of 3 quote it | right |
+| 4 | D40 2 or 3 of 3, on the customer's words; the first attempt with no words refused | 3, all on the words; no attempt without words | partly |
+| 5 | D20 2 or 3 of 3 | 1 | wrong |
+| 6 | D15, revised role, 2 or 3 of 3 | 3 | right |
+| 7 | Clarification 10 to 12 of 12; D32 and D34 6 of 6 at once; no selection refusal elsewhere | 12; 6; none | right |
+| 8 | 26 or 27 of 27 required handoffs | 27 | right |
+| 9 | Luna's agent cost per resolved case within 20% of $0.00045; run under $0.15 | $0.00044; $0.0650 | right |
+| 10 | Sol: no unauthorized or duplicate refund | 0 of 126 | right |
+| 11 | Sol: 114 to 126 of 126 | 123 | right |
+| 12 | Sol minus Luna, -5 to +8 points | +2.4 | right |
+| 13 | Sol's agent cost per resolved case 10 to 30 times Luna's; run $0.60 to $2.00 | 12.6 times; $0.6913 | right |
+| 14 | Sol's median agent time above Luna's | 4.7 s against 9.4 s | wrong |
+| 15 | Both qualify, and the rule chooses Luna none | both; Luna none | right |
+
+12 right, 1 partly, 2 wrong. Prediction 4: the description of the handoff's `customer_words` field now asks for the
+words, and the agent gave them from the start, so the refusal was never needed. Prediction 5: the citation beside the
+receipt did not change Luna's answers in D20. Prediction 14: with the same code, Luna's median time per turn was 3.9 s
+on 22 October and 5.1 s earlier on 23 October; this run's 9.4 s, measured in the hour before Sol's run, reflects the
+provider at that hour, so these runs do not rank the two models on speed.
+
+### Limits
+
+- One run per configuration, 3 tries per scenario. Both are near the ceiling of this set (39 of 42 in all three
+  tries), the Sol minus Luna interval includes zero, and a difference of a few conversations cannot be shown here. On
+  v1's held-out scenarios Sol led by 15 points; these development scenarios were written by the author of the system,
+  many after reading Luna's failures, and are not unseen cases.
+- The quality targets of the final evaluation are used here as a bar to qualify, on development cases, as written
+  before the runs.
+- Times include the provider's latency at the hour of each run.
+- Claude's reading only, until the user's share is in. Two of Sol's three failures turn on the scenario question
+  above; the rule's choice does not depend on its answer, since both configurations qualify either way and the choice
+  is by cost.
+
+### What follows
+
+- Luna none is frozen for the final evaluation of v1.1 on new held-out scenarios, with Sol low as configuration B.
+- One open cause, for the user's decision before the freeze: the `shipping_refund` rule takes a question that names
+  the shipping charge for a request (D39, 3 of 3 lost; the user read its opening as a question). On 2026-10-23 the
+  backend was given no check of question against request for shipping, and the meaning was left to the agent's
+  judgment; with Luna that judgment failed in all 3 D39 conversations, and with Sol it held in all 3. A check would
+  be a language judgment, made on its own, with contrasting cases and a replay on the saved logs, as the
+  person-request rule was.
+
+### Who read
+
+Claude read all 252 (`audit-claude.toml` in each run folder). The user reads 7, in Greek and numbered without Claude's
+verdicts or the model's name (`runs/pilot-20261023T201842Z-gpt-6.1-sol-low/user-review/`, key in `key.json`): D39
+try 1 and D20 try 1 of each run, D28 try 1 of each run, and Sol's D13 try 3, with four questions (whether an accepted
+offer of a person should be allowed where a scenario forbids a handoff; which reading of "Will anything still be
+charged?" is right; whether D20's answer is complete without the `remaining` sentence; whether D39's opening is a
+question or a request). The planned example of the shipping refusal at work is missing: the refusal never ran. The
+user's verdicts are added here when they are in.

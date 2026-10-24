@@ -129,12 +129,21 @@ alone; the same 41 refusals in 697 recorded proposals); `shipping_refund` needs 
 shipping charge (all 16 recorded attempts had none); the `remaining` citation beside a paid request's receipt; D15's
 role revised (the customer defers an offered person; D15 reported apart across that date); the runner holds the
 simulator model fixed (`--simulator-model`), survives a failed database drop and keeps Windows awake. 18 planted bugs
-caught. Next: a paid comparison of Luna none and Sol low on this version, same scenarios and simulator, predictions
-and the decision rule written first. The user reads 6
-conversations of the selection check run (`user-review/`), and 10 conversations
-of step 1 and 9 of each of steps 3, 2 and the repairs (`user-review/`); Claude's verdicts are shown after. Development
-runs: Claude reads all, the user reads what Claude fails or notes. Phase 7 (video, code licence, external test, CI on a
-remote) after v1.1.
+caught. The comparison of Luna none and Sol low on this version (`runs/pilot-20261023T185612Z-gpt-6-luna-none`,
+`runs/pilot-20261023T201842Z-gpt-6.1-sol-low`, commit cb359eb, same simulator; results in `docs/pilot/results.md`):
+the decision rule chose **Luna none**. Both qualify (0 unsafe; Luna 120/126, Sol 123/126; pass^3 39/42 each); Luna
+costs 12.6 times less per resolved case ($0.00044 against $0.00551); Sol minus Luna +2.4 points (95% -3.2 to +8.7),
+$0.21 per extra resolved conversation. Sol wins D39 (answers the shipping question; Luna hands it off, quoting the
+question, and the backend accepts it: the rule checks only that the words name shipping) and D20 (`remaining`
+cited); Sol loses D13 and D28 (a person offered for a side question, accepted; the scenarios forbid a handoff, the
+D15 question again). 12 of 15 predictions right, 1 partly, 2 wrong (D20; response time, which varied with the
+provider's hour). Luna none is frozen for the final evaluation of v1.1 on new held-out scenarios, Sol low as B.
+Open, for the user's decision before the freeze: a question-or-request check for `shipping_refund` (declined on
+2026-10-23; Luna's judgment failed D39 3 of 3). The user reads 7 conversations of the comparison
+(`runs/pilot-20261023T201842Z-gpt-6.1-sol-low/user-review/`, four questions), 6 of the selection check run, and 10
+of step 1 and 9 of each of steps 3, 2 and the repairs (`user-review/`); Claude's verdicts are shown after.
+Development runs: Claude reads all, the user reads what Claude fails or notes. Phase 7 (video, code licence, external
+test, CI on a remote) after v1.1.
 
 ## Environment
 
