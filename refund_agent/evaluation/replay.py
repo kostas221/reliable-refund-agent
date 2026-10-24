@@ -8,8 +8,11 @@ decides, never what the model would have said after a different tool result; onl
   asks the customer something.
 - Request for a person (refunds.request_for_person): every recorded customer_asked attempt, against what the backend
   answered at the time.
-- Request to refund shipping (refunds.request_for_shipping_refund, review after the selection check): every recorded
-  shipping_refund attempt, against what the backend answered at the time.
+- Request to refund shipping (refunds.request_for_shipping_refund, review after the selection check; a yes to the
+  agent's offer since the review of the model comparison): every recorded shipping_refund attempt, against what the
+  backend answered at the time.
+- Fact line (refund_agent/agent/facts.py, review of the model comparison): every agent answer with text and no calls,
+  and the line the graph would now say after it.
 
 Run: uv run python -m refund_agent.evaluation.replay runs/pilot-20261022T165428Z-gpt-6-luna-none [more runs]
 """
@@ -21,8 +24,10 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from refund_agent.agent.facts import fact_line
+from refund_agent.policy import Policy
 from refund_agent.refunds import request_for_person, request_for_shipping_refund
-from refund_agent.scenarios import Scenario, load_split
+from refund_agent.scenarios import Scenario, load_split, policy_for
 from refund_agent.selection import Kind, asks_customer, look_alikes_unnamed
 
 
@@ -37,6 +42,7 @@ class Replayed:
     changed: list[str] = field(default_factory=list)  # customer_asked attempts the rule now decides differently
     shipping: int = 0
     shipping_changed: list[str] = field(default_factory=list)  # shipping_refund attempts now decided differently
+    fact_lines: list[str] = field(default_factory=list)  # "<where>: <line>" for each answer that would get one
 
 
 def kinds_of(scenario: Scenario, paid: set[str]) -> list[Kind]:
@@ -60,10 +66,12 @@ def kinds_of(scenario: Scenario, paid: set[str]) -> list[Kind]:
     return list(found.values())
 
 
-def replay_try(saved: dict, scenario: Scenario, where: str, into: Replayed) -> None:
+def replay_try(saved: dict, scenario: Scenario, where: str, into: Replayed, policy: Policy) -> None:
     said: list[tuple[str, str]] = []  # (author, text) of customer and agent, as the messages table holds them
     paid: set[str] = set()
+    history: list[dict] = []  # the messages before the one at hand, as the graph keeps them
     for message in saved.get("messages", []):
+        history.append(message)
         role = message["role"]
         if role == "tool":
             result = json.loads(message["content"])
@@ -76,6 +84,10 @@ def replay_try(saved: dict, scenario: Scenario, where: str, into: Replayed) -> N
                 into.answers_with_calls += 1
                 if asks_customer(message["text"]):
                     into.held.append(f"{where}: {', '.join(call['name'] for call in calls)}")
+            if message.get("text") and not calls and not message.get("fact_line"):
+                line = fact_line(history[:-1], message["text"], policy)
+                if line:
+                    into.fact_lines.append(f"{where}: {line}")
             if message.get("text"):  # stored before the answer's own calls run
                 said.append(("agent", message["text"]))
             for call in calls:
@@ -120,6 +132,7 @@ def _recorded_answer(saved: dict, call_id: str) -> bool | None:
 
 def replay(runs: list[Path]) -> Replayed:
     scenarios = {s.id: s for s in load_split("development")}
+    policy = policy_for(scenarios.values())
     into = Replayed()
     for run in runs:
         for result in sorted(run.glob("D*/try*/result.json")):
@@ -127,7 +140,7 @@ def replay(runs: list[Path]) -> Replayed:
             if scenario is None:
                 continue
             where = f"{run.name} {result.parent.parent.name} {result.parent.name}"
-            replay_try(json.loads(result.read_text(encoding="utf-8")), scenario, where, into)
+            replay_try(json.loads(result.read_text(encoding="utf-8")), scenario, where, into, policy)
     return into
 
 
@@ -151,6 +164,9 @@ def main(argv: list[str] | None = None) -> int:
         "decided differently"
     )
     for line in found.shipping_changed:
+        print(f"  {line}")
+    print(f"Fact line: {len(found.fact_lines)} answers would get one")
+    for line in found.fact_lines:
         print(f"  {line}")
     return 0
 

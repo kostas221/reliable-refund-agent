@@ -303,22 +303,24 @@ MOCK = {
     "D40": MockRun(
         agent=(
             Call("list_my_orders"),
+            Say(
+                "Shipping charges are never refunded automatically; a staff member takes a request to refund them "
+                "(refund-policy/v2/shipping). Would you like a staff member to review the shipping charge?"
+            ),
             Call(
                 "request_handoff",
                 {
                     "reason_code": "shipping_refund",
-                    "customer_words": "I want the shipping refunded.",
+                    "customer_words": "Yes, please.",
                     "reason": "The customer asks for the shipping of a refunded kettle to be refunded.",
                     "customer_goal": "To have the shipping of the broken kettle refunded.",
                     "confirmed_facts": "The kettle was refunded on 13 October, receipt R-D40-0001.",
                     "decision_needed": "Whether to refund the shipping.",
                 },
             ),
-            Say(
-                "Shipping charges are never refunded automatically; a request to refund them is reviewed by a member "
-                "of our staff (refund-policy/v2/shipping). A person will take over from here."
-            ),
+            Say("A member of our staff will take over from here to review the shipping charge."),
         ),
+        customer=("Yes, please.",),
     ),
     "D41": MockRun(
         agent=(

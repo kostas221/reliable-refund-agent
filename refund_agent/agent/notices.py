@@ -8,7 +8,9 @@ also gives the staff member's reason, so the agent can pass it on (dialogue audi
 customer learned only that the request was rejected).
 
 A staff decision stores its notice in the same transaction (table agent_notices), and deliver_pending() hands the
-stored notices to the agent. The server calls it after a decision, when it starts and every few seconds, so a server
+stored notices to the agent. The customer's cancel button stores one too (review of the model comparison,
+2026-10-24): in D28 the customer cancelled before the staff decision, and the agent, told nothing, asked the customer
+to cancel with the button. The server calls it after a decision, when it starts and every few seconds, so a server
 that stops between the decision and the agent's run loses nothing (outside review of 2026-10-15). The evaluation
 runner calls it too, so it measures the product's path.
 """
@@ -41,6 +43,19 @@ def staff_decision(proposal_id: str, decision: Literal["approved", "rejected"], 
     return f'{rejected} The staff member gave this reason for the customer: "{reason}"' if reason else rejected
 
 
+def customer_cancelled(proposal_id: str, status: str) -> str:
+    """The customer pressed cancel; a request that had already expired or stopped being valid was closed as such."""
+    if status == "cancelled":
+        return f"The customer cancelled request {proposal_id} with the button on its card, so nothing will be paid."
+    return f"The customer pressed cancel on request {proposal_id}, which was already {status}, so nothing will be paid."
+
+
+def notice_text(proposal_id: str, decision: str, reason: str | None, status: str) -> str:
+    if decision == "cancelled":
+        return customer_cancelled(proposal_id, status)
+    return staff_decision(proposal_id, decision, reason)
+
+
 def deliver_pending(
     engine: Engine, agent: Agent, clock: Callable[[], datetime], conversation_id: str | None = None
 ) -> int:
@@ -51,7 +66,8 @@ def deliver_pending(
         pending = (
             conn.execute(
                 text(
-                    "SELECT n.id, n.conversation_id, n.proposal_id, n.decision, d.reason FROM agent_notices n "
+                    "SELECT n.id, n.conversation_id, n.proposal_id, n.decision, d.reason, p.status "
+                    "FROM agent_notices n JOIN proposals p ON p.id = n.proposal_id "
                     "LEFT JOIN staff_decisions d ON d.proposal_id = n.proposal_id "
                     "WHERE n.delivered_at IS NULL AND n.attempts < :most "
                     "AND (CAST(:conversation AS text) IS NULL OR n.conversation_id = :conversation) "
@@ -65,7 +81,7 @@ def deliver_pending(
     delivered = 0
     for notice in pending:
         try:
-            event = staff_decision(notice["proposal_id"], notice["decision"], notice["reason"])
+            event = notice_text(notice["proposal_id"], notice["decision"], notice["reason"], notice["status"])
             agent.notify(notice["conversation_id"], event, notice_id=notice["id"])
         except BudgetExceeded:
             raise  # a paid run's stop, not a failed delivery: the notice stays pending and the run ends

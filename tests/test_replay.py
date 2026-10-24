@@ -47,3 +47,34 @@ def test_the_checks_of_the_review_after_the_selection_check_on_the_run_it_read()
     assert found.shipping == 6 and len(found.shipping_changed) == 6
     assert {line.split()[1] for line in found.shipping_changed} == {"D39", "D40"}
     assert (found.changed, found.handoffs) == ([], 28)
+
+
+COMPARISON = [
+    REPO_ROOT / "runs" / name
+    for name in ("pilot-20261023T185612Z-gpt-6-luna-none", "pilot-20261023T201842Z-gpt-6.1-sol-low")
+]
+
+
+def test_a_shipping_handoff_rests_on_a_yes_to_the_offer_in_the_runs_of_the_model_comparison():
+    found = replay(COMPARISON)
+    # Review of the model comparison, 2026-10-24: every shipping handoff of both runs quoted the customer's first
+    # words, and each was accepted at the time. Each is now refused: D39's question (Luna, three tries) is answered
+    # from the policy, and D40's request (three tries of each) gets the offer of a staff member first.
+    assert found.shipping == 9
+    assert sorted(" ".join(line.split()[1:3]).rstrip(":") for line in found.shipping_changed) == sorted(
+        [f"D39 try{n}" for n in (1, 2, 3)] + [f"D40 try{n}" for n in (1, 2, 3)] * 2
+    )
+    assert all(": refused " in line for line in found.shipping_changed)
+    # Nothing else is decided differently: the same 10 selection refusals as the run's own, no person request changed.
+    assert (len(found.refused), found.changed) == (10, [])
+
+
+def test_the_fact_line_falls_on_the_missed_citations_of_the_model_comparison_and_on_few_others():
+    found = replay(COMPARISON)
+    where = sorted(" ".join(line.split(":")[0].split()[1:3]) for line in found.fact_lines)
+    # The three citations Luna missed (D20 tries 1 and 2, D35 try 2) and Sol's one (D35 try 2), plus five answers that
+    # state a fact the line is true of: D40's earlier refund (Luna) and D15's shipped controller (Sol, which cited the
+    # exceptions section).
+    assert where == sorted(
+        ["D20 try1", "D20 try2", "D35 try2", "D40 try1", "D40 try2"] + ["D15 try1", "D15 try2", "D15 try3", "D35 try2"]
+    )

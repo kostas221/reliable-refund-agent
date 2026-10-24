@@ -113,6 +113,18 @@ def test_a_customer_who_may_be_offered_a_person_where_a_handoff_is_forbidden_kno
             assert "staff member" in behaviour or "person" in behaviour, s.id
 
 
+def test_a_customer_offered_a_person_beside_the_goal_knows_what_to_say():
+    # Review of the model comparison, 2026-10-24. The policy has the agent offer a person for a question it does not
+    # answer, and since that date for a request to refund shipping. In the runs of 2026-10-23 a simulated customer whose
+    # role said nothing of offers accepted one in D13 (how to send the blanket back) and D28 (a charge for the
+    # replacement), against scenarios that forbid any handoff; D39 and D40 now meet the shipping offer. Each role says
+    # what its customer answers: D40 accepts, the others decline.
+    roles = {s.id: " ".join(s.customer.behaviour) for s in DEVELOPMENT}
+    for sid in ("D13", "D28", "D39"):
+        assert "If you are offered a staff member" in roles[sid] and "say no, thanks" in roles[sid], sid
+    assert "If you are offered a staff member to review the shipping charge, say yes." in roles["D40"]
+
+
 def test_a_development_copy_is_its_source_but_for_id_split_and_origin():
     sources = {s.id: s for s in HELD_OUT}
     for copy in COPIES:

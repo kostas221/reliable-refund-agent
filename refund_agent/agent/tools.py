@@ -114,9 +114,9 @@ class HandoffArgs(_Args):
         "shop_decided, the latest proposal's result in this conversation says a staff member takes the case; "
         "return_disputed, the customer says units were sent that the records do not show received; "
         "delivery_disputed, the customer says an order recorded as delivered never arrived; shipping_refund, the "
-        "customer asks for the shipping charge to be refunded, in the words given in customer_words (a question "
-        "whether shipping is refunded is answered from the policy). The backend checks the cases it can see in its "
-        "data."
+        "customer said yes to your offer of a staff member for the shipping charge, the yes given in customer_words "
+        "(a question whether shipping is refunded is answered from the policy; a request to refund it gets that offer "
+        "first). The backend checks the cases it can see in its data."
     )
     order_id: str = Field(
         default="",
@@ -132,8 +132,8 @@ class HandoffArgs(_Args):
         default="",
         max_length=500,
         description="The customer's own words, copied exactly from their latest message: for customer_asked, words "
-        "that name a person, or their yes to your offer of one; for shipping_refund, words that ask for the shipping "
-        "charge to be refunded; empty otherwise.",
+        "that name a person, or their yes to your offer of one; for shipping_refund, their yes to your offer of a "
+        "staff member for the shipping charge; empty otherwise.",
     )
     reason: str = Field(min_length=1, max_length=500, description="Why a person is needed, in a sentence.")
     customer_goal: str = Field(max_length=1000, description="What the customer wants, in their terms.")
@@ -369,7 +369,10 @@ def request_handoff(ctx: ToolContext, args: HandoffArgs, call_id: str) -> dict:
             f"{basis[found['basis']]})."
         )
     elif args.reason_code == "shipping_refund":
-        quoted = f' The customer wrote: "{args.customer_words}" (message {found["customer_message"]}).'
+        quoted = (
+            f' The customer wrote: "{args.customer_words}" (message {found["customer_message"]}, a yes to the '
+            "agent's offer of a staff member for the shipping charge)."
+        )
     handoff_id = hand_off(
         ctx.engine,
         agent,
@@ -381,7 +384,25 @@ def request_handoff(ctx: ToolContext, args: HandoffArgs, call_id: str) -> dict:
         confirmed_facts_untrusted=args.confirmed_facts,
         decision_needed_untrusted=args.decision_needed,
     )
-    return {"handoff_id": handoff_id, "next_step": "Tell the customer a person will take over. Make no more changes."}
+    # What the handoff closed, from its own record (review of the model comparison, 2026-10-24): in D28 the request was
+    # already cancelled by the customer's button, and the agent said the handoff had closed it. A second call returns
+    # the same handoff, so it reports the same.
+    with ctx.engine.connect() as conn:
+        closed = conn.execute(
+            text("SELECT pending_proposal_id FROM handoffs WHERE id = :id"), {"id": handoff_id}
+        ).scalar_one()
+    if closed:
+        done = (
+            f"Request {closed}, which was not paid, is now closed and will not be paid; a person continues from "
+            "there. Tell the customer this and that a person will take over."
+        )
+    else:
+        done = "This handoff closed no request: say nothing of closing one. Tell the customer a person will take over."
+    return {
+        "handoff_id": handoff_id,
+        "closed_request": closed,
+        "next_step": f"{done} A refund already paid stays paid. Make no more changes.",
+    }
 
 
 @dataclass(frozen=True)

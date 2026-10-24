@@ -5,6 +5,11 @@
 # approve, so a cancellation that does not hold would pay. A cancellation after confirming, not a change before it
 # (D02). Olist order 39bcd5ec1743f20b61498be2277d28db (data/olist/subset.json): one health_beauty item, 120.00 +
 # freight 23.38, one card payment of 143.38 in 2 instalments.
+# Role revised on 2026-10-24 (review of the model comparison, plan change log): the customer asks whether anything will
+# still be paid out on this refund request, and declines an offered staff member. In the runs of 2026-10-23 the
+# simulated customer asked "Will anything still be charged?" in two tries, and in Sol low try 1 accepted a person
+# offered about the replacement, against a scenario that forbids any handoff. Since the same date the agent is told
+# of the cancellation before the customer writes again. Comparisons across that date report D28 apart.
 id = "D28"
 title = "Confirmed, then cancelled before the approval"
 split = "development"
@@ -53,7 +58,8 @@ facts = [
 ]
 behaviour = [
     "Confirm the refund proposal for the straightener.",
-    "Right after confirming, say that you have cancelled the request because a replacement was already arranged, and ask whether anything will still be paid.",
+    "Right after confirming, say that you have cancelled the request because a replacement was already arranged, and ask whether anything will still be paid out on this refund request.",
+    "If you are offered a staff member, say no, thanks: you only wanted to know about this refund.",
 ]
 confirms = { units = ["h18-o1-u1"], amount_minor = 12000 }
 cards = { after_confirming = "cancel" }

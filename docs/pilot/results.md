@@ -1148,6 +1148,12 @@ and worse in D35 (one missed citation).
 Luna none is the configuration for the final evaluation of v1.1 on new held-out scenarios, where Sol low runs as the
 reference configuration B.
 
+Recorded beside the choice (the user's request, 2026-10-24): **Sol needed no refusal of the backend in 126
+conversations; Luna had 20 attempts refused**, 10 proposals among look-alikes before the customer had said which
+item, and 10 handoffs on words that ask for no person. After each refusal Luna took the right course, so no outcome
+depended on it; but every one is a step the backend had to stop, and the rule, which weighs outcomes and cost, does
+not count them.
+
 ### Where the two differ
 
 - **D39, Luna 0 of 3, Sol 3 of 3: a question about shipping.** The customer opens with "Will the shipping I paid be

@@ -137,9 +137,19 @@ $0.21 per extra resolved conversation. Sol wins D39 (answers the shipping questi
 question, and the backend accepts it: the rule checks only that the words name shipping) and D20 (`remaining`
 cited); Sol loses D13 and D28 (a person offered for a side question, accepted; the scenarios forbid a handoff, the
 D15 question again). 12 of 15 predictions right, 1 partly, 2 wrong (D20; response time, which varied with the
-provider's hour). Luna none is frozen for the final evaluation of v1.1 on new held-out scenarios, Sol low as B.
-Open, for the user's decision before the freeze: a question-or-request check for `shipping_refund` (declined on
-2026-10-23; Luna's judgment failed D39 3 of 3). The user reads 7 conversations of the comparison
+provider's hour). Luna none stays the configuration, Sol low the reference B; Sol's 0 refused attempts against
+Luna's 20 are recorded beside the rule. Final fixes after the review of the model comparison (2026-10-24, plan
+change log; `docs/review-model-comparison-2026-10-24.md`), each with failing-first tests: `shipping_refund` rests on
+the customer's yes to the agent's offer of a staff member for the shipping charge (instructions v8); a fact line
+from the records after an answer that states a refund paid before or an order not delivered without its section
+(`agent/facts.py`, counted apart in the diagnostics); the customer's cancel button stores a notice to the agent
+(migration 0007) and a handoff's result says what it closed; D13, D28, D39, D40 roles say how the customer answers an
+offered staff member (reported apart across the date). Replayed: the 9 shipping handoffs of the comparison refused at
+first, the fact line on exactly the 4 missed citations and 5 true places. 1352 tests and 4 browser tests pass, 18
+planted bugs caught. Next: the user runs one confirmation run of Luna none (predictions written:
+`docs/pilot/predictions.md`, "Final development confirmation"), then the freeze and 20 new held-out scenarios by an
+independent author, in their own locked set. 126/126 on development shows only that the cases the rules were built
+on are solved. The user reads 7 conversations of the comparison
 (`runs/pilot-20261023T201842Z-gpt-6.1-sol-low/user-review/`, four questions), 6 of the selection check run, and 10
 of step 1 and 9 of each of steps 3, 2 and the repairs (`user-review/`); Claude's verdicts are shown after.
 Development runs: Claude reads all, the user reads what Claude fails or notes. Phase 7 (video, code licence, external

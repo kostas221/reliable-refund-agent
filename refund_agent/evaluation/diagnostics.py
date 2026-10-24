@@ -102,11 +102,19 @@ def of_try(
 ) -> dict:
     """One conversation. failed: the item names that failed; items: every item name and its status."""
     shown = shown_sections(saved.get("messages", []), instructions, policy)
+    # What the model wrote, without the graph's fact lines (agent/facts.py), so their citations are counted apart.
+    model_said = " ".join(
+        m.get("text") or "" for m in saved.get("messages", []) if m.get("role") == "agent" and not m.get("fact_line")
+    )
     citations = Counter()
     for name, status in items.items():
         if name.startswith("cites:"):
-            seen = "shown" if name.split(":", 1)[1] in shown else "never shown"
-            citations[f"{seen}, {'cited' if status == 'passed' else 'not cited'}"] += 1
+            citation = name.split(":", 1)[1]
+            seen = "shown" if citation in shown else "never shown"
+            cited = "not cited"
+            if status == "passed":
+                cited = "cited" if citation in model_said else "cited only by the fact line"
+            citations[f"{seen}, {cited}"] += 1
     handoffs = Counter()
     if "handoff" in failed:
         origins = saved.get("handoff_origins", [])

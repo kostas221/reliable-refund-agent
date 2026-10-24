@@ -230,8 +230,16 @@ def create_app(
         return {"proposal_id": proposal_id, "status": status}
 
     @app.post("/api/proposals/{proposal_id}/cancellation")
-    def cancel_proposal(proposal_id: str, user: Changing) -> dict:
-        return {"proposal_id": proposal_id, "status": cancel(engine, customer(user), proposal_id, clock(), policy)}
+    def cancel_proposal(proposal_id: str, user: Changing, background: BackgroundTasks) -> dict:
+        status = cancel(engine, customer(user), proposal_id, clock(), policy)
+        if agent is not None:
+            # The cancellation stored its notice, as a decision does: delivered after the answer is sent.
+            with engine.connect() as conn:
+                conversation = conn.execute(
+                    text("SELECT conversation_id FROM proposals WHERE id = :id"), {"id": proposal_id}
+                ).scalar_one()
+            background.add_task(deliver, conversation)
+        return {"proposal_id": proposal_id, "status": status}
 
     @app.post("/api/conversations/{conversation_id}/handoff", status_code=201)
     def ask_for_a_person(conversation_id: str, user: Changing) -> dict:

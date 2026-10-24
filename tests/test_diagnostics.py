@@ -81,3 +81,20 @@ def test_the_checks_of_2026_10_23_are_counted_where_they_acted():
     }
     per_try = [{"citations": {}, "handoffs": {}, "proposals_after_receipt": 0, "checks_acted": counted}]
     assert summarize(per_try)["checks_acted"]["conversations with the selection refused twice or more"] == 1
+
+
+def test_a_citation_only_the_fact_line_gave_is_counted_apart():
+    # Review of the model comparison, 2026-10-24: the fact line's citations must not pass for the model's own.
+    from refund_agent.evaluation.diagnostics import of_try
+    from refund_agent.scenarios import load_split
+
+    d20 = next(s for s in load_split("development") if s.id == "D20")
+    remaining = POLICY.citation("remaining")
+    listed = tool("list_my_orders", {"orders": [], "policy_citation": remaining})
+    model = {"role": "agent", "text": "Both items were refunded, receipt R-H10-0001 (refund-policy/v2/payout)."}
+    line = {"role": "agent", "text": f"... cannot be refunded again ({remaining}).", "fact_line": True}
+    items = {f"cites:{remaining}": "passed"}
+    found = of_try({"messages": [listed, model, line]}, set(), items, d20, "", POLICY)
+    assert found["citations"] == {"shown, cited only by the fact line": 1}
+    cited = {"role": "agent", "text": f"Refunded, receipt R-H10-0001; not again ({remaining})."}
+    assert of_try({"messages": [listed, cited]}, set(), items, d20, "", POLICY)["citations"] == {"shown, cited": 1}

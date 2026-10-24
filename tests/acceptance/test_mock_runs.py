@@ -8,7 +8,7 @@ import pytest
 from langgraph.checkpoint.postgres import PostgresSaver
 
 from refund_agent import db as database
-from refund_agent.agent.model import Call, ScriptedModel
+from refund_agent.agent.model import Call, Say, ScriptedModel
 from refund_agent.evaluation.customers import ScriptedCustomer, SimulatedCustomer
 from refund_agent.evaluation.mock_scripts import CARELESS_D01, MOCK, MockRun
 from refund_agent.evaluation.runner import run_scenario
@@ -83,7 +83,22 @@ def test_a_customer_who_declines_other_cards_declines_them_at_once(play, db):
 
 
 def test_a_customer_who_cancels_after_confirming_stops_the_refund_before_the_staff_decision(play, db):
-    play("D01", MOCK["D01"], scenario=with_cards("D01", after_confirming="cancel"))
+    # The agent is told of the button before the customer's next message (review of the model comparison, 2026-10-24).
+    told = MockRun(
+        agent=(
+            Call("list_my_orders"),
+            Call("propose_refund", {"order_id": "d01-o1", "unit_ids": ["d01-o1-u1"]}),
+            Say("I can refund {propose_refund.amount_minor|brl} for the blue mug. Please confirm on the card."),
+            Say("You cancelled the request, so nothing will be paid."),
+        ),
+    )
+    result = play("D01", told, scenario=with_cards("D01", after_confirming="cancel"))
+    assert result.system_error is None
+    proposal = rows(db("app"), "SELECT id FROM proposals")[0][0]
+    events = [m["text"] for m in result.messages if m["role"] == "event"]
+    assert events == [
+        f"The customer cancelled request {proposal} with the button on its card, so nothing will be paid."
+    ]
     assert rows(db("app"), STATUSES) == [("cancelled", "cancelled_by_customer")]
     assert rows(db("app"), "SELECT decision FROM customer_confirmations") == [("confirmed",)]
     assert rows(db("app"), "SELECT count(*) FROM staff_decisions") == [(0,)]

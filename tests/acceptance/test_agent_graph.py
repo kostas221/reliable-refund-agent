@@ -391,3 +391,48 @@ def test_checkpoints_live_apart_from_the_business_tables(shop):
     )
     assert {schema for schema, _ in tables} == {"graph"}
     assert {name for _, name in tables} >= {"checkpoints", "checkpoint_blobs", "checkpoint_writes"}
+
+
+def test_the_fact_line_follows_an_answer_that_states_a_paid_refund_without_its_section(shop):
+    # D20 of Luna none, 2026-10-23: the receipt of a refund paid before the conversation, told without the section on
+    # refunding each unit once. The graph says the line after the answer, marked as its own; the model's next turn is
+    # its next scripted line, and the section, once said, is not said again (review of the model comparison).
+    s = shop("D20")
+    agent, model = s.agent(
+        (
+            Call("list_my_orders"),
+            Say("Both items were already refunded: BRL 157.90, receipt R-H10-0001."),
+            Say("The receipt number is R-H10-0001."),
+        )
+    )
+    first = agent.receive(s.conversation, "Hello, I returned the desk fan and the tablet stand. When is my refund?")
+    answer, line = first[-2:]
+    assert answer["text"] == "Both items were already refunded: BRL 157.90, receipt R-H10-0001." and not answer.get(
+        "fact_line"
+    )
+    assert line["fact_line"] is True and line["text"].endswith("cannot be refunded again (refund-policy/v2/remaining).")
+    second = agent.receive(s.conversation, "Could you give me the receipt number, please?")
+    assert [m["text"] for m in second if m["role"] == "agent"] == ["The receipt number is R-H10-0001."]
+    assert [author for author, _ in s.said()] == ["customer", "agent", "agent", "customer", "agent"]
+    assert len(model.requests) == 3  # the line asked the model nothing
+    verdict = evaluate(s.scenario, s.app, s.baseline)
+    assert next(item for item in verdict.items if item.name == "cites:refund-policy/v2/remaining").status == "passed"
+
+
+def test_no_fact_line_cuts_in_between_an_answer_and_its_tool_calls(shop):
+    # The line follows only an answer with no calls: after one with calls it would come last, and the calls would never
+    # run, since routing follows the last message (review of the model comparison, 2026-10-24).
+    s = shop("D20")
+    model = Turns(
+        ModelTurn(text="", tool_calls=(call_of("list_my_orders", "call-1"),)),
+        ModelTurn(
+            text="Both items were refunded, receipt R-H10-0001. Let me check the order.",
+            tool_calls=(call_of("get_my_order", "call-2", order_id="h10-o1"),),
+        ),
+        ModelTurn(text="They cannot be refunded again (refund-policy/v2/remaining)."),
+    )
+    agent, _ = s.agent((), model=model)
+    agent.receive(s.conversation, "When do I get my refund for the fan and the stand?")
+    tools = [m.get("name") for m in agent.messages(s.conversation) if m["role"] == "tool"]
+    assert tools == ["list_my_orders", "get_my_order"]
+    assert not any(m.get("fact_line") for m in agent.messages(s.conversation))

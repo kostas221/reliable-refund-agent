@@ -33,9 +33,11 @@ from refund_agent.scenarios import format_brl
 # rejection's reason. Version 4 (v1.1, step 1): the whole policy at the end, because in the final run of v1 the agent
 # never cited a section its policy search had not shown it (docs/final/results.md). Version 5 (step 3), with policy
 # v2: cite whenever an answer rests on the policy, hand off only in a case the policy names with its reason code, and
-# the lifecycle rules of the policy v2 specification (docs/pilot/results.md, "v1.1 step 1"). Earlier versions stay
-# for the runs made with them.
-INSTRUCTIONS_PATH = REPO_ROOT / "prompts" / "agent-v7.md"
+# the lifecycle rules of the policy v2 specification (docs/pilot/results.md, "v1.1 step 1"). Versions 6 and 7: the
+# plan's change log of 2026-10-21 and 2026-10-22. Version 8 (review of the model comparison, 2026-10-24): a request to
+# refund shipping gets the offer of a staff member first, and the handoff rests on the customer's yes. Earlier
+# versions stay for the runs made with them.
+INSTRUCTIONS_PATH = REPO_ROOT / "prompts" / "agent-v8.md"
 
 
 @dataclass(frozen=True)
@@ -150,7 +152,8 @@ class ScriptedModel:
     def respond(self, instructions: str, messages: Sequence[dict], tools: Sequence[dict]) -> ModelTurn:
         self.requests.append({"instructions": instructions, "messages": list(messages), "tools": list(tools)})
         # The line to say is the number of agent turns so far, so asking again after a restart repeats the same line.
-        index = sum(1 for m in messages if m["role"] == "agent")
+        # A fact line is the graph's, not a turn of the model (agent/facts.py).
+        index = sum(1 for m in messages if m["role"] == "agent" and not m.get("fact_line"))
         if index >= len(self.script):
             raise ModelError("invalid_output", retryable=False, detail=f"the script has no line {index + 1}")
         line = self.script[index]

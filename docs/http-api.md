@@ -87,6 +87,7 @@ cannot change users or sessions beyond signing out.
 - The agent's answer to a staff decision arrives a moment after the decision; the proposal card shows the stored
   state at once, and the screens refresh by polling (plan section 8). The decision stores a notice to the agent in
   the same transaction (`agent_notices`), delivered after the answer is sent, when the server starts and every 5
-  seconds, so a server that stops in between loses nothing; the agent applies each notice once.
+  seconds, so a server that stops in between loses nothing; the agent applies each notice once. The customer's
+  cancellation stores and delivers one the same way.
 - In the local demo the agent is the scripted model of mock mode: it plays the chosen scenario's careful agent,
   whatever is typed.

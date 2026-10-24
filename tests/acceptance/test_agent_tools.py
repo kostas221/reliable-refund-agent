@@ -409,48 +409,114 @@ def shipping(ctx, words, call_id="hand-1"):
 
 
 def test_a_question_about_shipping_is_answered_and_the_refund_goes_on(db):
-    # D39, all three tries of 2026-10-23: the agent handed off "Will the shipping I paid be refunded too, or just the
-    # kettle?" with no words of the customer's, and the kettle was never refunded.
+    # D39, all three tries of Luna none on 2026-10-23: the agent quoted the question "Will the shipping I paid be
+    # refunded too, or just the kettle?" as a request, the check took it, and the kettle was never refunded.
     ctx = agent_for(db, "D39")
-    said(ctx, "Hi, I returned the glass kettle. Will the shipping I paid be refunded too, or just the kettle?")
-    refused = shipping(ctx, "")
+    question = "Hi, I returned the glass kettle. Will the shipping I paid be refunded too, or just the kettle?"
+    said(ctx, question)
+    kettle = call(ctx, "propose_refund", "p-1", order_id="d39-o1", unit_ids=["d39-o1-u1"])
+    assert kettle["outcome"] == "eligible"
+    refused = shipping(ctx, question)
     assert refused["refused"] == "handoff_reason"
-    unmet = "customer_words must give the customer's own words that ask for the shipping charge to be refunded"
-    assert refused["explanation"].split(".")[0] == unmet
+    explanation = refused["explanation"]
     assert (
-        "A question whether shipping is refunded is answered from (refund-policy/v2/shipping)" in refused["explanation"]
+        explanation.split(".")[0] == "that message is not a yes to your offer of a staff member for the shipping charge"
     )
-    assert "go on with the refund of the item" in refused["explanation"]
-    assert "customer_asked" not in refused["explanation"]  # the tail for a request for a person does not apply
+    assert "Answer a question about shipping from (refund-policy/v2/shipping)" in explanation
+    assert "Would you like a staff member to review the shipping charge?" in explanation
+    assert "go on with the refund of any item the customer asked for" in explanation
+    assert "customer_asked" not in explanation  # the tail for a request for a person does not apply
+    # A refused attempt changes nothing: no handoff, the conversation stays the agent's, the kettle's proposal open.
     assert control(ctx) == [("agent",)]
+    assert rows(ctx.engine, "SELECT count(*) FROM handoffs") == [(0,)]
+    status = f"SELECT status FROM proposals WHERE id = '{kettle['proposal_id']}'"
+    assert rows(ctx.engine, status) == [("awaiting_customer_confirmation",)]
 
 
-def test_a_request_to_refund_shipping_rests_on_the_customers_latest_words(db):
+def test_a_request_to_refund_shipping_is_handed_off_on_the_yes_to_the_offer(db):
+    # D40: a request in clear words gets the offer first, and the customer's yes is what the handoff rests on.
     ctx = agent_for(db, "D40")
     said(
         ctx,
         "Hello, you refunded my kettle last week, thank you, but I also paid 18 reais shipping for a kettle that "
         "arrived broken. I want the shipping refunded.",
     )
-    for words, unmet in (
-        ("I want my shipping back", "customer_words are not words the customer wrote in this conversation"),
-        ("you refunded my kettle last week", "those words do not name the shipping charge"),
-    ):
-        refused = shipping(ctx, words)
-        assert (refused["refused"], refused["explanation"].split(".")[0]) == ("handoff_reason", unmet)
-    said(ctx, "Is anyone there?")
-    refused = shipping(ctx, "I want the shipping refunded.", "hand-2")
-    assert refused["explanation"].startswith("those words are not in the customer's latest message")
-    said(ctx, "I want the shipping refunded, please.")
-    assert shipping(ctx, "I want the shipping refunded", "hand-3")["ok"] is True
+    refused = shipping(ctx, "I want the shipping refunded.")
+    assert refused["explanation"].startswith("that message is not a yes to your offer of a staff member")
+    said(
+        ctx,
+        "Shipping is never refunded automatically. Would you like a staff member to review the shipping charge?",
+        "agent",
+    )
+    said(ctx, "Yes, please.")
+    assert shipping(ctx, "Yes, please.", "hand-2")["ok"] is True
     request = f"{ctx.conversation_id}/m0002"  # the staff member sees the words the request rests on
     assert rows(ctx.engine, "SELECT origin, reason FROM handoffs") == [
         (
             "agent",
-            'shipping_refund: A test of the handoff check. The customer wrote: "I want the shipping refunded" '
-            f"(message {request}).",
+            'shipping_refund: A test of the handoff check. The customer wrote: "Yes, please." '
+            f"(message {request}, a yes to the agent's offer of a staff member for the shipping charge).",
         )
     ]
+
+
+# What a handoff closed (review of the model comparison, 2026-10-24): in D28 the request was already cancelled by the
+# customer's button, and the agent told the customer the handoff had closed it. The result now says what it closed, from
+# the handoff's own record, so a second call reports the same.
+
+
+def asks_for_a_person(ctx, call_id="hand-1"):
+    said(ctx, "I want to talk to a person, please.")
+    return call(
+        ctx,
+        "request_handoff",
+        call_id,
+        reason_code="customer_asked",
+        customer_words="I want to talk to a person, please.",
+        reason="A test of what a handoff closed.",
+        customer_goal="",
+        confirmed_facts="",
+        decision_needed="",
+    )
+
+
+def mug_proposed(ctx):
+    said(ctx, "Please refund my blue mug.")
+    return call(ctx, "propose_refund", "p-1", order_id="d01-o1", unit_ids=["d01-o1-u1"])["proposal_id"]
+
+
+def test_a_handoff_says_which_open_request_it_closed_and_says_it_again_when_asked_again(db):
+    ctx = agent_for(db, "D01")
+    proposal = mug_proposed(ctx)
+    first = asks_for_a_person(ctx)
+    assert first["closed_request"] == proposal
+    assert f"Request {proposal}, which was not paid, is now closed" in first["next_step"]
+    again = asks_for_a_person(ctx, "hand-2")  # the conversation is already handed off: the same handoff, as recorded
+    assert (again["handoff_id"], again["closed_request"]) == (first["handoff_id"], proposal)
+
+
+def test_a_handoff_after_a_cancellation_closed_nothing_and_says_so(db):
+    ctx = agent_for(db, "D01")
+    proposal = mug_proposed(ctx)
+    customer = Actor("customer", ctx.customer_id)
+    confirm(ctx.engine, customer, proposal, "confirmed", ctx.clock(), POLICY)
+    cancel(ctx.engine, customer, proposal, ctx.clock(), POLICY)
+    result = asks_for_a_person(ctx)
+    assert result["closed_request"] is None
+    assert result["next_step"].startswith("This handoff closed no request")
+    assert rows(ctx.engine, f"SELECT status FROM proposals WHERE id = '{proposal}'") == [("cancelled",)]
+
+
+def test_a_handoff_after_a_payment_closed_nothing_and_the_refund_stays_paid(db):
+    ctx = agent_for(db, "D01")
+    proposal = mug_proposed(ctx)
+    approve(ctx, proposal, "d01-rui")
+    assert call(ctx, "execute_refund", "pay-1")["ok"] is True
+    result = asks_for_a_person(ctx)
+    assert result["closed_request"] is None
+    assert "A refund already paid stays paid." in result["next_step"]
+    assert rows(ctx.engine, f"SELECT status FROM proposals WHERE id = '{proposal}'") == [("refunded",)]
+    assert rows(ctx.engine, "SELECT count(*) FROM refund_operations") == [(1,)]
 
 
 # The model's mistakes

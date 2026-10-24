@@ -700,7 +700,8 @@ def cancel(engine: Engine, actor: Actor, proposal_id: str, now: datetime, policy
     """The customer cancels an open proposal, before or after confirming, as long as it is not refunded.
 
     A proposal that has already expired or become invalid is closed with that status instead: either way no money
-    moves, which is what the customer asked for.
+    moves, which is what the customer asked for. Either way the agent is told, by a notice stored with the change, as
+    for a staff decision (agent/notices.py).
     """
     try:
         with engine.begin() as conn:
@@ -709,6 +710,20 @@ def cancel(engine: Engine, actor: Actor, proposal_id: str, now: datetime, policy
                 raise Refused("actor_owns")
             if proposal["status"] not in OPEN_STATUSES:
                 raise Refused("invalid_transition", f"the proposal is {proposal['status']}")
+            # The agent is told of the button, as of a staff decision: the notice commits with the cancellation
+            # (review of the model comparison, 2026-10-24: in D28 the agent, told nothing, asked for the cancel).
+            conn.execute(
+                text(
+                    "INSERT INTO agent_notices (id, conversation_id, proposal_id, decision, created_at) "
+                    "VALUES (:id, :conversation, :proposal, 'cancelled', :now)"
+                ),
+                {
+                    "id": f"notice-cancel-{proposal_id}",
+                    "conversation": proposal["conversation_id"],
+                    "proposal": proposal_id,
+                    "now": now,
+                },
+            )
             change = _out_of_date(conn, proposal, now, policy)
             if change:
                 _close(conn, proposal, change, now)
@@ -1042,18 +1057,39 @@ def _latest_customer_words(messages: Sequence[tuple[str, str, str]], words: str,
 
 # The shipping charge, in the words customers use for it.
 _SHIPPING = re.compile(r"\b(shipping|postage|freight|delivery (?:charge|fee|cost))\b")
+SHIPPING_OFFER = "Would you like a staff member to review the shipping charge?"  # the offer the refusal suggests
+
+
+def _offers_person_for_shipping(text_: str) -> bool:
+    """A part of the agent's message offers a person, as _offers_person reads it, and names the shipping charge in the
+    same part: "Would you like a staff member to review the shipping charge?" offers one; "Shipping is never refunded
+    automatically. Would you like a staff member to help with cancelling?" offers a person for something else."""
+    return any(_offers_person(part) and _SHIPPING.search(part) for part in re.split(r"[.!?;]|\bbut\b", _plain(text_)))
 
 
 def request_for_shipping_refund(messages: Sequence[tuple[str, str, str]], words: str) -> tuple[str | None, str]:
-    """The customer message a request to refund shipping rests on, or None and why not (review after the selection
-    check, 2026-10-23). The quoted words must be in the customer's latest message and name the shipping charge. Whether
-    they ask for the charge to be refunded or ask whether it is (D39: "Will the shipping I paid be refunded too, or
-    just the kettle?") is the agent's reading; the refusal of a request without words tells it how to read one."""
-    latest, unmet = _latest_customer_words(messages, words, "ask for the shipping charge to be refunded")
+    """The customer message a request to refund shipping rests on, or None and why not.
+
+    The customer's latest message must accept, with a yes (_accepts), the agent's offer of a staff member for the
+    shipping charge in the message just before it (review of the model comparison, 2026-10-24). Until 2026-10-24 any
+    words of that message naming the charge were enough, so a question ("Will the shipping I paid be refunded too, or
+    just the kettle?", D39), a negation, a hypothetical or a past event handed the conversation off. Code does not tell
+    a question from a request here: a question is answered from the policy, and a request is answered with the offer,
+    whose yes is the request. A customer who asks for a person outright is handed off with customer_asked."""
+    latest, unmet = _latest_customer_words(
+        messages, words, "accept, with a yes, your offer of a staff member for the shipping charge"
+    )
     if latest is None:
         return None, unmet
-    if not _SHIPPING.search(_plain(words)):
-        return None, "those words do not name the shipping charge"
+    said = messages[latest][2]
+    if not _accepts(said):
+        return None, "that message is not a yes to your offer of a staff member for the shipping charge"
+    before = messages[latest - 1] if latest > 0 else None
+    if before is None or before[1] != "agent" or not _offers_person_for_shipping(before[2]):
+        return None, (
+            "that message is a yes, but your message just before it offers no staff member for the shipping charge in "
+            "words this check can read"
+        )
     return messages[latest][0], ""
 
 
@@ -1119,8 +1155,8 @@ def check_handoff_reason(
     and that message asks for one (request_for_person). Code cannot read consent, so a request that passes may still
     be misread: that reading stays the agent's, and the words are kept with the handoff for whoever reads it. A request
     worded otherwise still has a path: the agent offers a person, and the customer's yes is the request. A request to
-    refund shipping rests the same way on the customer's latest words, which must name the shipping charge
-    (request_for_shipping_refund); whether they ask for it or about it stays the agent's reading. A refusal says what
+    refund shipping rests on the customer's yes to the agent's offer of a staff member for the shipping charge, in
+    the message just before (request_for_shipping_refund). A refusal says what
     to do instead and is recorded like any other; the customer's button and a staff member's takeover never come
     here. Returns what the check found, for the record: for customer_asked and shipping_refund, the ID of the customer
     message the request rests on."""
@@ -1195,11 +1231,11 @@ def check_handoff_reason(
                 holds = found is not None
                 evidence["customer_message"] = found
                 then = (
-                    f"A question whether shipping is refunded is answered from ({policy.citation('shipping')}): "
-                    "shipping is never refunded automatically, and a request to refund it goes to a person; then go on "
-                    "with the refund of the item. Hand off with shipping_refund only when the customer asks for the "
-                    "shipping charge itself to be refunded, copying those words exactly; if you cannot tell which the "
-                    "customer means, ask them."
+                    f"Answer a question about shipping from ({policy.citation('shipping')}): shipping is never "
+                    "refunded automatically, and a staff member takes a request to refund it. If the customer wants "
+                    f"the shipping charge refunded, ask them: {SHIPPING_OFFER} Hand off with shipping_refund only "
+                    "after their yes to that question, copying the yes. Meanwhile go on with the refund of any item "
+                    "the customer asked for."
                 )
                 tail = ""
             elif reason == "customer_asked":

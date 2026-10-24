@@ -6,8 +6,9 @@ in a paid run. Around it the runner plays the people, by the scenario's own rule
 - the customer (a script in mock mode, a model in a live run: refund_agent/evaluation/customers.py) says the opening
   message, then one line after each answer of the agent, until it has nothing more to say;
 - the customer's buttons (the test actor): confirm only on a proposal with exactly the units and amount the scenario's
-  customer confirms, then keep it or cancel it before the staff decision; any other proposal waiting for the
-  customer is declined, or left open while the customer asks for a change in the chat (`customer.cards`);
+  customer confirms, then keep it or cancel it before the staff decision, and the agent is told of a cancellation
+  before the customer writes again; any other proposal waiting for the customer is declined, or left open while the
+  customer asks for a change in the chat (`customer.cards`);
 - the scripted staff member applies the scenario's decision to every proposal that reaches the queue, and the agent
   is told, as the staff console does.
 
@@ -210,14 +211,20 @@ def _people_act(
 ) -> bool:
     """The customer's button and the staff decision. True when the agent was told something and answered."""
     customer, cards = Actor("customer", scenario.customer.id), scenario.customer.cards
+    cancelled = False
     for proposal, units, amount in _proposals(app, conversation, "awaiting_customer_confirmation"):
         if customer_confirms(scenario.customer, units, amount):
             confirm(app, customer, proposal, "confirmed", clock.tick(), policy)
             if cards.after_confirming == "cancel":
                 cancel(app, customer, proposal, clock.tick(), policy)
+                cancelled = True
         elif cards.other == "decline":
             confirm(app, customer, proposal, "declined", clock.tick(), policy)
         # wait: the card stays open while the customer, in the chat, asks for a change
+    # A cancellation stored its notice (review of the model comparison, 2026-10-24): the agent is told before the
+    # customer writes again, through the same delivery as a staff decision. Only then, so no empty delivery is timed.
+    if cancelled and timed(lambda: notices.deliver_pending(app, agent, clock, conversation)) > 0:
+        return True
     if scenario.staff.decision == "none":
         return False
     staff = Actor("staff", scenario.fixture.staff[0].id)

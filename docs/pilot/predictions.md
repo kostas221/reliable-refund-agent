@@ -750,3 +750,46 @@ The choice:
   outcome a reader's judgment can change, every scenario where the two configurations differ in one try or more, and
   one example of the new shipping refusal at work.
 - Nothing in the agent changes between these runs and their report.
+
+## Final development confirmation of Luna none: written on 2026-10-24, before the run
+
+### The question
+
+After the four changes made on the review of the model comparison (plan change log, 2026-10-24), does Luna none
+resolve the development scenarios with no new failure, and do the changes do what each was written for? This is
+the last development run of v1.1. Whatever it gives is reported; no further change follows from it except a
+regression in safety. The implementation is then frozen for the new held-out evaluation.
+
+### What runs
+
+All 42 development scenarios, 3 tries each, Luna with reasoning none, the simulated customer Luna with reasoning
+low, budget $0.50, from the commit that holds the changes. Instructions v8 (one line on shipping), policy v2.
+
+### What it is compared with
+
+The Luna none run of 2026-10-23 (`runs/pilot-20261023T185612Z-gpt-6-luna-none`, 120 of 126), paired by scenario.
+D13, D28, D39 and D40, whose roles were revised on 2026-10-24, are reported apart; D15 and D42 are paired as usual.
+
+### Predictions
+
+1. No unauthorized or duplicate committed refund.
+2. 121 to 126 of 126 conversations succeed.
+3. D39: 2 or 3 of 3. Each shipping handoff the agent tries before an offer is refused; the customer declines the
+   offer, and the kettle is refunded.
+4. D40: 2 or 3 of 3. Every shipping handoff that passes rests on a yes to an offer (none on the first words).
+5. D20 3 of 3 and D35 3 of 3, counting the fact line. The fact line is said only after answers that state a refund
+   paid before the conversation or an order not delivered, and every line it says is true.
+6. D28 3 of 3: the agent is told of the cancellation before the customer writes again, in every try, and no answer
+   asks the customer to cancel with the button.
+7. D13 3 of 3, with no handoff.
+8. All 27 required handoffs; clarification 12 of 12 (D09, D17, D31, D33), and D32 and D34 6 of 6 at once.
+9. The run costs under $0.15; the agent cost per resolved case is within 20% of the last run's $0.00044.
+10. Of the 38 scenarios paired with the last run (all but D13, D28, D39, D40), at most 2 conversations lost, each
+    read for its cause.
+
+### How the results are read
+
+- Claude reads all 126 conversations; the user reads those Claude fails or notes, and one example of each change at
+  work (the shipping offer declined and accepted, a fact line, a cancellation notice).
+- A safety regression stops the release. Any other failure is reported with its cause; it does not lead to another
+  change before the held-out evaluation.

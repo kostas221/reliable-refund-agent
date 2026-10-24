@@ -7,6 +7,7 @@ Expected values are written by hand.
 """
 
 import time
+from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -15,11 +16,11 @@ from langgraph.checkpoint.postgres import PostgresSaver
 from refund_agent import db as database
 from refund_agent import reads
 from refund_agent.agent.graph import Agent
-from refund_agent.agent.model import ModelError, ScriptedModel
+from refund_agent.agent.model import Call, ModelError, Say, ScriptedModel
 from refund_agent.agent.notices import MAX_ATTEMPTS, deliver_pending
 from refund_agent.api.app import create_app
 from refund_agent.fixtures import seed
-from refund_agent.refunds import Actor, Refused, confirm, decide, hand_off, open_conversation
+from refund_agent.refunds import Actor, Refused, cancel, confirm, decide, hand_off, open_conversation
 from tests.acceptance.flows import DEVELOPMENT, POLICY, rows
 from tests.acceptance.test_scripted_agent import ANA_MUG
 
@@ -188,3 +189,45 @@ def test_the_server_delivers_pending_notices_when_it_starts(shop):
             time.sleep(0.1)
     assert rows(shop.app, "SELECT count(*) FROM refund_operations") == [(1,)]
     assert rows(shop.app, NOTICES) == [("approved", 1, True, False)]
+
+
+# The customer's cancellation (review of the model comparison, 2026-10-24). In D28 the customer cancelled with the
+# button before the staff decision, and the agent, told nothing, answered "if you haven't already, use the cancel
+# button" and later that the handoff had closed the request. The cancellation now stores its notice like a decision.
+
+CANCELLED = [
+    Call("list_my_orders"),
+    Call("propose_refund", {"order_id": "d01-o1", "unit_ids": ["d01-o1-u1"]}),
+    Say("I can refund {propose_refund.amount_minor|brl} for the blue mug. Please confirm on the proposal card."),
+    Say("You cancelled the request, so nothing will be paid."),
+]
+
+
+def test_a_cancellation_stores_its_notice_and_the_agent_is_told_of_it(shop):
+    agent, model = shop.server(ScriptedModel(CANCELLED))
+    agent.receive(shop.conversation, "Please refund my blue mug.")
+    proposal = rows(shop.app, "SELECT id FROM proposals")[0][0]
+    confirm(shop.app, CUSTOMER, proposal, "confirmed", NOW, POLICY)
+    assert cancel(shop.app, CUSTOMER, proposal, NOW, POLICY) == "cancelled"
+    assert rows(shop.app, NOTICES) == [("cancelled", 0, False, False)]
+    assert deliver_pending(shop.app, agent, lambda: NOW) == 1
+    event = model.requests[-1]["messages"][-1]
+    assert event == {
+        "role": "event",
+        "text": f"The customer cancelled request {proposal} with the button on its card, so nothing will be paid.",
+        "notice_id": f"notice-cancel-{proposal}",
+    }
+    assert agent.messages(shop.conversation)[-1]["text"] == "You cancelled the request, so nothing will be paid."
+    assert rows(shop.app, "SELECT count(*) FROM refund_operations") == [(0,)]
+
+
+def test_a_cancel_on_a_request_already_closed_tells_its_status(shop):
+    agent, model = shop.server(ScriptedModel(CANCELLED))
+    agent.receive(shop.conversation, "Please refund my blue mug.")
+    proposal = rows(shop.app, "SELECT id FROM proposals")[0][0]
+    later = NOW + timedelta(hours=73)  # past the proposal's 72 hours: the button closes it as expired
+    assert cancel(shop.app, CUSTOMER, proposal, later, POLICY) == "expired"
+    assert deliver_pending(shop.app, agent, lambda: later) == 1
+    assert model.requests[-1]["messages"][-1]["text"] == (
+        f"The customer pressed cancel on request {proposal}, which was already expired, so nothing will be paid."
+    )

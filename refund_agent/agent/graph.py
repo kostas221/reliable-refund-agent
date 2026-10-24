@@ -6,7 +6,9 @@ approval) and ends when the agent says something to the customer. Inside a run t
 "agent" asks the model, and "tools" runs the calls the model made, each through call_tool with the call's own ID.
 An answer that asks the customer a question ends the run even when it also calls tools: "hold" answers each of those
 calls as not run, so nothing is proposed, paid or handed off before the customer replies (plan change log,
-2026-10-23). Which items a proposal may name is the backend's check (refunds.units_named), not the graph's.
+2026-10-23). Which items a proposal may name is the backend's check (refunds.units_named), not the graph's. After an
+answer with no tool calls, the graph says the fact line when one is due (agent/facts.py): a refund paid before the
+conversation, or an order not delivered, with the section it rests on, written from the tool results.
 After every node the state is checkpointed in the graph schema, so after a crash resume() continues from the last
 step, and a tool call that runs again gets the same request key: no second proposal and no second refund.
 
@@ -35,6 +37,7 @@ from langgraph.errors import GraphRecursionError
 from langgraph.graph import END, START, StateGraph
 from sqlalchemy import Engine, text
 
+from refund_agent.agent.facts import fact_line
 from refund_agent.agent.model import Instructions, ModelAdapter, load_instructions
 from refund_agent.agent.tools import ToolContext, call_tool, tool_definitions
 from refund_agent.policy import Policy
@@ -88,8 +91,16 @@ class Agent:
     # Nodes
 
     def _agent(self, state: State) -> dict:
+        """The model's answer, and after an answer with no tool calls the fact line when one is due (facts.py): its
+        own message, marked, so routing still follows the model's answer and everyone sees the same words."""
         turn = self.model.respond(self.instructions.text, state["messages"], self.tools)
-        return {"messages": [turn.as_message()], "usage": [{"model": turn.model, **asdict(turn.usage)}]}
+        answer = turn.as_message()
+        said = [answer]
+        if answer.get("text") and not answer.get("tool_calls"):
+            line = fact_line(state["messages"], answer["text"], self.policy)
+            if line:
+                said.append({"role": "agent", "text": line, "fact_line": True})
+        return {"messages": said, "usage": [{"model": turn.model, **asdict(turn.usage)}]}
 
     @staticmethod
     def _route(state: State) -> str:
