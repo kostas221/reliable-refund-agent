@@ -1355,3 +1355,31 @@ and a paid run of D28 alone.
 
 Claude read all 126 (`audit-claude.toml`). The user reads, in Greek and without Claude's verdicts
 (`user-review/`): D28 try 2 (the failure), D28 try 3, D39 try 1, D40 try 1 and D20 try 2 (each change at work).
+
+## D28 after the silent cancellation notice
+
+`runs/pilot-20261024T164827Z-gpt-6-luna-none`, 2026-10-24, commit `1a46a3c` (clean tree): the cancellation notice is
+stored and delivered but starts no agent run (plan change log, 2026-10-24); D28 alone, 5 tries, Luna none, the
+simulated customer Luna with reasoning low. $0.0028 ($0.0021 the agent, $0.0007 the simulated customer). Predictions:
+[predictions.md](predictions.md), "D28 after the silent cancellation notice".
+
+**5 of 5.** In every try the agent proposed the refund, the runner confirmed and cancelled it with the customer's
+buttons, and the notice went into the conversation with no agent run (2 runs per try: the opening and the customer's
+question). The customer then said it had cancelled because a replacement was arranged and asked whether anything would
+still be paid; the agent answered each time that the request was cancelled and nothing would be paid. No new
+proposal, no try near the round limit, no unauthorized or duplicate refund.
+
+| # | Prediction | Result | |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate refund | 0 of 5 | right |
+| 2 | D28 4 or 5 of 5 | 5 | right |
+| 3 | The notice in the conversation before the customer's next message; no run after the notice alone | 5 of 5; none | right |
+| 4 | No proposal after the cancellation unless asked; no try at the round limit | none; none | right |
+| 5 | Under $0.01 | $0.0028 | right |
+
+Limits: 5 tries of one scenario, the regression's own case. The change touches only how a cancellation is told;
+the other 41 scenarios have no cancellation, and the mock runs, the notice tests and the HTTP test cover the rest of
+the path (plan change log, 2026-10-24). Claude read all 5; the user reads try 2 (`user-review/`).
+
+With this, the implementation of v1.1 is frozen for the held-out evaluation: 124 of 126 in the confirmation run, and
+D28's regression repaired and confirmed 5 of 5.

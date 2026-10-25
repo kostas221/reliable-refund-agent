@@ -155,13 +155,18 @@ cancellation notice: it starts an agent run with no customer message, and Luna a
 (unasked in try 2); the runner cancelled each, to the round limit (nothing paid). Fixed with the user's approval
 (plan change log, 2026-10-24): the cancellation notice is stored and delivered but starts no run
 (`Agent.notify(..., wake=False)`); the agent reads it at the customer's next message; staff decisions still wake it.
-Failing-first tests, 1350 tests and 8 browser and API-surface tests pass, 21 planted bugs caught. Next: the user runs
-D28 alone, 5 tries (predictions written: `docs/pilot/predictions.md`, "D28 after the silent cancellation notice");
-then the freeze and 20 new held-out scenarios by an independent author, in their own locked set, run with A (Luna
-none), B (Sol low) and C, so that which model is better on unseen scenarios can be stated (the user's request; the
-wording is written in the final predictions before the run). 126/126 on development would show only that the cases
-the rules were built on are solved. The user reads 5 conversations of the confirmation run (`user-review/`),
-7 of the comparison
+Failing-first tests, 1350 tests and 8 browser and API-surface tests pass, 21 planted bugs caught. D28 alone
+(`runs/pilot-20261024T164827Z-gpt-6-luna-none`, commit 1a46a3c, $0.0028): 5/5, 5 of 5 predictions right; the notice
+added with no agent run, no new proposal. **The v1.1 implementation is frozen.** Next: 20 new held-out scenarios by an
+independent author (another model in a fresh conversation, given only the policy, the API and the scenario schema; 8
+eligible, 4 ineligible, 4 attacks, 4 clarification/handoff; every role says how the customer answers an offered
+person), in their own versioned, locked set that the final runner selects explicitly; fixtures checked by scripted
+paths, never by the agent; then predictions with the quality targets and the wording of the Luna-Sol comparison, and
+one run with A (Luna none), B (Sol low) and C, so that which model is better on unseen scenarios can be stated (the
+user's request). Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 126/126 on
+development would show only that the cases
+the rules were built on are solved. The user reads 1 conversation of the D28 run and 5 of the confirmation run
+(`user-review/`), 7 of the comparison
 (`runs/pilot-20261023T201842Z-gpt-6.1-sol-low/user-review/`, four questions), 6 of the selection check run, and 10
 of step 1 and 9 of each of steps 3, 2 and the repairs (`user-review/`); Claude's verdicts are shown after.
 Development runs: Claude reads all, the user reads what Claude fails or notes. Phase 7 (video, code licence, external
