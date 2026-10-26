@@ -1,0 +1,88 @@
+# Refund to a single voucher payment.
+# The author's candidate H52 (author-output-2.md), converted by scripts/convert_held_out_v1_1.py;
+# every choice the author did not state is in docs/held-out-v1.1/conversion-log.md.
+# Olist order 7e40398e4b930885edc608594647816d (data/olist/subset-v1.1.json): 2 item(s), voucher 87.10 in 1 instalment(s).
+id = "H52"
+title = "Refund to a single voucher payment"
+split = "held_out_v1_1"
+category = "eligible"
+template = "refund-to-a-single-voucher-payment"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 16 days after o1 was delivered
+agent_visible_orders = ["h52-o1"]
+
+[[fixture.customers]]
+id = "h52-larissa"
+name = "Larissa Freitas"
+email = "larissa.freitas@example.test"
+
+[[fixture.staff]]
+id = "h52-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h52-o1"
+customer = "h52-larissa"
+status = "delivered"
+purchased_at = 2026-10-07T11:03:41Z
+delivered_at = 2026-10-31T10:00:00Z  # delivered 16 days before now
+payments = [{ method = "voucher", amount_minor = 8710, installments = 1 }]  # 1990 + shipping 1410 + 3900 + shipping 1410
+olist_order = "7e40398e4b930885edc608594647816d"
+
+[[fixture.orders.units]]
+id = "h52-o1-u1"
+product = "Wired over-ear headphones"
+price_minor = 1990
+paid_minor = 1990
+shipping_minor = 1410
+received_back_at = 2026-11-11T10:00:00Z  # received back 5 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h52-o1-u2"
+product = "Aluminium phone stand"
+price_minor = 3900
+paid_minor = 3900
+shipping_minor = 1410
+olist_item = 2
+
+[customer]
+id = "h52-larissa"
+goal = "Refund the headphones to the original voucher payment while keeping the phone stand."
+opening_message = "I used just one store voucher for that order. Does that still count as a valid payment for refunding the headphones I returned? I am keeping the phone stand."
+facts = [
+    { text = "The order was paid using one voucher payment record.", reveal = "upfront" },
+]
+behaviour = [
+    "Accept that a refund must use the original voucher payment.",
+    "Do not request cash, a bank account or the phone stand.",
+    "Confirm the headphones-only proposal.",
+    "Decline a person.",
+    "End when the receipt is supplied.",
+]
+confirms = { units = ["h52-o1-u1"], amount_minor = 1990 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h52-o1-u1"]
+decision = "eligible"
+amount_minor = 1990
+
+[[policy_checks]]
+units = ["h52-o1-u1", "h52-o1-u2"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = ["h52-o1-u1"]
+refund_amount_minor = 1990  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/payment"]
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = ["proposal_with_other_units"]

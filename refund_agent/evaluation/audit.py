@@ -136,7 +136,7 @@ def _amounts_rechecked(items: tuple[Item, ...], messages: list[dict]) -> tuple[I
 
 
 def conversations(run: Path) -> list[Conversation]:
-    scenarios = {s.id: s for split in ("development", "held_out") for s in load_split(split)}
+    scenarios = {s.id: s for split in ("development", "held_out", "held_out_v1_1") for s in load_split(split)}
     found = []
     for path in run.glob("*/try*/result.json"):
         saved = json.loads(path.read_text(encoding="utf-8"))

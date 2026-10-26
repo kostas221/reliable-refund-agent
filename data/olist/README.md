@@ -33,3 +33,12 @@ twice: a fixed draw, not a choice. Each situation's line in the output gives how
 
 Olist's order, product and seller IDs are kept in `subset.json` for provenance; the scenarios use their own IDs and
 note the Olist order each fixture comes from.
+
+## The held-out set of v1.1
+
+`subset-v1.1.json` holds 21 more orders, drawn on 2026-10-25 for the 20 scenarios of `scenarios/held-out-v1.1/`
+(`docs/held-out-v1.1/`) by `uv run python -m refund_agent.olist v1.1`: the shapes the author of those scenarios
+stated, the same lot (the SHA-256 of the scenario's ID and the order ID), and never an order of `subset.json`. Its
+records also keep the delivery date Olist promised at purchase (`estimated_delivery_at`), which times the one order
+recorded as delivered with no delivery time (H77). What is real and what is synthetic is as above; how each order was
+placed in time is in `docs/held-out-v1.1/conversion-log.md`. The same licence applies.

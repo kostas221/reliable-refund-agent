@@ -206,7 +206,7 @@ def compare(base: dict, other: dict) -> dict:
 
 
 def build(run: Path) -> dict:
-    scenarios = {s.id: s for split in ("development", "held_out") for s in load_split(split)}
+    scenarios = {s.id: s for split in ("development", "held_out", "held_out_v1_1") for s in load_split(split)}
     folders = {p.name: p for p in sorted(run.iterdir()) if p.is_dir() and (p / "manifest.json").exists()}
     final = bool(folders)  # a final run holds one folder per configuration
     if not final:  # a pilot or development run: one configuration's tries in the run folder itself
@@ -343,6 +343,11 @@ def render(report: dict) -> str:
             + " |"
         )
     lines.append(
+        "| Conversations that failed on required citations alone | "
+        + " | ".join(str(c["diagnostics"].get("failed_on_citations_alone", 0)) for c in conf.values())
+        + " |"
+    )
+    lines.append(
         "| Proposals after a paid refund | "
         + " | ".join(str(c["diagnostics"]["proposals_after_receipt"]) for c in conf.values())
         + " |"
@@ -387,7 +392,7 @@ def compare_runs(new: Path, bases: list[Path]) -> dict:
     2026-10-20): a scenario pairs with itself where a base ran it, and a copy otherwise with its held-out source (D19
     with H09 of the final run). new and each base are folders of one configuration's tries, such as
     runs/final-.../A or a pilot run."""
-    scenarios = {s.id: s for split in ("development", "held_out") for s in load_split(split)}
+    scenarios = {s.id: s for split in ("development", "held_out", "held_out_v1_1") for s in load_split(split)}
     earlier: dict[str, float] = {}
     for base in bases:
         found = scores(tries(base))

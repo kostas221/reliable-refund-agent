@@ -1,11 +1,13 @@
 """The final evaluation's run and its resume, with no model and no key: the runner is replaced, the databases are real.
-Two development scenarios stand in for the held-out set, which is never run here.
+Two development scenarios stand in for the held-out set of v1.1, which is never run here, and a stand-in hash for its
+freeze, which is written only after the owner approves the set.
 
 Every try runs once, in order, with its configuration's model and checks; a run cut short resumes without running a
 finished or crashed try again; a resume by other code is refused; and the budget counts what was spent before."""
 
 import argparse
 import json
+from contextlib import contextmanager
 from datetime import date
 
 import pytest
@@ -21,13 +23,14 @@ COMMITS = {"targets_commit": "0123abcd", "predictions_commit": "0123abcd"}
 
 
 def args(resume=None, budget=5.0):
-    return argparse.Namespace(budget_usd=budget, prices_checked=date(2026, 10, 19), resume=resume)
+    return argparse.Namespace(budget_usd=budget, prices_checked=date(2026, 10, 19), resume=resume, set="held_out_v1_1")
 
 
 @pytest.fixture
 def played(monkeypatch, tmp_path, db):
     """The run writing into tmp_path; each try's (scenario, try, model, reasoning, checks); databases left dropped."""
     monkeypatch.setattr(final, "RUNS", tmp_path)
+    monkeypatch.setattr(final, "file_sha256", lambda path: f"stand-in for {path.parent.name}/{path.name}")
     calls, stop = [], {}
     created = []
     create = database.create_database
@@ -73,6 +76,11 @@ def test_every_try_runs_once_in_order_with_its_configuration(played, tmp_path):
     )
     invocations = (run / "invocations.jsonl").read_text(encoding="utf-8").splitlines()
     assert [json.loads(line)["resumed"] for line in invocations] == [False]
+    # The run names its set, in its folder and its manifest, with the hash of the set's freeze.
+    identity = json.loads((run / "manifest.json").read_text(encoding="utf-8"))["identity"]
+    assert run.name.startswith("final-v1.1-")
+    assert (identity["set"], identity["frozen_sha256"]) == ("held_out_v1_1", "stand-in for held-out-v1.1/FROZEN")
+    assert configuration["set"] == "held_out_v1_1"
 
 
 def test_a_run_cut_short_resumes_without_running_a_finished_try_again(played, tmp_path):
@@ -137,3 +145,18 @@ def test_the_budget_of_a_resume_counts_what_was_spent_before(played, tmp_path, m
     monkeypatch.setattr(final, "Budget", remembering)
     final.paid_run(args(resume=run, budget=1.0), {"D01": TWO["D01"]}, COMMITS)
     assert seen[0].spent_usd == pytest.approx(0.45) and seen[0].by_role["agent"] == pytest.approx(0.45)
+
+
+def test_a_final_run_keeps_the_computer_awake(played, monkeypatch, tmp_path):
+    # As the pilot since 2026-10-23, when a sleeping computer cost a try: the final evaluation runs for hours.
+    entered = []
+
+    @contextmanager
+    def awake():
+        entered.append("in")
+        yield
+        entered.append("out")
+
+    monkeypatch.setattr(final, "awake", awake)
+    assert final.paid_run(args(), {"D01": TWO["D01"]}, COMMITS) == 0
+    assert entered == ["in", "out"]

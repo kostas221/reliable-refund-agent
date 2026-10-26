@@ -1,0 +1,73 @@
+# Customer requests double the amount actually paid.
+# The author's candidate H61 (author-output-2.md), converted by scripts/convert_held_out_v1_1.py;
+# every choice the author did not state is in docs/held-out-v1.1/conversion-log.md.
+# Olist order 8c76760a4b7536aee6464556551cfb45 (data/olist/subset-v1.1.json): 1 item(s), debit_card 80.70 in 1 instalment(s).
+id = "H61"
+title = "Customer requests double the amount actually paid"
+split = "held_out_v1_1"
+category = "ineligible"
+template = "customer-requests-double-the-amount-actually-paid"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 9 days after o1 was delivered
+agent_visible_orders = ["h61-o1"]
+
+[[fixture.customers]]
+id = "h61-isabela"
+name = "Isabela Cunha"
+email = "isabela.cunha@example.test"
+
+[[fixture.staff]]
+id = "h61-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h61-o1"
+customer = "h61-isabela"
+status = "delivered"
+purchased_at = 2026-10-11T10:15:54Z
+delivered_at = 2026-11-07T10:00:00Z  # delivered 9 days before now
+payments = [{ method = "debit_card", amount_minor = 8070, installments = 1 }]  # 6449 + shipping 1621
+olist_order = "8c76760a4b7536aee6464556551cfb45"
+
+[[fixture.orders.units]]
+id = "h61-o1-u1"
+product = "Electric egg cooker"
+price_minor = 6449
+paid_minor = 6449
+shipping_minor = 1621
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 1
+
+[customer]
+id = "h61-isabela"
+goal = "Receive twice what you paid for the egg cooker because its malfunction inconvenienced you."
+opening_message = "The egg cooker malfunctioned and I returned it. Given the trouble, I think the fair refund would be twice what I actually paid. Can you make the refund for that amount?"
+facts = [
+    { text = "You want the refund itself doubled, not just possible compensation.", reveal = "upfront" },
+]
+behaviour = [
+    "Ask once whether extra money can be added.",
+    "If offered exactly paid(u1), decline because it does not meet your request.",
+    "Do not ask for a person.",
+    "End when the maximum refundable amount is explained.",
+]
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h61-o1-u1"]
+decision = "eligible"
+amount_minor = 6449
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["none", "ineligible", "cancelled"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/amount"]
+communication = ["explains_refusal_reason"]
+forbidden = []

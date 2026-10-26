@@ -1,23 +1,27 @@
-"""The final evaluation (plan sections 10 to 12): the frozen held-out set, three configurations, three tries each.
+"""The final evaluation (plan sections 10 to 12): a frozen held-out set, three configurations, three tries each.
 
     uv run python -m refund_agent.evaluation.final --dry-run
-    uv run --env-file .env python -m refund_agent.evaluation.final --budget-usd 5 --prices-checked DATE
-    uv run --env-file .env python -m refund_agent.evaluation.final --resume runs/final-... --budget-usd 5 \\
+    uv run --env-file .env python -m refund_agent.evaluation.final --set held_out_v1_1 --budget-usd 5 \\
         --prices-checked DATE
+    uv run --env-file .env python -m refund_agent.evaluation.final --set held_out_v1_1 \\
+        --resume runs/final-v1.1-... --budget-usd 5 --prices-checked DATE
 
 What runs is fixed in this module, not chosen on the command line: configurations A, B and C (CONFIGURATIONS), the
 simulated customer, three tries of each of the twenty held-out scenarios, 180 conversations. For each scenario and
 try the three configurations run one after another, so the pairs that are compared ran under the same conditions.
+The one choice is the set, by name (SETS), recorded in the manifest with the SHA-256 of its freeze, so that a run of
+another set can never be reported as this one (docs/held-out-v1.1/protocol.md, section 5). v1's set is spent: its
+final evaluation ran on 2026-10-19, and the runner refuses it.
 
-A run refuses to start unless the held-out set matches its freeze, docs/quality-targets.md and
-docs/final/predictions.md are committed and unchanged, no tracked file has uncommitted changes (the evaluation runs
-one identified revision), an OPENAI_API_KEY is present (never read or printed), the date the prices were checked is
-given, and the budget is within the plan's $15 for the first final batch.
+A run refuses to start unless its set matches its freeze, the set's quality targets and predictions are committed
+and unchanged, no tracked file has uncommitted changes (the evaluation runs one identified revision), an
+OPENAI_API_KEY is present (never read or printed), the date the prices were checked is given, and the budget is
+within the plan's $15 for a final batch.
 
-It writes runs/final-<time>/: manifest.json, invocations.jsonl (each start and resume, with its budget), and one
-folder per configuration with a manifest of its own, laid out as a pilot's (<scenario>/try<n>/), so the transcripts
-and the dialogue audit read it unchanged. Each try follows refund_agent/evaluation/trials.py: started.json first, the
-result saved before its database is dropped, a crash saved and its database kept.
+It writes runs/<prefix>-<time>/ (SETS): manifest.json, invocations.jsonl (each start and resume, with its budget),
+and one folder per configuration with a manifest of its own, laid out as a pilot's (<scenario>/try<n>/), so the
+transcripts and the dialogue audit read it unchanged. Each try follows refund_agent/evaluation/trials.py: started.json
+first, the result saved before its database is dropped, a crash saved and its database kept.
 
 A run cut short resumes with --resume: tries with a result or a crash record are never run again (no retry until a
 success appears, plan section 11); a try that started and has neither was cut short, and is moved aside and run
@@ -42,7 +46,7 @@ from refund_agent.agent.tools import tool_definitions
 from refund_agent.evaluation import manifest
 from refund_agent.evaluation.customers import SIMULATOR_INSTRUCTIONS, simulator_instructions
 from refund_agent.evaluation.runner import CUT_OFF
-from refund_agent.evaluation.trials import Batch, run_try, write_json
+from refund_agent.evaluation.trials import Batch, awake, run_try, write_json
 from refund_agent.policy import REPO_ROOT
 from refund_agent.refunds import Configuration
 from refund_agent.scenarios import (
@@ -71,8 +75,32 @@ CONFIGURATIONS = {
 SIMULATOR = Setup("gpt-6-luna", "low", "A")  # the same simulated customer for every configuration
 REPEATS = 3
 MAX_BUDGET_USD = 15.0  # plan section 12: the first final batch
-TARGETS = REPO_ROOT / "docs" / "quality-targets.md"
-PREDICTIONS = REPO_ROOT / "docs" / "final" / "predictions.md"
+
+
+@dataclass(frozen=True)
+class HeldOutSet:
+    split: str  # the scenarios' split, refund_agent.scenarios.SPLIT_DIRS
+    targets: Path  # the quality targets, committed before the run
+    predictions: Path  # the predictions, committed before the run
+    prefix: str  # of the run's folder
+    spent: str = ""  # why the set may no longer run, if it may not
+
+
+SETS = {
+    "held_out": HeldOutSet(
+        "held_out",
+        REPO_ROOT / "docs" / "quality-targets.md",
+        REPO_ROOT / "docs" / "final" / "predictions.md",
+        "final",
+        spent="v1's held-out set is spent: its final evaluation ran on 2026-10-19 (runs/final-20261019T201207Z)",
+    ),
+    "held_out_v1_1": HeldOutSet(
+        "held_out_v1_1",
+        REPO_ROOT / "docs" / "held-out-v1.1" / "quality-targets.md",
+        REPO_ROOT / "docs" / "held-out-v1.1" / "predictions.md",
+        "final-v1.1",
+    ),
+}
 RUNS = REPO_ROOT / "runs"
 # Assumed model requests per conversation for the dry run's estimate: not a limit the graph enforces.
 AGENT_REQUESTS, SIMULATOR_REQUESTS = 12, 8
@@ -92,6 +120,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--prices-checked", type=date.fromisoformat, help="the date the prices were checked, YYYY-MM-DD"
     )
     parser.add_argument("--resume", type=Path, help="the folder of a run that was cut short")
+    parser.add_argument("--set", choices=sorted(SETS), help="the frozen held-out set to run, by name")
     return parser.parse_args(argv)
 
 
@@ -110,11 +139,16 @@ def _committed(path: Path) -> str:
 
 def check_ready(args: argparse.Namespace) -> dict:
     """Everything the final evaluation needs before its first request. Returns the commits it rests on."""
+    if args.set is None:
+        raise NotReady(f"give --set with the held-out set to run: {', '.join(sorted(SETS))}")
+    chosen = SETS[args.set]
+    if chosen.spent:
+        raise NotReady(chosen.spent)
     try:
-        check_frozen()
+        check_frozen(SPLIT_DIRS[chosen.split])
     except FrozenError as error:
         raise NotReady(str(error)) from None
-    commits = {"targets_commit": _committed(TARGETS), "predictions_commit": _committed(PREDICTIONS)}
+    commits = {"targets_commit": _committed(chosen.targets), "predictions_commit": _committed(chosen.predictions)}
     if manifest.git("status", "--porcelain", "--untracked-files=no"):
         raise NotReady("commit every change first: the final evaluation runs one identified revision")
     if not os.environ.get("OPENAI_API_KEY", "").strip():
@@ -126,11 +160,12 @@ def check_ready(args: argparse.Namespace) -> dict:
     return commits
 
 
-def identity(scenarios: dict, commits: dict, prices_checked: date) -> dict:
+def identity(scenarios: dict, commits: dict, prices_checked: date, held_out: str) -> dict:
     """What the run is: compared on resume, apart from the date the prices were checked."""
     models = sorted({setup.model for setup in (*CONFIGURATIONS.values(), SIMULATOR)})
     return {
         "kind": "final",
+        "set": held_out,
         "configurations": {name: vars(setup) for name, setup in CONFIGURATIONS.items()},
         "simulator": vars(SIMULATOR),
         "repeats": REPEATS,
@@ -141,7 +176,7 @@ def identity(scenarios: dict, commits: dict, prices_checked: date) -> dict:
         "agent_instructions_sha256": load_instructions(policy=policy_for(scenarios.values())).sha256,
         "simulator_instructions": SIMULATOR_INSTRUCTIONS.relative_to(REPO_ROOT).as_posix(),
         "policy_sha256": policy_for(scenarios.values()).content_hash(),
-        "frozen_sha256": file_sha256(SPLIT_DIRS["held_out"] / FROZEN),
+        "frozen_sha256": file_sha256(SPLIT_DIRS[SETS[held_out].split] / FROZEN),
         "retry_policy": "a try with a result or a crash record is never run again; a try cut short runs again",
         **commits,
     }
@@ -173,6 +208,7 @@ def _configuration_manifest(record: dict, name: str) -> dict:
     return {
         "identity": {
             "kind": "final",
+            "set": ident["set"],
             "configuration": setup.configuration,
             "configuration_name": name,
             "model": setup.model,
@@ -188,14 +224,14 @@ def _configuration_manifest(record: dict, name: str) -> dict:
 
 def _open(args: argparse.Namespace, scenarios: dict, commits: dict) -> Path:
     """The run's folder, new or resumed, with its manifests."""
-    record = manifest.build(identity(scenarios, commits, args.prices_checked))
+    record = manifest.build(identity(scenarios, commits, args.prices_checked, args.set))
     if args.resume:
         out = args.resume
         saved = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
         if _comparable(saved) != _comparable(record):
             raise NotReady(f"{_shown(out)} ran other code or settings; it can be resumed only by the same revision")
     else:
-        out = RUNS / f"final-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}"
+        out = RUNS / f"{SETS[args.set].prefix}-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}"
         out.mkdir(parents=True)
         write_json(out / "manifest.json", record)
         for name in CONFIGURATIONS:
@@ -223,7 +259,7 @@ def paid_run(args: argparse.Namespace, scenarios: dict, commits: dict) -> int:
     )
     machine_clean = {name: 0 for name in CONFIGURATIONS}
     try:
-        with Batch("refund_final") as batch:
+        with Batch("refund_final") as batch, awake():  # the run lasts hours; a sleeping computer once cost a try
             for scenario_id, attempt, name in trials:
                 folder = out / name / scenario_id / f"try{attempt}"
                 if (folder / "result.json").exists() or (folder / "crash.json").exists():
@@ -318,7 +354,7 @@ def main(argv: list[str] | None = None) -> int:
     except NotReady as reason:
         print(f"Not started: {reason}")
         return 1
-    scenarios = {s.id: s for s in load_split("held_out")}
+    scenarios = {s.id: s for s in load_split(SETS[args.set].split)}
     try:
         return paid_run(args, scenarios, commits)
     except NotReady as reason:

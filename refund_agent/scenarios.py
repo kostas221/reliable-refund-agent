@@ -27,7 +27,15 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validat
 from refund_agent.policy import REPO_ROOT, OrderStatus, Policy, load_policy_version
 
 SCENARIOS_DIR = REPO_ROOT / "scenarios"
-SPLIT_DIRS = {"development": SCENARIOS_DIR / "development", "held_out": SCENARIOS_DIR / "held-out"}
+# held_out_v1_1: the set written for the final evaluation of v1.1 by an author with no access to the project
+# (docs/held-out-v1.1/protocol.md), kept apart from v1's held-out set, which a final evaluation has already used.
+SPLIT_DIRS = {
+    "development": SCENARIOS_DIR / "development",
+    "held_out": SCENARIOS_DIR / "held-out",
+    "held_out_v1_1": SCENARIOS_DIR / "held-out-v1.1",
+}
+Split = Literal["development", "held_out", "held_out_v1_1"]
+HELD_OUT_SPLITS = ("held_out", "held_out_v1_1")
 RENDERED_PATH = REPO_ROOT / "docs" / "development-scenarios.md"
 
 _STRICT = ConfigDict(frozen=True, extra="forbid", strict=True)
@@ -346,7 +354,7 @@ class Scenario(BaseModel):
 
     id: str = Field(pattern=r"^[DH][0-9]{2}$")
     title: Text
-    split: Literal["development", "held_out"]
+    split: Split
     category: Category
     template: Id
     # A development copy of a held-out scenario that a final evaluation has already used (plan change log,
@@ -366,7 +374,7 @@ class Scenario(BaseModel):
         fixture, expected, confirms = self.fixture, self.expected, self.customer.confirms
         if self.id[0] != ("D" if self.split == "development" else "H"):
             raise ValueError(f"{self.id}: development IDs start with D, held-out IDs with H")
-        if self.split == "held_out" and any(o.olist_order is None for o in fixture.orders):
+        if self.split in HELD_OUT_SPLITS and any(o.olist_order is None for o in fixture.orders):
             raise ValueError(f"{self.id}: every held-out order copies a real Olist order (data/olist/README.md)")
         if self.derived_from and self.split != "development":
             raise ValueError(f"{self.id}: only a development scenario is derived from a held-out one")
@@ -508,9 +516,9 @@ def freeze(directory: Path, header: list[str]) -> Path:
     return path
 
 
-def load_split(split: Literal["development", "held_out"]) -> tuple[Scenario, ...]:
+def load_split(split: Split) -> tuple[Scenario, ...]:
     directory = SPLIT_DIRS[split]
-    if split == "held_out" and (directory / FROZEN).exists():
+    if split in HELD_OUT_SPLITS and (directory / FROZEN).exists():
         check_frozen(directory)
     scenarios = tuple(load_scenario(path) for path in sorted(directory.glob("*.toml"))) if directory.exists() else ()
     wrong = [s.id for s in scenarios if s.split != split]

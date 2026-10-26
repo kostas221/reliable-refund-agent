@@ -125,6 +125,8 @@ def of_try(
     return {
         "citations": citations,
         "handoffs": handoffs,
+        # Every failed item a required citation (final evaluation of v1.1, docs/held-out-v1.1/quality-targets.md).
+        "failed_on_citations_alone": bool(failed) and all(name.startswith("cites:") for name in failed),
         "proposals_after_receipt": proposals_after_receipt(saved.get("messages", [])),
         "proposal_denials": proposal_denials(saved.get("messages", [])),
         "checks_acted": checks_acted(saved.get("messages", [])),
@@ -133,6 +135,7 @@ def of_try(
 
 def summarize(per_try: list[dict]) -> dict:
     total = {"citations": Counter(), "handoffs": Counter(), "proposals_after_receipt": 0, "proposal_denials": 0}
+    alone = sum(bool(d.get("failed_on_citations_alone")) for d in per_try)
     acted = Counter({name: 0 for name in (*CHECKS_ACTED, REPEATED_SELECTION)})
     for d in per_try:
         acted.update(d.get("checks_acted", {}))
@@ -144,6 +147,7 @@ def summarize(per_try: list[dict]) -> dict:
     return {
         "citations": dict(sorted(total["citations"].items())),
         "handoffs": dict(sorted(total["handoffs"].items())),
+        "failed_on_citations_alone": alone,
         "proposals_after_receipt": total["proposals_after_receipt"],
         "proposal_denials": total["proposal_denials"],
         "checks_acted": dict(acted),

@@ -1,4 +1,4 @@
-"""The Olist subset behind the held-out scenarios: `uv run python -m refund_agent.olist` (plan section 6, data).
+"""The Olist subset behind the held-out scenarios: `uv run python -m refund_agent.olist [v1.1]` (plan section 6, data).
 
 Reads the Kaggle files in data/raw/olist/ (never committed), refuses them unless each matches the SHA-256 recorded
 below, and draws, for each held-out situation, real orders of the shape it needs. The draw is fixed, not chosen:
@@ -47,6 +47,8 @@ class Order:
     delivered_at: str
     items: list[dict] = field(default_factory=list)
     payments: list[dict] = field(default_factory=list)
+    # The delivery date Olist promised at purchase: for v1.1, the one interval an order without a delivery time keeps.
+    estimated_at: str = ""
 
     @property
     def products(self) -> int:
@@ -104,6 +106,7 @@ def load() -> dict[str, Order]:
             o["order_status"],
             o["order_purchase_timestamp"],
             o["order_delivered_customer_date"],
+            estimated_at=o["order_estimated_delivery_date"],
         )
         for o in read("olist_orders_dataset.csv")
     }
@@ -174,15 +177,73 @@ TIED = {
 }
 
 
-def draw(orders: dict[str, Order]) -> dict[str, list[Order]]:
-    used: set[str] = set()
+# The held-out set of v1.1 (docs/held-out-v1.1/protocol.md, section 4.1): the shapes of the 20 candidates kept from
+# the author's answers (docs/held-out-v1.1/set-aside.md, section 10), as each candidate states them. Drawn by the
+# same lot, never an order of v1's subset.
+
+
+def card_in_instalments(count: int) -> Fits:
+    """One delivered item paid by one card payment in this many instalments (H29: the customer says three)."""
+    one = delivered()
+    return lambda o: one(o) and int(o.payments[0]["payment_installments"]) == count
+
+
+def delivered_without_time(o: Order) -> bool:
+    """Recorded as delivered with no delivery time (H77), one item, one card payment."""
+    return (
+        o.status == "delivered"
+        and not o.delivered_at
+        and len(o.items) == 1
+        and o.payment_types == ["credit_card"]
+        and o.adds_up()
+    )
+
+
+def in_transit_paid_by(pays: tuple[str, ...]) -> Fits:
+    return lambda o: o.status == "shipped" and len(o.items) == 1 and o.payment_types == sorted(pays) and o.adds_up()
+
+
+DEBIT, BOLETO = delivered(pays=("debit_card",)), delivered(pays=("boleto",))
+SITUATIONS_V1_1: dict[str, tuple[Fits, ...]] = {
+    "H26": (DEBIT,),
+    "H28": (ONE_ITEM,),
+    "H29": (card_in_instalments(3),),
+    "H30": (delivered(3, products=3, sellers=2, pays=("boleto",)),),
+    "H35": (delivered(3, products=1, sellers=1),),
+    "H40": (ONE_ITEM,),
+    "H41": (BOLETO,),
+    "H42": (ONE_ITEM,),
+    "H47": (ONE_ITEM,),
+    "H50": (DEBIT,),
+    "H52": (delivered(2, products=2, sellers=2, pays=("voucher",)),),
+    "H55": (DEBIT,),
+    "H58": (BOLETO,),
+    "H60": (delivered(3, products=3, sellers=2),),
+    "H61": (DEBIT,),
+    "H63": (ONE_ITEM,),
+    "H72": (ONE_ITEM,),
+    "H74": (ONE_ITEM,),
+    "H77": (delivered_without_time,),
+    "H80": (ONE_ITEM, in_transit_paid_by(("boleto",))),  # two orders of the customer, not tied
+}
+SUBSET_V1_1 = REPO_ROOT / "data" / "olist" / "subset-v1.1.json"
+
+
+def draw(
+    orders: dict[str, Order],
+    situations: dict[str, tuple[Fits, ...]] = SITUATIONS,
+    tied: dict[str, Callable[[Order, Order], bool]] = TIED,
+    used: set[str] | None = None,
+) -> dict[str, list[Order]]:
+    """For each situation in turn, the first fitting order by the lot, never one in `used` or drawn before."""
+    used = set(used or ())
     drawn: dict[str, list[Order]] = {}
 
     def by_lot(situation: str, found: list[Order]) -> list[Order]:
         return sorted(found, key=lambda o: hashlib.sha256(f"{situation}:{o.id}".encode()).hexdigest())
 
-    for situation, wants in SITUATIONS.items():
-        tie = TIED.get(situation)
+    for situation, wants in situations.items():
+        tie = tied.get(situation)
         firsts = by_lot(situation, [o for o in orders.values() if o.id not in used and wants[0](o)])
         seconds = [o for o in orders.values() if o.id not in used and len(wants) > 1 and wants[1](o)]
         picked: list[Order] = []
@@ -246,5 +307,26 @@ def main() -> None:
     print(f"Wrote {SUBSET.relative_to(REPO_ROOT)}: {sum(len(p) for p in drawn.values())} orders")
 
 
+def main_v1_1() -> None:
+    """The draw for the held-out set of v1.1, written to its own file: v1's subset is read, never rewritten."""
+    v1 = json.loads(SUBSET.read_text(encoding="utf-8"))
+    excluded = {o["order_id"] for picked in v1["situations"].values() for o in picked}
+    drawn = draw(load(), SITUATIONS_V1_1, {}, used=excluded)
+    subset = {
+        "source": SOURCE,
+        "licence": LICENCE,
+        "attribution": "Brazilian E-Commerce Public Dataset by Olist, https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce",
+        "files_sha256": FILES,
+        "drawn_by": "refund_agent/olist.py (main_v1_1)",
+        "excluded": f"the {len(excluded)} orders of data/olist/subset.json, the held-out set of v1",
+        "situations": {
+            situation: [{**as_record(o), "estimated_delivery_at": o.estimated_at} for o in picked]
+            for situation, picked in drawn.items()
+        },
+    }
+    SUBSET_V1_1.write_text(json.dumps(subset, indent=2, ensure_ascii=True) + "\n", encoding="utf-8", newline="\n")
+    print(f"Wrote {SUBSET_V1_1.relative_to(REPO_ROOT)}: {sum(len(p) for p in drawn.values())} orders")
+
+
 if __name__ == "__main__":
-    main()
+    main_v1_1() if sys.argv[1:] == ["v1.1"] else main()

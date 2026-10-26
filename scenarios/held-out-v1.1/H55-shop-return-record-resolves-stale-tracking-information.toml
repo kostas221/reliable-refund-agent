@@ -1,0 +1,76 @@
+# Shop return record resolves stale tracking information.
+# The author's candidate H55 (author-output-2.md), converted by scripts/convert_held_out_v1_1.py;
+# every choice the author did not state is in docs/held-out-v1.1/conversion-log.md.
+# Olist order e5a8f99e473fa6880bc2672805460e4c (data/olist/subset-v1.1.json): 1 item(s), debit_card 38.50 in 1 instalment(s).
+id = "H55"
+title = "Shop return record resolves stale tracking information"
+split = "held_out_v1_1"
+category = "eligible"
+template = "shop-return-record-resolves-stale-tracking-information"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 20 days after o1 was delivered
+agent_visible_orders = ["h55-o1"]
+
+[[fixture.customers]]
+id = "h55-vinicius"
+name = "Vinicius Moraes"
+email = "vinicius.moraes@example.test"
+
+[[fixture.staff]]
+id = "h55-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h55-o1"
+customer = "h55-vinicius"
+status = "delivered"
+purchased_at = 2026-10-10T05:14:49Z
+delivered_at = 2026-10-27T10:00:00Z  # delivered 20 days before now
+payments = [{ method = "debit_card", amount_minor = 3850, installments = 1 }]  # 2500 + shipping 1350
+olist_order = "e5a8f99e473fa6880bc2672805460e4c"
+
+[[fixture.orders.units]]
+id = "h55-o1-u1"
+product = "Stainless steel lunch box"
+price_minor = 2500
+paid_minor = 2500
+shipping_minor = 1350
+received_back_at = 2026-11-14T10:00:00Z  # received back 2 days before now
+olist_item = 1
+
+[customer]
+id = "h55-vinicius"
+goal = "Get the lunch box refund using the shop confirmed return record despite stale external tracking."
+opening_message = "I'm confused about my lunch box return. The courier page hasn't updated, but your account page seems to show you received it. If your records confirm it arrived, please refund it."
+facts = [
+    { text = "The courier tracking display has not updated.", reveal = "upfront" },
+    { text = "You accept the shop return record as the basis for the refund.", reveal = "upfront" },
+]
+behaviour = [
+    "Do not insist the package is missing from the shop.",
+    "Accept confirmation from the shop return records.",
+    "Confirm the valid refund card.",
+    "Decline a person.",
+    "End when the receipt is provided.",
+]
+confirms = { units = ["h55-o1-u1"], amount_minor = 2500 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h55-o1-u1"]
+decision = "eligible"
+amount_minor = 2500
+
+[expected]
+refunded_units = ["h55-o1-u1"]
+refund_amount_minor = 2500  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/return"]
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = ["proposal_with_other_units"]

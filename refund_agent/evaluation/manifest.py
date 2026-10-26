@@ -33,6 +33,8 @@ RUN_FILES = (
     "scenarios/development/*.toml",
     "scenarios/held-out/*.toml",
     "scenarios/held-out/FROZEN",
+    "scenarios/held-out-v1.1/*.toml",
+    "scenarios/held-out-v1.1/FROZEN",
     "migrations/sql/*.sql",
     "migrations/versions/*.py",
     "migrations/env.py",

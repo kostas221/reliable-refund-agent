@@ -157,15 +157,35 @@ cancellation notice: it starts an agent run with no customer message, and Luna a
 (`Agent.notify(..., wake=False)`); the agent reads it at the customer's next message; staff decisions still wake it.
 Failing-first tests, 1350 tests and 8 browser and API-surface tests pass, 21 planted bugs caught. D28 alone
 (`runs/pilot-20261024T164827Z-gpt-6-luna-none`, commit 1a46a3c, $0.0028): 5/5, 5 of 5 predictions right; the notice
-added with no agent run, no new proposal. **The v1.1 implementation is frozen.** Next: 20 new held-out scenarios by an
-independent author (another model in a fresh conversation, given only the policy, the API and the scenario schema; 8
-eligible, 4 ineligible, 4 attacks, 4 clarification/handoff; every role says how the customer answers an offered
-person), in their own versioned, locked set that the final runner selects explicitly; fixtures checked by scripted
-paths, never by the agent; then predictions with the quality targets and the wording of the Luna-Sol comparison, and
-one run with A (Luna none), B (Sol low) and C, so that which model is better on unseen scenarios can be stated (the
-user's request). Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 126/126 on
-development would show only that the cases
-the rules were built on are solved. The user reads 1 conversation of the D28 run and 5 of the confirmation run
+added with no agent run, no new proposal. **The v1.1 implementation is frozen** (commit 1a46a3c, fingerprint
+c3416bd9...). The final evaluation follows `docs/held-out-v1.1/protocol.md` (2026-10-25): the user gives
+`docs/held-out-v1.1/author-package.md`, and nothing else, to a model in a fresh conversation with no memory of the
+project, and saves its 28 candidates (10/6/6/6) unchanged as `docs/held-out-v1.1/author-output.md`; candidates that
+repeat a development situation or do not follow the policy are set aside, and the first 20 in the author's order are
+kept; Olist orders drawn by lot; Claude writes the files with a conversion log and adds nothing; checks; a new locked
+set `scenarios/held-out-v1.1/` that the final runner selects and records; predictions with the wording of the
+Luna-Sol comparison; one run of A, B and C, so that which model is better on unseen scenarios can be stated (the
+user's request). Nothing in the agent changes once the scenarios exist. Authoring so far (`set-aside.md`): 18 of
+the first 28 repeated development; the package was corrected once, with facts only (`author-correction.md`: the
+clock moves a minute per event, a declined card ends cancelled, each citation is checked alone, no zero prices); the
+author's second answer (`author-output-2.md`, 51 candidates) left 17 of 20 kept; the third (`author-output-3.md`,
+H73-H86) filled eligible (H74); a second correction (`author-correction-2.md`: a proposal sent to staff is recorded
+`ineligible`, and a staff case is handed off only after it) fixed H47 and H77 (`author-output-4.md`). 20 of 70 kept
+(`set-aside.md`, section 10): eligible H26 H28 H29 H30 H50 H52 H55 H74; ineligible H35 H58 H60 H61; attack H40 H41
+H42 H63; clarification_handoff H47 H72 H77 H80; the owner approved them and the decisions of section 11 (H61 for the
+repeat H59, H30 as written, the second model's answer `author-b-output.md` a record only). Converted on 2026-10-25:
+`scenarios/held-out-v1.1/` (split `held_out_v1_1`), written by `scripts/convert_held_out_v1_1.py` from the author's
+text, Olist orders by lot (`data/olist/subset-v1.1.json`), `conversion-log.md`, `decision-notes.md`; free checks pass
+(`tests/test_held_out_v1_1.py`, `tests/acceptance/test_held_out_v1_1_mock.py`: correct scripted runs pass 20/20, wrong
+ones fail). The final runner takes `--set held_out_v1_1`, refuses v1's spent set, checks and records the set's
+FROZEN. Only evaluation files changed since 1a46a3c. The owner approved the 20 files; **the set is frozen**
+(2026-10-26, `scenarios/held-out-v1.1/FROZEN`); targets are v1's (`docs/held-out-v1.1/quality-targets.md`) and the
+predictions are written (`docs/held-out-v1.1/predictions.md`: A 40 to 52 of 60, citations the main cause, B 0 to +15
+points with an interval including zero, under $1); the report counts conversations failed on citations alone. Next:
+the full suite, the commit, then the owner's paid run (`final --set held_out_v1_1`, budget $3). Then Phase 7
+(README, video, CI, licence)
+and a light test with 5 real users. 126/126 on development would show only that the cases the rules were built on
+are solved. The user reads 1 conversation of the D28 run and 5 of the confirmation run
 (`user-review/`), 7 of the comparison
 (`runs/pilot-20261023T201842Z-gpt-6.1-sol-low/user-review/`, four questions), 6 of the selection check run, and 10
 of step 1 and 9 of each of steps 3, 2 and the repairs (`user-review/`); Claude's verdicts are shown after.

@@ -122,7 +122,7 @@ def render_run(folder: Path) -> str:
         f"fingerprint {manifest['fingerprint'][:12]}.",
         "",
     ]
-    scenarios = {s.id: s for split in ("development", "held_out") for s in load_split(split)}
+    scenarios = {s.id: s for split in ("development", "held_out", "held_out_v1_1") for s in load_split(split)}
     shown: set[str] = set()
     for result_file in sorted(folder.glob("**/result.json")):  # D01/result.json, or D01/try1/result.json
         result = json.loads(result_file.read_text(encoding="utf-8"))

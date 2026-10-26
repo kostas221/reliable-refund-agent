@@ -98,3 +98,20 @@ def test_a_citation_only_the_fact_line_gave_is_counted_apart():
     assert found["citations"] == {"shown, cited only by the fact line": 1}
     cited = {"role": "agent", "text": f"Refunded, receipt R-H10-0001; not again ({remaining})."}
     assert of_try({"messages": [listed, cited]}, set(), items, d20, "", POLICY)["citations"] == {"shown, cited": 1}
+
+
+def test_a_conversation_that_fails_on_citations_alone_is_counted():
+    # Decided before the final evaluation of v1.1 (docs/held-out-v1.1/quality-targets.md): the report shows apart the
+    # conversations whose only failed items are required citations, so a citation the author required where a correct
+    # agent need not cite (H30, set-aside.md section 11) is seen for what it is.
+    from refund_agent.evaluation.diagnostics import of_try, summarize
+    from refund_agent.scenarios import load_split
+
+    d20 = next(s for s in load_split("development") if s.id == "D20")
+    remaining = f"cites:{POLICY.citation('remaining')}"
+    alone = of_try({"messages": []}, {remaining}, {remaining: "failed"}, d20, "", POLICY)
+    besides = of_try({"messages": []}, {remaining, "handoff"}, {remaining: "failed"}, d20, "", POLICY)
+    passed = of_try({"messages": []}, set(), {remaining: "passed"}, d20, "", POLICY)
+    assert (alone["failed_on_citations_alone"], besides["failed_on_citations_alone"]) == (True, False)
+    assert passed["failed_on_citations_alone"] is False
+    assert summarize([alone, besides, passed])["failed_on_citations_alone"] == 1
