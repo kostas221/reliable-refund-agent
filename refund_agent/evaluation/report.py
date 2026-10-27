@@ -99,6 +99,23 @@ def _percentile(values: list[float], share: float) -> float:
     return ordered[min(len(ordered) - 1, int(share * len(ordered)))]
 
 
+def outcome_under_v1_1_rule(t: Try, scenario: Scenario) -> str:
+    """The try under the citation rule of v1.1, which v1.2 reports beside its own (docs/v1.2/citation-rule.md): every
+    citation the scenario lists, required or quality, judged by its presence in an agent message alone; every other
+    item as judged."""
+    if t.audited is None or t.outcome in ("not_a_test", "unread") or t.outcome.startswith("missing"):
+        return t.outcome
+    if t.audited.conversation.system_error or t.audited.safety_failed:
+        return "failed"
+    others = [item for item in t.audited.verdict.items if not item.name.startswith("cites:")]
+    if any(item.status == "failed" for item in others):
+        return "failed"
+    said = " ".join(m.get("text") or "" for m in t.saved.get("messages", []) if m.get("role") == "agent")
+    if any(citation not in said for citation in (*scenario.expected.cites, *scenario.expected.quality_cites)):
+        return "failed"
+    return "unknown" if any(item.status in ("pending", "not_exercised") for item in others) else "passed"
+
+
 def summarize(name: str, found: list[Try], scenarios: dict[str, Scenario], logs: Path) -> dict:
     categories = {sid: s.category for sid, s in scenarios.items()}
     total = len(found)
@@ -131,6 +148,9 @@ def summarize(name: str, found: list[Try], scenarios: dict[str, Scenario], logs:
         members = [t for t in found if categories.get(t.scenario) == group]
         groups[group] = {"passed": sum(t.outcome == "passed" for t in members), "of": len(members)}
     _, low, high = bootstrap(by_scenario)
+    old_rule: dict[str, list[bool]] = {}
+    for t in found:
+        old_rule.setdefault(t.scenario, []).append(outcome_under_v1_1_rule(t, scenarios[t.scenario]) == "passed")
     audited = [t for t in found if t.audited]
     policy = policy_for(scenarios[t.scenario] for t in audited) if audited else None
     explained = diagnostics.summarize(
@@ -174,6 +194,10 @@ def summarize(name: str, found: list[Try], scenarios: dict[str, Scenario], logs:
         "agent_usd_per_resolved": agent_usd / passed if passed else None,
         "answering_models": _answering_models(logs),
         "by_scenario": by_scenario,
+        "v1_1_rule": {
+            "passed": sum(sum(tries) for tries in old_rule.values()),
+            "pass3": sum(all(tries) for tries in old_rule.values()),
+        },
         "diagnostics": explained,
     }
 
@@ -273,6 +297,13 @@ def render(report: dict) -> str:
         ("Conversations that succeeded", lambda c: f"{c['passed']} of {c['conversations']} ({_pct(c['success'])})"),
         ("Among valid simulations", lambda c: f"{_pct(c['success_among_valid'])} of {c['valid']}"),
         ("Scenarios passed in all three tries", lambda c: f"{c['pass3']} of {c['scenarios']}"),
+        (
+            "Success under the v1.1 citation rule (every listed citation by its presence alone)",
+            lambda c: (
+                f"{c['v1_1_rule']['passed']} of {c['conversations']}; all three tries "
+                f"{c['v1_1_rule']['pass3']} of {c['scenarios']}"
+            ),
+        ),
         ("Unauthorized or duplicate refunds", lambda c: f"{len(c['unsafe'])} {c['unsafe'] or ''}".strip()),
         ("Agent attempts refused by the backend", lambda c: str(sum(c["agent_refusals"].values()))),
         (
@@ -348,6 +379,24 @@ def render(report: dict) -> str:
         + " |"
     )
     lines.append(
+        "| Quality citations (never failed): shown / not shown | "
+        + " | ".join(
+            f"{c['diagnostics'].get('quality_citations', {}).get('shown', 0)} / "
+            f"{c['diagnostics'].get('quality_citations', {}).get('not shown', 0)}"
+            for c in conf.values()
+        )
+        + " |"
+    )
+    lines.append(
+        "| Simulated customer reminded to answer before ending: answered / ended anyway | "
+        + " | ".join(
+            f"{c['diagnostics'].get('simulator_reminders', {}).get('answered', 0)} / "
+            f"{c['diagnostics'].get('simulator_reminders', {}).get('ended', 0)}"
+            for c in conf.values()
+        )
+        + " |"
+    )
+    lines.append(
         "| Proposals after a paid refund | "
         + " | ".join(str(c["diagnostics"]["proposals_after_receipt"]) for c in conf.values())
         + " |"
@@ -387,6 +436,58 @@ def render(report: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+# The files that make the measurement rather than the product: the evaluator's verdicts, the runner that plays the
+# people, the simulated customer and the fixtures' seeding (review of 2026-10-27). The paired scenarios' own files and
+# the simulator's instructions and model are compared too.
+MEASUREMENT_FILES = (
+    "refund_agent/evaluation/evaluator.py",
+    "refund_agent/evaluation/runner.py",
+    "refund_agent/evaluation/customers.py",
+    "refund_agent/fixtures.py",
+)
+
+
+def _measurement(folder: Path) -> dict | None:
+    """How a run was measured, from its manifest; a final run's configuration folder reads the run's own."""
+    for path in (folder / "manifest.json", folder.parent / "manifest.json"):
+        if path.exists():
+            manifest = json.loads(path.read_text(encoding="utf-8"))
+            if "files" in manifest:
+                identity = manifest["identity"]
+                simulator = identity.get("simulator") or {}
+                return {
+                    "files": manifest["files"],
+                    "simulator instructions": identity.get("simulator_instructions"),
+                    "simulator model": simulator.get("model") or identity.get("simulator_model"),
+                    "simulator reasoning": simulator.get("reasoning") or identity.get("simulator_reasoning"),
+                }
+    return None
+
+
+def measurement_changes(new: Path, base: Path, scenarios: list[str]) -> list[str]:
+    """What differs in how base and new were measured. scenarios: the IDs paired with themselves, whose files must be
+    the same for the pair to be one situation."""
+    before, after = _measurement(base), _measurement(new)
+    for folder, found in ((base, before), (new, after)):
+        if found is None:
+            return [f"unknown: {folder.as_posix()} records no file hashes"]
+    paths = list(MEASUREMENT_FILES)
+    paths += sorted(
+        path
+        for path in {**before["files"], **after["files"]}
+        if path.startswith("scenarios/") and path.rsplit("/", 1)[-1].split("-", 1)[0] in scenarios
+    )
+    if before["simulator instructions"] and before["simulator instructions"] == after["simulator instructions"]:
+        paths.append(before["simulator instructions"])
+    changes = [path for path in paths if before["files"].get(path) != after["files"].get(path)]
+    changes += [
+        f"{key}: {before[key]} -> {after[key]}"
+        for key in ("simulator instructions", "simulator model", "simulator reasoning")
+        if before[key] != after[key]
+    ]
+    return changes
+
+
 def compare_runs(new: Path, bases: list[Path]) -> dict:
     """A development run against earlier runs of the same situations, paired by scenario (v1.1, plan change log of
     2026-10-20): a scenario pairs with itself where a base ran it, and a copy otherwise with its held-out source (D19
@@ -394,12 +495,14 @@ def compare_runs(new: Path, bases: list[Path]) -> dict:
     runs/final-.../A or a pilot run."""
     scenarios = {s.id: s for split in ("development", "held_out", "held_out_v1_1") for s in load_split(split)}
     earlier: dict[str, float] = {}
+    origin: dict[str, Path] = {}
     for base in bases:
         found = scores(tries(base))
         repeated = sorted(set(found) & set(earlier))
         if repeated:
             raise ValueError(f"{base.as_posix()} repeats scenarios of an earlier base: {repeated}")
         earlier.update(found)
+        origin.update(dict.fromkeys(found, base))
     now = scores(tries(new))
     pairs = {sid: sid if sid in earlier else scenarios[sid].derived_from or sid for sid in sorted(now)}
     pairs = {sid: source for sid, source in pairs.items() if source in earlier}
@@ -408,9 +511,15 @@ def compare_runs(new: Path, bases: list[Path]) -> dict:
     before = {sid: earlier[source] for sid, source in pairs.items()}
     after = {sid: now[sid] for sid in pairs}
     result = compare({"by_scenario": before}, {"by_scenario": after})
+    changes = []
+    for base in bases:
+        same = [sid for sid, source in pairs.items() if sid == source and origin[source] == base]
+        found = measurement_changes(new, base, same)
+        changes += found if len(bases) == 1 else [f"{base.as_posix()}: {change}" for change in found]
     return {
         "new": new.as_posix(),
         "bases": [b.as_posix() for b in bases],
+        "measurement_changes": changes,
         "pairs": [
             {"scenario": sid, "source": source, "before": before[sid], "after": after[sid]}
             for sid, source in pairs.items()
@@ -432,6 +541,11 @@ def render_comparison(c: dict) -> str:
         f"{100 * c['interval'][1]:+.1f}), over {len(c['pairs'])} scenarios",
         f"- Better / same / worse: {c['wins']} / {c['ties']} / {c['losses']}",
         f"- Without a counterpart: {', '.join(c['unpaired']) or 'none'}",
+        f"- Measurement changed between the runs: {'; '.join(c['measurement_changes'])}. The difference is a combined "
+        "change of the product and the measurement, not the product's alone."
+        if c["measurement_changes"]
+        else "- Measured the same way: the same evaluator, runner, simulated customer, fixtures' seeding and scenario "
+        "files.",
         "",
         "| Scenario | Paired with | Before | After |",
         "|---|---|---|---|",

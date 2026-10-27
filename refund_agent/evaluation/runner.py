@@ -6,9 +6,9 @@ in a paid run. Around it the runner plays the people, by the scenario's own rule
 - the customer (a script in mock mode, a model in a live run: refund_agent/evaluation/customers.py) says the opening
   message, then one line after each answer of the agent, until it has nothing more to say;
 - the customer's buttons (the test actor): confirm only on a proposal with exactly the units and amount the scenario's
-  customer confirms, then keep it or cancel it before the staff decision, and the agent is told of a cancellation
-  before the customer writes again; any other proposal waiting for the customer is declined, or left open while the
-  customer asks for a change in the chat (`customer.cards`);
+  customer confirms, then keep it or cancel it before the staff decision; any other proposal waiting for the
+  customer is declined, or left open while the customer asks for a change in the chat (`customer.cards`); the agent
+  is told of a cancellation or a decline before the customer writes again;
 - the scripted staff member applies the scenario's decision to every proposal that reaches the queue, and the agent
   is told, as the staff console does.
 
@@ -73,6 +73,8 @@ class RunResult:
     refusals: list[dict] = field(default_factory=list)  # attempts the backend refused: event, check, actor type
     handoff_origins: list[str] = field(default_factory=list)  # customer, agent or staff, in order
     agent_seconds: list[float] = field(default_factory=list)  # each run of the agent, wall-clock
+    # Each reminder the simulated customer got to answer a question before ending: "answered" or "ended".
+    simulator_reminders: list[str] = field(default_factory=list)
 
 
 def run_scenario(
@@ -143,6 +145,7 @@ def run_scenario(
         refusals,
         origins,
         seconds,
+        list(getattr(customer, "reminders", [])),
     )
 
 
@@ -184,7 +187,13 @@ def tool_texts(messages: list[dict]) -> list[str]:
 
 
 def _transcript(messages: list[dict]) -> list[tuple[str, str]]:
-    return [(m["role"], m["text"]) for m in messages if m["role"] in ("customer", "agent") and m.get("text")]
+    """What the customer side reads: each text said, with a fact line said from the records marked as such, so
+    a question in the answer before it still counts as the last thing asked (review of 2026-10-27)."""
+    return [
+        ("fact_line" if m.get("fact_line") else m["role"], m["text"])
+        for m in messages
+        if m["role"] in ("customer", "agent") and m.get("text")
+    ]
 
 
 def _proposals(app: Engine, conversation: str, status: str) -> list[tuple[str, list[str], int]]:
@@ -211,20 +220,22 @@ def _people_act(
 ) -> bool:
     """The customer's button and the staff decision. True when the agent was told something and answered."""
     customer, cards = Actor("customer", scenario.customer.id), scenario.customer.cards
-    cancelled = False
+    pressed = False  # cancel or decline
     for proposal, units, amount in _proposals(app, conversation, "awaiting_customer_confirmation"):
         if customer_confirms(scenario.customer, units, amount):
             confirm(app, customer, proposal, "confirmed", clock.tick(), policy)
             if cards.after_confirming == "cancel":
                 cancel(app, customer, proposal, clock.tick(), policy)
-                cancelled = True
+                pressed = True
         elif cards.other == "decline":
             confirm(app, customer, proposal, "declined", clock.tick(), policy)
+            pressed = True
         # wait: the card stays open while the customer, in the chat, asks for a change
-    # A cancellation stored its notice (review of the model comparison, 2026-10-24): it is delivered before the
-    # customer writes again, through the same delivery as a staff decision, and starts no run of the agent, which reads
-    # it at the customer's next message (confirmation run of 2026-10-24). No run, so no time is counted.
-    if cancelled:
+    # A cancellation or a decline stored its notice (review of the model comparison, 2026-10-24; final evaluation of
+    # v1.1, 2026-10-26): it is delivered before the customer writes again, through the same delivery as a staff
+    # decision, and starts no run of the agent, which reads it at the customer's next message (confirmation run of
+    # 2026-10-24). No run, so no time is counted.
+    if pressed:
         notices.deliver_pending(app, agent, clock, conversation)
     if scenario.staff.decision == "none":
         return False

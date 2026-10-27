@@ -257,6 +257,15 @@ def _policy_order(conn: Connection, order_id: str, now: datetime) -> eligibility
     )
 
 
+# A proposal that lapsed before it was paid (policy sections window and validity): it expired, or stopped being valid
+# because the order or the policy changed. One that expired while nobody touched it is still open in the table, so its
+# time counts, not only its status. Takes :open (OPEN_STATUSES) and :now.
+_LAPSED = (
+    "(p.status = 'expired' OR (p.status = 'invalidated' AND p.status_reason = 'order_or_policy_changed') "
+    "OR (p.status = ANY(:open) AND p.expires_at <= :now))"
+)
+
+
 def _earlier_on_time_units(
     conn: Connection, policy: Policy, delivered_at: datetime | None, units: list[str], now: datetime
 ) -> frozenset[str]:
@@ -269,9 +278,7 @@ def _earlier_on_time_units(
     found = conn.execute(
         text(
             "SELECT DISTINCT pu.order_unit_id FROM proposals p JOIN proposal_units pu ON pu.proposal_id = p.id "
-            "WHERE pu.order_unit_id = ANY(:units) AND p.created_at <= :deadline AND ("
-            "p.status = 'expired' OR (p.status = 'invalidated' AND p.status_reason = 'order_or_policy_changed') "
-            "OR (p.status = ANY(:open) AND p.expires_at <= :now))"
+            f"WHERE pu.order_unit_id = ANY(:units) AND p.created_at <= :deadline AND {_LAPSED}"
         ),
         {
             "units": units,
@@ -369,12 +376,17 @@ def propose(
     now: datetime,
     policy: Policy,
     summary_untrusted: str = "",
+    *,
+    referral: bool = False,
 ) -> ProposalResult:
     """Store a proposal for these units with the amount the backend computes, eligible or not.
 
     Checks in the order of the propose transition: actor_owns, agent_in_control, request_key_consistent,
     valid_values, units_named, then (for an eligible request) no_confirmed_open_proposal and policy_eligible. A
     repeated request key returns its proposal before units_named, whatever the conversation said since.
+
+    With referral (refer_to_staff), the request is stored only when the policy sends it to a staff member; any other
+    decision is refused before anything is written, and every refusal is recorded as the handoff's.
     """
     request_hash = _digest({"conversation": conversation_id, "order": order_id, "units": sorted(unit_ids)})
     try:
@@ -427,6 +439,8 @@ def propose(
             earlier = _earlier_on_time_units(conn, policy, order["delivered_at"], list(unit_ids), now)
             decision = eligibility.evaluate(policy, policy_order, tuple(unit_ids), now, earlier_on_time_units=earlier)
             eligible = decision.outcome is eligibility.Outcome.ELIGIBLE
+            if referral and decision.outcome is not eligibility.Outcome.NEEDS_PERSON:
+                raise Refused("handoff_reason", _not_for_staff(policy, decision))
             if eligible and open_proposal is not None:
                 if open_proposal["status"] != Status.AWAITING_CUSTOMER_CONFIRMATION:
                     raise Refused("no_confirmed_open_proposal", "the customer already confirmed another proposal")
@@ -510,8 +524,98 @@ def propose(
             )
             return ProposalResult(proposal_id, status.value, amount, decision.reasons, decision.outcome.value)
     except Refused as refusal:
-        _record_rejection(engine, now, actor, "propose", refusal, conversation_id=conversation_id)
+        event = "hand_off" if referral else "propose"
+        _record_rejection(engine, now, actor, event, refusal, conversation_id=conversation_id)
         raise
+
+
+# What any refusal of a handoff adds; a yes to an offer the check could not read is the exception.
+_HANDOFF_TAIL = (
+    " If a rule refuses the request, give its reason and what the policy allows, without offering a person. Hand off "
+    "with customer_asked only when the customer clearly asks for a person."
+)
+
+
+def _not_for_staff(policy: Policy, decision: eligibility.Decision) -> str:
+    """Why a handoff for a staff decision was refused: the policy decides these units itself, and what to do."""
+    if decision.outcome is eligibility.Outcome.ELIGIBLE:
+        return (
+            "the policy allows a refund of these units now, so no staff member decides it. If the customer asked for "
+            "them, call propose_refund with them and follow its result."
+        )
+    cited = ", ".join(f"({policy.citation(reason)})" for reason in decision.reasons)
+    refused = f"the policy refuses a refund of these units {cited}."
+    if "eligible-orders" in decision.reasons:  # refused only for an order not delivered: the policy's offer stands
+        return (
+            f"{refused} Tell the customer the order's status; cancelling it or changing its delivery is outside this "
+            f"process, so offer a person for that ({policy.citation('eligible-orders')})."
+        )
+    return f"{refused} Tell the customer why, citing those sections.{_HANDOFF_TAIL}"
+
+
+def _latest_proposal(conn: Connection, conversation_id: str) -> RowMapping | None:
+    """The request in front of the agent: the conversation's latest proposal, whatever its status."""
+    return _one(
+        conn,
+        "SELECT * FROM proposals WHERE conversation_id = :id ORDER BY created_at DESC, created_xact DESC LIMIT 1",
+        id=conversation_id,
+    )
+
+
+def _refers(
+    conn: Connection, proposal: RowMapping, order_id: str, unit_ids: Sequence[str], now: datetime, policy: Policy
+) -> bool:
+    """Whether a proposal records these very units as a case for a staff member, on the order and policy as now."""
+    if (proposal["order_id"], proposal["status"], proposal["status_reason"]) != (
+        order_id,
+        "ineligible",
+        "needs_person",
+    ):
+        return False
+    units = conn.execute(
+        text("SELECT order_unit_id FROM proposal_units WHERE proposal_id = :id"), {"id": proposal["id"]}
+    ).scalars()
+    return set(units) == set(unit_ids) and _out_of_date(conn, proposal, now, policy) is None
+
+
+def refer_to_staff(
+    engine: Engine,
+    actor: Actor,
+    conversation_id: str,
+    order_id: str,
+    unit_ids: Sequence[str],
+    request_key: str,
+    now: datetime,
+    policy: Policy,
+    summary_untrusted: str = "",
+) -> ProposalResult:
+    """Record a refund request that the policy sends to a staff member, for a handoff with shop_decided that names
+    its order and units (final evaluation of v1.1, H77: the agent named them in a handoff before any proposal, the
+    handoff was refused for want of one, and the agent then explained instead of proposing). The conversation's
+    latest proposal is the record when it is that same request and still current; otherwise propose stores it with
+    referral, which refuses, before writing anything, a request the policy decides itself."""
+    if not order_id or not unit_ids:
+        refusal = Refused("handoff_reason", "name the customer's order and the units of the request")
+        _record_rejection(engine, now, actor, "hand_off", refusal, conversation_id=conversation_id)
+        raise refusal
+    with engine.connect() as conn:
+        conversation = _one(conn, "SELECT customer_id FROM conversations WHERE id = :id", id=conversation_id)
+        owned = actor.kind == "agent" and conversation is not None and conversation["customer_id"] == actor.user_id
+        latest = _latest_proposal(conn, conversation_id)
+        if owned and latest is not None and _refers(conn, latest, order_id, unit_ids, now, policy):
+            return _result(latest)
+    return propose(
+        engine,
+        actor,
+        conversation_id,
+        order_id,
+        list(unit_ids),
+        request_key,
+        now,
+        policy,
+        summary_untrusted,
+        referral=True,
+    )
 
 
 # Customer and staff decisions
@@ -525,7 +629,11 @@ def confirm(
     now: datetime,
     policy: Policy,
 ) -> str:
-    """The customer's button on the proposal card. Only a proposal ID and a decision come in (INV-2)."""
+    """The customer's button on the proposal card. Only a proposal ID and a decision come in (INV-2).
+
+    A decline is told to the agent by a notice stored with it, as a cancellation is (agent/notices.py), also when the
+    proposal had already expired or stopped being valid; a confirmation is told with the staff decision that follows.
+    """
     pending: Refused | None = None
     try:
         with engine.begin() as conn:
@@ -534,6 +642,10 @@ def confirm(
                 raise Refused("actor_owns")
             if proposal["status"] != Status.AWAITING_CUSTOMER_CONFIRMATION:
                 raise Refused("invalid_transition", f"the proposal is {proposal['status']}")
+            if decision == "declined":
+                # Final evaluation of v1.1, 2026-10-26: told nothing of a decline, the agent said seven times that the
+                # declined request still waited for the customer's button.
+                _store_notice(conn, f"notice-decline-{proposal_id}", proposal, "declined", now)
             change = _out_of_date(conn, proposal, now, policy)
             if change:
                 _close(conn, proposal, change, now)
@@ -696,6 +808,25 @@ def decide(
     return new_status
 
 
+def _store_notice(
+    conn: Connection, notice_id: str, proposal: RowMapping, decision: Literal["cancelled", "declined"], now: datetime
+) -> None:
+    """A notice to the agent of the customer's button, written in the button's transaction."""
+    conn.execute(
+        text(
+            "INSERT INTO agent_notices (id, conversation_id, proposal_id, decision, created_at) "
+            "VALUES (:id, :conversation, :proposal, :decision, :now)"
+        ),
+        {
+            "id": notice_id,
+            "conversation": proposal["conversation_id"],
+            "proposal": proposal["id"],
+            "decision": decision,
+            "now": now,
+        },
+    )
+
+
 def cancel(engine: Engine, actor: Actor, proposal_id: str, now: datetime, policy: Policy) -> str:
     """The customer cancels an open proposal, before or after confirming, as long as it is not refunded.
 
@@ -712,18 +843,7 @@ def cancel(engine: Engine, actor: Actor, proposal_id: str, now: datetime, policy
                 raise Refused("invalid_transition", f"the proposal is {proposal['status']}")
             # The agent is told of the button, as of a staff decision: the notice commits with the cancellation
             # (review of the model comparison, 2026-10-24: in D28 the agent, told nothing, asked for the cancel).
-            conn.execute(
-                text(
-                    "INSERT INTO agent_notices (id, conversation_id, proposal_id, decision, created_at) "
-                    "VALUES (:id, :conversation, :proposal, 'cancelled', :now)"
-                ),
-                {
-                    "id": f"notice-cancel-{proposal_id}",
-                    "conversation": proposal["conversation_id"],
-                    "proposal": proposal_id,
-                    "now": now,
-                },
-            )
+            _store_notice(conn, f"notice-cancel-{proposal_id}", proposal, "cancelled", now)
             change = _out_of_date(conn, proposal, now, policy)
             if change:
                 _close(conn, proposal, change, now)
@@ -964,6 +1084,91 @@ def assess(
     )
 
 
+def proposal_context(engine: Engine, proposal_id: str, policy: Policy) -> list[tuple[str, str]]:
+    """The policy sections the circumstances of an eligible proposal rest on, beyond its amount, each with its fact
+    from the records, for the agent to tell the customer (final evaluation of v1.1, 2026-10-26: the result gave only the
+    amount section, and the scenarios required window 9 times, validity 10 and approval 6 where the agent left them
+    out; a refusal's result gives its sections, and all 98 required refusal citations were shown). In the order:
+
+    - window: the refund deadline falls before this proposal expires, so the limit passes while it is open;
+    - validity: an earlier proposal for any of these units lapsed before it was paid (_LAPSED), so a new one was needed;
+    - approval: an earlier proposal for any of these units was cancelled or declined by the customer, or rejected by a
+      staff member, so this one needs both decisions again.
+
+    "Earlier" is any proposal of the customer made before this one, in any conversation; a proposal the customer
+    replaced with a change, or that a handoff closed, counts for neither."""
+    with engine.connect() as conn:
+        proposal = _one(
+            conn,
+            "SELECT p.*, o.delivered_at FROM proposals p JOIN orders o ON o.id = p.order_id WHERE p.id = :id",
+            id=proposal_id,
+        )
+        # Each earlier proposal with the names of the units it shares with this one, and only those: one for the bowl
+        # alone is not a request "for these items" when this one adds the plate (review of 2026-10-27).
+        earlier = (
+            conn.execute(
+                text(
+                    f"SELECT p.id, p.status, p.created_at, {_LAPSED} AS lapsed, "
+                    "array_agg(u.product_name ORDER BY u.id) AS products "
+                    "FROM proposals p JOIN proposal_units pu ON pu.proposal_id = p.id "
+                    "JOIN order_units u ON u.id = pu.order_unit_id "
+                    "WHERE p.customer_id = :customer AND (p.created_at, p.created_xact) < "
+                    "(SELECT created_at, created_xact FROM proposals WHERE id = :id) "
+                    "AND pu.order_unit_id IN (SELECT order_unit_id FROM proposal_units WHERE proposal_id = :id) "
+                    "GROUP BY p.id ORDER BY p.created_at, p.created_xact"
+                ),
+                {
+                    "customer": proposal["customer_id"],
+                    "id": proposal_id,
+                    "open": OPEN_STATUSES,
+                    "now": proposal["created_at"],
+                },
+            )
+            .mappings()
+            .all()
+        )
+    context = []
+    delivered = proposal["delivered_at"]
+    deadline = eligibility.refund_deadline(policy, delivered) if delivered else None
+    if deadline is not None and deadline < proposal["expires_at"]:
+        context.append(
+            (
+                "window",
+                f"the {policy.rules.refund_window_days}-day limit after delivery ends at {deadline:%Y-%m-%d %H:%M} "
+                "UTC, and a request counts as made when its proposal is created, so this one is on time",
+            )
+        )
+
+    def request(p: RowMapping) -> str:
+        return f"an earlier request for the {' and the '.join(p['products'])}"
+
+    def lapse(p: RowMapping) -> str:
+        return (
+            "stopped being valid because the order or the policy changed"
+            if p["status"] == Status.INVALIDATED
+            else ("expired")
+        )
+
+    lapsed = [f"{request(p)} lapsed before it was paid ({p['id']} {lapse(p)})" for p in earlier if p["lapsed"]]
+    if lapsed:
+        context.append(("validity", f"{'; '.join(lapsed)}, so a new proposal was needed"))
+    closed = [
+        f"{request(p)} ended unpaid ({p['id']} was "
+        f"{'rejected by a staff member' if p['status'] == Status.REJECTED else 'cancelled'})"
+        for p in earlier
+        if p["status"] in (Status.CANCELLED, Status.REJECTED)
+    ]
+    if closed:
+        context.append(
+            (
+                "approval",
+                f"{'; '.join(closed)}, so this new proposal needs the customer's confirmation and a staff member's "
+                "approval again",
+            )
+        )
+    return context
+
+
 _plain = selection.plain  # one way of comparing words, shared with the selection check
 
 
@@ -1159,7 +1364,7 @@ def check_handoff_reason(
     the message just before (request_for_shipping_refund). A refusal says what
     to do instead and is recorded like any other; the customer's button and a staff member's takeover never come
     here. Returns what the check found, for the record: for customer_asked and shipping_refund, the ID of the customer
-    message the request rests on."""
+    message the request rests on; for shop_decided, the policy sections of the decision."""
     try:
         with engine.connect() as conn:
             conversation = _one(conn, "SELECT customer_id FROM conversations WHERE id = :id", id=conversation_id)
@@ -1175,30 +1380,27 @@ def check_handoff_reason(
                 if not order or order["customer_id"] != actor.user_id:
                     raise Refused("handoff_reason", "name the customer's order the dispute is about")
             holds, unmet, then = True, "", ""
-            # What any refusal of a handoff adds; a yes to an offer the check could not read is the exception.
-            tail = (
-                " If a rule refuses the request, give its reason and what the policy allows, without offering a "
-                "person. Hand off with customer_asked only when the customer clearly asks for a person."
-            )
+            tail = _HANDOFF_TAIL  # a yes to an offer the check could not read is the exception
             evidence: dict[str, Any] = {}
             if reason == "shop_decided":
-                # The request in front of the agent, not any earlier one: the conversation's latest decision.
-                latest = _one(
-                    conn,
-                    "SELECT * FROM proposals WHERE conversation_id = :id "
-                    "ORDER BY created_at DESC, created_xact DESC LIMIT 1",
-                    id=conversation_id,
-                )
+                # The request in front of the agent, not any earlier one: the conversation's latest decision, which
+                # refer_to_staff has just recorded when the handoff names an order and units.
+                latest = _latest_proposal(conn, conversation_id)
                 holds = (
                     latest is not None
                     and (latest["status"], latest["status_reason"]) == ("ineligible", "needs_person")
                     and _out_of_date(conn, latest, now, policy) is None
                 )
+                evidence["reasons"] = list(latest["reasons"]) if holds else []  # the sections the decision rests on
                 unmet = (
                     "the latest refund decision of this conversation, on the order and policy as they are now, is not "
                     "that a staff member takes the case"
                 )
-                then = "For a refund request, call propose_refund and follow its result."
+                then = (
+                    "For a refund request a staff member decides, name its order and units in the handoff: the "
+                    "backend records the request when the policy sends it to staff. Otherwise call propose_refund and "
+                    "follow its result."
+                )
             elif reason == "return_disputed":
                 units = list(dict.fromkeys(unit_ids))
                 found = (

@@ -340,14 +340,36 @@ def amount_pattern(minor: int) -> re.Pattern[str]:
 
 
 def _citation_items(scenario: Scenario, run: _Run) -> list[Item]:
-    return [
-        Item(
-            f"cites:{citation}",
-            "passed" if _agent_said(run, citation) else "failed",
-            "shown in an agent message" if _agent_said(run, citation) else "not shown in any agent message",
-        )
-        for citation in scenario.expected.cites
-    ]
+    """A required citation not shown fails. Once shown, one with an obligation (the citation rule of v1.2,
+    docs/v1.2/citation-rule.md) waits for the reader, who checks that the customer was told it, and told it truly:
+    a section ID beside a wrong statement is not the explanation the customer needed. One without, as in the frozen
+    sets of v1 and v1.1, passes by its presence, as v1.1 judged it. Quality citations are counted by the report."""
+    items = []
+    for citation in scenario.expected.cites:
+        obligation = scenario.expected.obligations.get(citation)
+        if not _agent_said(run, citation):
+            items.append(Item(f"cites:{citation}", "failed", "not shown in any agent message"))
+        elif obligation:
+            items.append(Item(f"cites:{citation}", "pending", f"shown; the reader checks that it told: {obligation}"))
+        else:
+            items.append(Item(f"cites:{citation}", "passed", "shown in an agent message"))
+    return items
+
+
+_QUESTION = re.compile(r"[^.!?\n]*\?")
+# Read from every agent question said before a first proposal in the saved runs up to 2026-10-26: the questions that
+# ask which items are meant begin "Which ..." or name the alternatives ("..., or both?"); the questions that ask
+# whether to start ("Would you like me to prepare the proposal?") have neither. ", which" opens a relative clause.
+# The same words ask about other things too ("Which part of the policy ...?"), so a match only flags a question for
+# the reader; it never fails one.
+_WHICH = re.compile(
+    r"(?<!,\s)\bwhich\b|\bor (?:both|all|just|only)\b|\b(?:do|did) you mean\b|\bare you referring\b", re.IGNORECASE
+)
+
+
+def asks_which(text: str) -> bool:
+    """Whether a question sentence in the text may ask which items are meant: a flag for the reader."""
+    return any(_WHICH.search(question) for question in _QUESTION.findall(text))
 
 
 def _precheck(criterion: str, run: _Run) -> tuple[bool, str]:
@@ -404,14 +426,17 @@ def _precheck(criterion: str, run: _Run) -> tuple[bool, str]:
     if criterion == "proposes_without_asking":
         if not run.proposals:
             return False, "no proposal in this run"
+        # The criterion forbids asking which items are meant when the customer's words already named them. Whether a
+        # question did so is a reading of its words, and a machine failure is final, so the reader decides it: until
+        # 2026-10-26 any customer message before the proposal failed here (H29, H52), and the word rule that followed
+        # failed questions about other things too (review of 2026-10-27). Only a missing proposal fails; a question
+        # that may ask which items, answered before the first proposal, is quoted for the reader.
         proposed = _place(run, "propose", proposal_id=run.proposals[0]["id"]) or 0
-        replies = [m for m in run.messages if m.author == "customer" and m.seq < proposed][1:]  # the opening aside
-        return (
-            not replies,
-            "the first proposal came before any further customer message"
-            if not replies
-            else f"{len(replies)} customer message(s) came before the first proposal",
-        )
+        before = [m for m in run.messages if m.seq < proposed]
+        asked = [m for m in before if m.author == "agent" and asks_which(m.content)]
+        if asked and any(m.author == "customer" and m.seq > asked[0].seq for m in before):
+            return True, f'flag for the reader: a question that may ask which items, answered: "{asked[0].content}"'
+        return True, "no question that may ask which items was answered before the first proposal"
     raise ValueError(f"no pre-check for {criterion}")
 
 

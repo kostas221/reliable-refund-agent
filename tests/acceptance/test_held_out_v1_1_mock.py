@@ -296,10 +296,10 @@ CORRECT = {
 def play(db):
     connections = []
 
-    def run(scenario_id: str, mock: MockRun):
+    def run(scenario_id: str, mock: MockRun, scenario=None):
         app = db("app")
         connections.append(database.checkpoint_connection("app", app.url.database))
-        scenario = SET[scenario_id]
+        scenario = scenario or SET[scenario_id]
         return run_scenario(
             scenario,
             ScriptedCustomer(scenario, mock.customer),
@@ -349,12 +349,14 @@ def test_the_correct_conversation_without_its_citations_fails_on_them(play, scen
     scenario, mock = SET[scenario_id], CORRECT[scenario_id]
     agent = tuple(Say(CITATION.sub("", step.text)) if isinstance(step, Say) else step for step in mock.agent)
     result = play(scenario_id, MockRun(agent=agent, customer=mock.customer))
-    # A fact line from the records may still show a section the answer left out (agent/facts.py): that is the product,
-    # and in H35 it shows `remaining` after an answer that names the earlier refund without it.
+    # A fact line from the records may still show a section the answer left out (agent/facts.py): that is the product.
+    # In H35 it shows `remaining` after an answer that names the earlier refund without it; since 2026-10-26 (v1.2 fix
+    # 4) it shows a handoff's sections after an announcement without them, which covers every citation of the five
+    # scenarios that end in a handoff. The evaluator still fails each of these citations with no line (the test above).
     shown = " ".join(m["text"] for m in result.messages if m.get("fact_line"))
     missing = {f"cites:{c}" for c in scenario.expected.cites if c not in shown}
     assert set(result.verdict.names("failed")) == missing, result.verdict.report()
-    assert missing or scenario_id == "H35"
+    assert missing or scenario_id in {"H35", "H41", "H47", "H72", "H77", "H80"}
 
 
 @pytest.mark.parametrize(
@@ -373,3 +375,21 @@ def test_a_proposal_for_the_order_on_its_way_fails_h80(play):
     agent = (LIST, propose("H80", "u2", order=2), *mock.agent[1:])
     result = play("H80", MockRun(agent=agent, customer=mock.customer))
     assert "forbidden:proposal_with_other_units" in result.verdict.names("failed"), result.verdict.report()
+
+
+# The development copies of this set (D43 to D62, 2026-10-27) follow the citation rule of v1.2, and run on the product
+# of v1.2: the same correct conversations pass on them, before any run with a model.
+
+COPIES = {s.derived_from: s for s in load_split("development") if s.derived_from in SET}
+
+
+def test_every_scenario_of_the_set_has_its_development_copy():
+    assert set(COPIES) == set(SET)
+
+
+@pytest.mark.parametrize("scenario_id", sorted(SET))
+def test_a_correct_conversation_passes_on_the_development_copy(play, scenario_id):
+    copy = COPIES[scenario_id]
+    result = play(scenario_id, CORRECT[scenario_id], scenario=copy)
+    assert (result.system_error, result.verdict.names("failed")) == (None, []), result.verdict.report()
+    assert result.verdict.with_audit(lenient_audit(result.verdict)).result == "passed"

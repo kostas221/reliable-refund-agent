@@ -125,6 +125,7 @@ def save_result(folder: Path, result: RunResult, attempt: int, outcome_cost: dic
             "refusals": result.refusals,
             "handoff_origins": result.handoff_origins,
             "agent_seconds": result.agent_seconds,
+            "simulator_reminders": result.simulator_reminders,
             **outcome_cost,
             "messages": result.messages,
         },

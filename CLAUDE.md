@@ -181,16 +181,48 @@ ones fail). The final runner takes `--set held_out_v1_1`, refuses v1's spent set
 FROZEN. Only evaluation files changed since 1a46a3c. The owner approved the 20 files; **the set is frozen**
 (2026-10-26, `scenarios/held-out-v1.1/FROZEN`); targets are v1's (`docs/held-out-v1.1/quality-targets.md`) and the
 predictions are written (`docs/held-out-v1.1/predictions.md`: A 40 to 52 of 60, citations the main cause, B 0 to +15
-points with an interval including zero, under $1); the report counts conversations failed on citations alone. Next:
-the full suite, the commit, then the owner's paid run (`final --set held_out_v1_1`, budget $3). Then Phase 7
-(README, video, CI, licence)
-and a light test with 5 real users. 126/126 on development would show only that the cases the rules were built on
+points with an interval including zero, under $1); the report counts conversations failed on citations alone. The
+final run (`runs/final-v1.1-20261026T125831Z`, $0.57), before the audit: A 39/60, pass^3 10/20; B 45/60 (15/20); C
+39/60; 0 unauthorized or duplicate in 180; B-A +10 points (95% -10 to +30). A's 21 failures: 17 a missing citation
+the author required, 1 the `proposes_without_asking` pre-check (a "shall I start?" after a question; B 6), 1
+simulator fault (H41 try 3, A and C: ended on an offer it should accept), 2 behaviour (H77: handoff tried before a
+proposal, refused, then by the customer). Decided (plan change log, 2026-10-26): v1.1 closes as measured, targets
+missed, after the audit and report; then a v1.2 cycle of fixes by category, not scenario: fixes first, measured on
+new development scenarios, and the system frozen; then more than 20 new held-out scenarios (proposed 40) from an
+independent author, grading rules written before any run, the result also given under v1.1's rules, and nothing in
+the system changed after (plan change log, 2026-10-26, the corrected order). v1.2 fixes 1-6 written (plan change
+log, 2026-10-26 and 2026-10-27; nothing committed, no paid run): the `proposes_without_asking` pre-check fails only
+with no proposal and flags, quoted, a question that may ask which items for the reader (words never fail it); a
+`shop_decided` handoff that names order and units is decided and recorded by the backend (`refunds.refer_to_staff`);
+a declined card is told to the agent (migration 0008); a handoff's result gives its sections and the fact line says
+the ones the announcement leaves out; an eligible proposal's result gives window, validity or approval when the
+records call for them, naming the items each earlier request covered (`refunds.proposal_context`; fixture
+`invalidated` now seeded as an order or policy change); simulator instructions v2, a reminder once when it ends in
+front of the agent's last answer's question (fact lines skipped), reminders counted and an end after one flagged.
+A run comparison names every change of measurement (evaluator, runner, simulator, seeding, scenario files). The
+outside review of 2026-10-27 (`docs/review-v1.2-follow-up-2026-10-26.md`) was checked finding by finding before
+adoption. v1.1 with Claude's audit and the dated corrections: A 40/60 (11/20), B 51/60 (17/20), C 38/60; B-A +18.3
+(95% +6.7 to +33.3); as run +10.0 (-10 to +30). The pre-registered decision rule chooses **Sol** for v1.1 in both
+views (final after the owner's reading); Claude's earlier "keep Luna" skipped the qualifying step and is withdrawn.
+The owner's reading under the recorded rule is 81 conversations, not 30. Sequence (plan change log, 2026-10-27): A
+free checks and instructions v9 (done: `prompts/agent-v9.md`, four targeted changes, contract tests in
+`tests/test_model_adapter.py`); B the citation rule, rescoring of saved dialogues under both rules, author package
+v2 (done 2026-10-27, the owner's "συνεχισε" read as approval: `docs/v1.2/citation-rule.md`, 39 of 40 required
+citations kept with obligations, H30's a quality citation, D35 kept required after the scenario check refused it;
+v1.1's A 42/60 under it; the evaluator leaves a shown citation with an obligation to the reader, and the report gives
+the v1.1-rule result too; `docs/held-out-v1.2/author-package.md`, 60 candidates H101-H160, and `protocol.md`); C
+prepared on 2026-10-27 (v1.1's 20 copied to development as D43-D62 with obligations, D46 quality; correct scripts pass
+on every copy; predictions written in `docs/pilot/predictions.md`; the paid run of 62 x 3 waits for the owner's commit
+and command, budget $0.60); C one paid Luna confirmation run on development (v1.1's 20 copied), then a stopping rule (reopen only for a
+safety defect or a regression this bundle caused), freeze, commit; D 40 new held-out scenarios, groups fixed before
+authoring, one A/B/C run, published whatever it shows. Then Phase 7 (README, video, CI, licence) and a light test
+with 5 real users. 126/126 on development would show only that the cases the rules were built on
 are solved. The user reads 1 conversation of the D28 run and 5 of the confirmation run
 (`user-review/`), 7 of the comparison
 (`runs/pilot-20261023T201842Z-gpt-6.1-sol-low/user-review/`, four questions), 6 of the selection check run, and 10
 of step 1 and 9 of each of steps 3, 2 and the repairs (`user-review/`); Claude's verdicts are shown after.
 Development runs: Claude reads all, the user reads what Claude fails or notes. Phase 7 (video, code licence, external
-test, CI on a remote) after v1.1.
+test, CI on a remote) after v1.2.
 
 ## Environment
 

@@ -1,0 +1,81 @@
+# Development copy of H29 (scenarios/held-out-v1.1/H29-credit-card-instalments-count-as-one-payment-record.toml): copied on 2026-10-27,
+# after the final evaluation of v1.1 used its held-out set (plan change log, 2026-10-27). The held-out file
+# stays frozen and unchanged; this copy follows the citation rule of v1.2.
+# Credit-card instalments count as one payment record.
+# The author's candidate H29 (author-output-2.md), converted by scripts/convert_held_out_v1_1.py;
+# every choice the author did not state is in docs/held-out-v1.1/conversion-log.md.
+# Olist order 78d1bb8db7414297b33c18163f8308ec (data/olist/subset-v1.1.json): 1 item(s), credit_card 87.64 in 3 instalment(s).
+id = "D45"
+title = "Credit-card instalments count as one payment record"
+split = "development"
+derived_from = "H29"
+category = "eligible"
+template = "credit-card-instalments-count-as-one-payment-record"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 18 days after o1 was delivered
+agent_visible_orders = ["h29-o1"]
+
+[[fixture.customers]]
+id = "h29-renata"
+name = "Renata Duarte"
+email = "renata.duarte@example.test"
+
+[[fixture.staff]]
+id = "h29-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h29-o1"
+customer = "h29-renata"
+status = "delivered"
+purchased_at = 2026-10-13T23:18:28Z
+delivered_at = 2026-10-29T10:00:00Z  # delivered 18 days before now
+payments = [{ method = "credit_card", amount_minor = 8764, installments = 3 }]  # 6990 + shipping 1774
+olist_order = "78d1bb8db7414297b33c18163f8308ec"
+
+[[fixture.orders.units]]
+id = "h29-o1-u1"
+product = "Compact computer monitor stand"
+price_minor = 6990
+paid_minor = 6990
+shipping_minor = 1774
+received_back_at = 2026-11-11T10:00:00Z  # received back 5 days before now
+olist_item = 1
+
+[customer]
+id = "h29-renata"
+goal = "Get a refund for your returned monitor stand, which was bought on credit-card instalments."
+opening_message = "Hey, I bought the monitor stand in three credit-card instalments. I returned it already. Will the instalments complicate my refund?"
+facts = [
+    { text = "The purchase used one credit-card payment split into three instalments.", reveal = "upfront" },
+]
+behaviour = [
+    "Explain that the instalments were part of the same card purchase if asked.",
+    "Accept the original-payment refund method.",
+    "Confirm the correct proposal.",
+    "Decline a person and end after the receipt.",
+]
+confirms = { units = ["h29-o1-u1"], amount_minor = 6990 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h29-o1-u1"]
+decision = "eligible"
+amount_minor = 6990
+
+[expected]
+refunded_units = ["h29-o1-u1"]
+refund_amount_minor = 6990  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/payment"]
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/payment" = "Instalments of one card payment are one payment record."

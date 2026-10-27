@@ -18,7 +18,8 @@ from refund_agent.policy import REPO_ROOT
 from refund_agent.scenarios import SPLIT_DIRS, check_frozen, frozen_hashes, load_split
 
 SET = load_split("held_out_v1_1")
-DEVELOPMENT_TEMPLATES = {s.template for s in load_split("development")}
+# A development copy keeps its source's template (D43 to D62 are this set's, copied on 2026-10-27, after its run).
+DEVELOPMENT_TEMPLATES = {s.template for s in load_split("development") if not s.derived_from}
 SUBSET = json.loads((REPO_ROOT / "data" / "olist" / "subset-v1.1.json").read_text(encoding="utf-8"))
 V1_SUBSET = json.loads((REPO_ROOT / "data" / "olist" / "subset.json").read_text(encoding="utf-8"))
 # The kept candidates in each group, in the author's order (docs/held-out-v1.1/set-aside.md, section 10).

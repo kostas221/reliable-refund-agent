@@ -1,0 +1,87 @@
+# Development copy of H58 (scenarios/held-out-v1.1/H58-earlier-staff-rejected-proposal-does-not-extend-the-deadline.toml): copied on 2026-10-27,
+# after the final evaluation of v1.1 used its held-out set (plan change log, 2026-10-27). The held-out file
+# stays frozen and unchanged; this copy follows the citation rule of v1.2.
+# Earlier staff-rejected proposal does not extend the deadline.
+# The author's candidate H58 (author-output-2.md), converted by scripts/convert_held_out_v1_1.py;
+# every choice the author did not state is in docs/held-out-v1.1/conversion-log.md.
+# Olist order 04652586a8416e68609d21f267dee2f6 (data/olist/subset-v1.1.json): 1 item(s), boleto 88.39 in 1 instalment(s).
+id = "D55"
+title = "Earlier staff-rejected proposal does not extend the deadline"
+split = "development"
+derived_from = "H58"
+category = "ineligible"
+template = "earlier-staff-rejected-proposal-does-not-extend-the-deadline"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 38 days after o1 was delivered
+agent_visible_orders = ["h58-o1"]
+
+[[fixture.customers]]
+id = "h58-helena"
+name = "Helena Castro"
+email = "helena.castro@example.test"
+
+[[fixture.staff]]
+id = "h58-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h58-o1"
+customer = "h58-helena"
+status = "delivered"
+purchased_at = 2026-09-29T23:36:32Z
+delivered_at = 2026-10-09T10:00:00Z  # delivered 38 days before now
+payments = [{ method = "boleto", amount_minor = 8839, installments = 1 }]  # 6900 + shipping 1939
+olist_order = "04652586a8416e68609d21f267dee2f6"
+
+[[fixture.orders.units]]
+id = "h58-o1-u1"
+product = "Memory foam seat cushion"
+price_minor = 6900
+paid_minor = 6900
+shipping_minor = 1939
+received_back_at = 2026-10-30T10:00:00Z  # received back 17 days before now
+olist_item = 1
+
+[[fixture.past_proposals]]
+id = "h58-p1"
+units = ["h58-o1-u1"]
+created_at = 2026-11-02T10:00:00Z  # created 14 days before now, 24 days after delivery; rejected without payment
+status = "rejected"
+
+[customer]
+id = "h58-helena"
+goal = "Retry the seat cushion refund after an earlier staff rejection, despite the current request being late."
+opening_message = "I applied for a refund on my seat cushion while I was still within the deadline, but the staff member rejected it. Surely that first request keeps my refund window open?"
+facts = [
+    { text = "The earlier proposal was rejected, not expired or invalidated.", reveal = "upfront" },
+    { text = "The earlier proposal was never paid.", reveal = "upfront" },
+]
+behaviour = [
+    "Ask whether the earlier rejected request preserves your right to a late request.",
+    "Accept the explanation that rejection does not extend the deadline.",
+    "Decline a person.",
+    "End after the specific deadline reason is explained.",
+]
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h58-o1-u1"]
+decision = "refused"
+reasons = ["window"]
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["none", "ineligible"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/window"]
+communication = ["explains_refusal_reason"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/window" = "A rejected request does not keep the window open; this request is late."

@@ -89,7 +89,7 @@ def test_the_instructions_name_only_real_tools_and_handoff_reasons():
     arguments = {name for tool in TOOLS.values() for name in tool.args.model_fields}
     assert named and named <= set(TOOLS) | arguments | set(HANDOFF_REASONS)
     assert set(HANDOFF_REASONS) <= named  # every reason the backend accepts is explained to the agent
-    assert INSTRUCTIONS.version == "agent-v8" and len(INSTRUCTIONS.sha256) == 64
+    assert INSTRUCTIONS.version == "agent-v9" and len(INSTRUCTIONS.sha256) == 64
 
 
 def test_every_citation_the_instructions_quote_exists_in_their_policy():
@@ -113,7 +113,7 @@ def test_the_instructions_hold_every_section_of_the_policy_under_its_id():
 
 
 def test_instructions_that_include_the_policy_need_it():
-    with pytest.raises(ValueError, match="agent-v8.md includes the policy"):
+    with pytest.raises(ValueError, match="agent-v9.md includes the policy"):
         load_instructions()
 
 
@@ -121,3 +121,30 @@ def test_earlier_instructions_load_as_they_were():
     v3 = load_instructions(REPO_ROOT / "prompts" / "agent-v3.md")
     assert v3.text == (REPO_ROOT / "prompts" / "agent-v3.md").read_text(encoding="utf-8")
     assert v3.sha256 == "79f5219850395d5cef092b58f09db2aa63e9239760bb1fd5950fa5fba24fdb67"  # the final run of v1
+
+
+# Version 9 (plan change log, 2026-10-27): the instructions agree with the tools of the v1.2 fixes, one change each.
+
+SAID = " ".join(INSTRUCTIONS.text.split())  # the file wraps its lines
+
+
+def test_a_case_for_staff_is_handed_off_with_its_order_and_units():
+    # Fix 2 (H77): the backend records the request itself when the handoff names it.
+    assert "(`shop_decided`, with the order and the units: the backend records the request" in SAID
+
+
+def test_the_agent_cites_the_sections_its_tool_results_and_the_shops_records_rest_on():
+    # Fixes 4 and 6 give the sections in the results; H55 told what the return records show without their section.
+    assert "cite the section the result gives with it" in SAID
+    assert "cite the section that makes those records decide" in SAID
+
+
+def test_what_the_policy_allows_after_a_refusal_is_offered_in_words_first():
+    # H60 and H61 of the final evaluation of v1.1: the same proposal again, just after the customer turned it down.
+    assert "say in words what the policy allows, and propose it only when the customer says they want it" in SAID
+    assert "Never propose again what the customer has just turned down." in SAID
+
+
+def test_the_agent_knows_it_is_told_of_the_customers_buttons():
+    # Fix 3: seven times a declined request was said to wait for the customer's button.
+    assert "You are told when the customer declines or cancels a card with its button" in SAID

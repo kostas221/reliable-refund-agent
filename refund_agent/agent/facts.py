@@ -4,13 +4,17 @@ said right after the agent's answer (review of the model comparison, 2026-10-24)
 The instructions ask for a citation whenever an answer rests on the policy, and the tool results put the section
 beside the fact; in the runs of 2026-10-23 the agent still told a refund paid before the conversation without the
 section on refunding each unit once (D20, Luna none, tries 1 and 2), and an order's shipped status without the
-section on which orders qualify (D35 try 2, both models). For these two facts the line is written from the records,
-not by the model, and only when the agent's answer states the fact and no answer of the conversation has cited the
+section on which orders qualify (D35 try 2, both models). For these facts the line is written from the records, not
+by the model, and only when the agent's answer states the fact and no answer of the conversation has cited the
 section yet:
 
 - remaining: the answer gives the receipt number of a refund a tool showed as paid, and not paid in this conversation;
 - eligible-orders: the answer names the status of an order a tool showed as not delivered (shipped, processing,
-  invoiced or unavailable; "approved", "created" and "canceled" are left out, since the same words tell of proposals).
+  invoiced or unavailable; "approved", "created" and "canceled" are left out, since the same words tell of proposals);
+- a handoff's sections: a handoff was made, and the sections its result gave are not cited yet (final evaluation of
+  v1.1, 2026-10-26: all 98 required refusal citations of the runs on policy v2 were shown, since a refusal's result
+  gives its sections; a handoff's result gave none, and 11 of 18 required handoff citations were missed). Only the
+  sections not cited yet are said, after the agent's announcement.
 
 The graph says the line as its own message after an answer with no tool calls, so the customer, the model and the
 evaluator see the same words; the message is marked, and the diagnostics count the citations it carries apart from
@@ -26,6 +30,31 @@ from collections.abc import Sequence
 from refund_agent.policy import Policy
 
 STATUS_WORDS = ("shipped", "processing", "invoiced", "unavailable")
+# Why a person takes over, by the handoff's reason code, in words for the customer.
+HANDOFF_CASES = {
+    "customer_asked": "A person takes over whenever you ask for one",
+    "shop_decided": "Under the policy, a staff member decides this request",
+    "return_disputed": "A staff member reviews units you say were sent but are not recorded as received back",
+    "delivery_disputed": "A staff member reviews an order recorded as delivered that you say never arrived",
+    "shipping_refund": "A staff member reviews a request to refund the shipping charge",
+}
+
+
+def _handoffs(history: Sequence[dict]) -> list[tuple[str, list[str]]]:
+    """The handoffs made in the conversation, as (reason code, the sections their results gave)."""
+    found = []
+    for message in history:
+        if message.get("role") != "tool" or message.get("name") != "request_handoff":
+            continue
+        try:
+            result = json.loads(message.get("content") or "{}")
+        except json.JSONDecodeError:
+            continue
+        if isinstance(result, dict) and result.get("ok") and result.get("reason_code") in HANDOFF_CASES:
+            found.append(
+                (result["reason_code"], [c for c in result.get("policy_citations") or [] if isinstance(c, str)])
+            )
+    return found
 
 
 def _tool_facts(history: Sequence[dict]) -> tuple[dict[str, None], set[str], dict[str, str]]:
@@ -92,4 +121,8 @@ def fact_line(history: Sequence[dict], answer: str, policy: Policy) -> str:
             sentences.append(
                 f"Only orders recorded as delivered can be refunded through this process, and {orders} ({eligible})."
             )
+    for code, citations in _handoffs(history):
+        missing = [c for c in citations if c not in answer and c not in said_before]
+        if missing:
+            sentences.append(f"{HANDOFF_CASES[code]} ({'), ('.join(missing)}).")
     return " ".join(sentences)

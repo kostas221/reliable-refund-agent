@@ -1,0 +1,79 @@
+# Development copy of H26 (scenarios/held-out-v1.1/H26-refund-close-to-the-thirty-day-deadline.toml): copied on 2026-10-27,
+# after the final evaluation of v1.1 used its held-out set (plan change log, 2026-10-27). The held-out file
+# stays frozen and unchanged; this copy follows the citation rule of v1.2.
+# Refund close to the thirty-day deadline.
+# The author's candidate H26 (author-output-2.md), converted by scripts/convert_held_out_v1_1.py;
+# every choice the author did not state is in docs/held-out-v1.1/conversion-log.md.
+# Olist order 49b1291e3a53100a17731adbbb76eb8c (data/olist/subset-v1.1.json): 1 item(s), debit_card 101.48 in 1 instalment(s).
+id = "D43"
+title = "Refund close to the thirty-day deadline"
+split = "development"
+derived_from = "H26"
+category = "eligible"
+template = "refund-close-to-the-thirty-day-deadline"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 29 days and 18 hours after o1 delivery; refund deadline is 6 hours after now
+agent_visible_orders = ["h26-o1"]
+
+[[fixture.customers]]
+id = "h26-beatriz"
+name = "Beatriz Ramos"
+email = "beatriz.ramos@example.test"
+
+[[fixture.staff]]
+id = "h26-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h26-o1"
+customer = "h26-beatriz"
+status = "delivered"
+purchased_at = 2026-10-10T16:13:54Z
+delivered_at = 2026-10-17T16:00:00Z  # delivered 29 days and 18 hours before now
+payments = [{ method = "debit_card", amount_minor = 10148, installments = 1 }]  # 8785 + shipping 1363
+olist_order = "49b1291e3a53100a17731adbbb76eb8c"
+
+[[fixture.orders.units]]
+id = "h26-o1-u1"
+product = "Adjustable reading light"
+price_minor = 8785
+paid_minor = 8785
+shipping_minor = 1363
+received_back_at = 2026-11-14T10:00:00Z  # received back 2 days before now
+olist_item = 1
+
+[customer]
+id = "h26-beatriz"
+goal = "Get the refund for your reading light shortly before the deadline."
+opening_message = "I know today is the last day to ask about my reading light. You have the return already. Please refund it."
+facts = []
+behaviour = [
+    "If told the deadline has passed, point out that the thirty-day period has not ended.",
+    "Confirm the correct proposal.",
+    "Decline a person.",
+    "End after the receipt is given.",
+]
+confirms = { units = ["h26-o1-u1"], amount_minor = 8785 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h26-o1-u1"]
+decision = "eligible"
+amount_minor = 8785
+
+[expected]
+refunded_units = ["h26-o1-u1"]
+refund_amount_minor = 8785  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/window"]
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/window" = "The request is on time: the 30-day limit ends today."

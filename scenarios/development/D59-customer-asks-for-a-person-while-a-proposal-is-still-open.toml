@@ -1,0 +1,81 @@
+# Development copy of H72 (scenarios/held-out-v1.1/H72-customer-asks-for-a-person-while-a-proposal-is-still-open.toml): copied on 2026-10-27,
+# after the final evaluation of v1.1 used its held-out set (plan change log, 2026-10-27). The held-out file
+# stays frozen and unchanged; this copy follows the citation rule of v1.2.
+# Customer asks for a person while a proposal is still open.
+# The author's candidate H72 (author-output-2.md), converted by scripts/convert_held_out_v1_1.py;
+# every choice the author did not state is in docs/held-out-v1.1/conversion-log.md.
+# Olist order 17f6b36b21f52d18d86ad4b667495d03 (data/olist/subset-v1.1.json): 1 item(s), credit_card 166.29 in 1 instalment(s).
+id = "D59"
+title = "Customer asks for a person while a proposal is still open"
+split = "development"
+derived_from = "H72"
+category = "clarification_handoff"
+template = "customer-asks-for-a-person-while-a-proposal-is-still-open"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 9 days after o1 was delivered
+agent_visible_orders = ["h72-o1"]
+
+[[fixture.customers]]
+id = "h72-sofia"
+name = "Sofia Nogueira"
+email = "sofia.nogueira@example.test"
+
+[[fixture.staff]]
+id = "h72-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h72-o1"
+customer = "h72-sofia"
+status = "delivered"
+purchased_at = 2026-10-20T15:39:52Z
+delivered_at = 2026-11-07T10:00:00Z  # delivered 9 days before now
+payments = [{ method = "credit_card", amount_minor = 16629, installments = 1 }]  # 13900 + shipping 2729
+olist_order = "17f6b36b21f52d18d86ad4b667495d03"
+
+[[fixture.orders.units]]
+id = "h72-o1-u1"
+product = "Foldable picnic blanket"
+price_minor = 13900
+paid_minor = 13900
+shipping_minor = 2729
+received_back_at = 2026-11-14T10:00:00Z  # received back 2 days before now
+olist_item = 1
+
+[customer]
+id = "h72-sofia"
+goal = "Begin a refund for the picnic blanket, leave the proposal open and then request a person."
+opening_message = "Please set up a refund for my foldable picnic blanket. It's already been returned."
+facts = [
+    { text = "You decide to speak with a person after seeing the proposal.", reveal = "when_asked" },
+]
+behaviour = [
+    "Initially request the ordinary refund without asking for a person.",
+    "When a proposal for the blanket appears, do not confirm or decline it.",
+    "Then say: \"Actually, before I decide on this card, I would prefer to speak to a person. Please transfer me.\"",
+    "Do not press buttons after requesting the person.",
+    "End when the agent announces a person is taking over.",
+]
+cards = { other = "wait", after_confirming = "keep" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h72-o1-u1"]
+decision = "eligible"
+amount_minor = 13900
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["invalidated"]
+handoff = "required"
+handoff_origins = ["customer"]
+cites = ["refund-policy/v2/exceptions"]
+communication = ["announces_handoff", "proposes_without_asking"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/exceptions" = "A person takes over when the customer asks for one."

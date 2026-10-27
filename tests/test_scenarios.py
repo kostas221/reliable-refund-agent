@@ -55,6 +55,7 @@ COPIES = [s for s in DEVELOPMENT if s.derived_from]  # copies of held-out scenar
 # Contrasting cases in pairs, written before any run of them (plan change log, 2026-10-22).
 CONTRAST = [s for s in DEVELOPMENT if not s.derived_from and int(s.id[1:]) > 30]
 FINAL_RUN = REPO_ROOT / "runs" / "final-20261019T201207Z" / "manifest.json"
+FINAL_RUN_V1_1 = REPO_ROOT / "runs" / "final-v1.1-20261026T125831Z" / "manifest.json"
 SUBSET = json.loads((REPO_ROOT / "data" / "olist" / "subset.json").read_text(encoding="utf-8"))
 # A list price above what was paid is synthetic, and written in the scenario (data/olist/README.md).
 SYNTHETIC_LIST_PRICE = {"H02"}
@@ -75,9 +76,11 @@ def policy_order(scenario: Scenario, unit_id: str) -> eligibility.Order:
 
 
 def test_development_scenarios_numbered_in_order():
-    assert [s.id for s in DEVELOPMENT] == [f"D{n:02d}" for n in range(1, 43)]
+    assert [s.id for s in DEVELOPMENT] == [f"D{n:02d}" for n in range(1, 63)]
     assert [s.id for s in ORIGINAL] == [f"D{n:02d}" for n in range(1, 11)]
-    assert [(s.id, s.derived_from) for s in COPIES] == [(f"D{n + 10:02d}", f"H{n:02d}") for n in range(1, 21)]
+    # v1's held-out set as D11 to D30 (2026-10-20); v1.1's as D43 to D62, in the order of its IDs (2026-10-27)
+    v1_1 = [(f"D{n:02d}", s.id) for n, s in zip(range(43, 63), HELD_OUT_V1_1, strict=True)]
+    assert [(s.id, s.derived_from) for s in COPIES] == [(f"D{n + 10:02d}", f"H{n:02d}") for n in range(1, 21)] + v1_1
     assert [s.id for s in CONTRAST] == [f"D{n:02d}" for n in range(31, 43)]
 
 
@@ -127,17 +130,24 @@ def test_a_customer_offered_a_person_beside_the_goal_knows_what_to_say():
 
 
 def test_a_development_copy_is_its_source_but_for_id_split_and_origin():
-    sources = {s.id: s for s in HELD_OUT}
+    sources = {s.id: s for s in (*HELD_OUT, *HELD_OUT_V1_1)}
+    rule = {"cites", "obligations", "quality_cites"}  # the citation rule of v1.2, which development follows
     for copy in COPIES:
         source = sources[copy.derived_from]
         if copy.policy_version != source.policy_version:
             continue  # rewritten for a later policy, which the plan's change log records
-        different = {"id", "split", "derived_from"}
+        different = {"id", "split", "derived_from", "expected"}
         assert copy.model_dump(exclude=different) == source.model_dump(exclude=different), copy.id
+        assert copy.expected.model_dump(exclude=rule) == source.expected.model_dump(exclude=rule), copy.id
+        # A section only moves between required and quality, and every required one states its obligation.
+        listed = {*copy.expected.cites, *copy.expected.quality_cites}
+        assert listed == {*source.expected.cites, *source.expected.quality_cites}, copy.id
+        assert set(copy.expected.obligations) == set(copy.expected.cites), copy.id
 
 
 def test_only_held_out_scenarios_a_final_evaluation_ran_are_copied():
     ran = json.loads(FINAL_RUN.read_text(encoding="utf-8"))["identity"]["scenarios"]
+    ran += json.loads(FINAL_RUN_V1_1.read_text(encoding="utf-8"))["identity"]["scenarios"]
     assert {s.derived_from for s in COPIES} <= set(ran)
 
 
@@ -233,7 +243,7 @@ def test_agent_sees_exactly_the_customers_orders(scenario):
 def test_citations_and_reasons_name_policy_sections(scenario):
     policy = policy_for([scenario])  # the version the scenario was written for
     sections = {section.id for section in policy.sections}
-    for citation in scenario.expected.cites:
+    for citation in (*scenario.expected.cites, *scenario.expected.quality_cites):
         policy_id, version, section = citation.split("/")
         assert (policy_id, version, section in sections) == (policy.policy_id, policy.version, True), citation
     for check in scenario.policy_checks:
@@ -442,3 +452,30 @@ def test_loading_the_held_out_set_checks_the_freeze_itself(copy, monkeypatch):
     path.write_text(path.read_text(encoding="utf-8") + "# a late edit\n", encoding="utf-8")
     with pytest.raises(FrozenError, match=path.name):
         load_split("held_out")
+
+
+# The citation rule of v1.2 (docs/v1.2/citation-rule.md): each required citation states its obligation, or none does
+# (the frozen sets of v1 and v1.1); a quality citation is never also required.
+
+RETURN, WINDOW = "refund-policy/v2/return", "refund-policy/v2/window"
+
+
+def d06_with(**expected):
+    data = tomllib.loads(next(SPLIT_DIRS["development"].glob("D06-*.toml")).read_text(encoding="utf-8"))
+    base = {key: value for key, value in data["expected"].items() if key not in ("obligations", "quality_cites")}
+    return {**data, "expected": {**base, **expected}}
+
+
+def test_an_obligation_goes_with_every_required_citation_and_only_with_one():
+    Scenario.model_validate(d06_with(cites=[RETURN], obligations={RETURN: "The shoes must arrive first."}))
+    Scenario.model_validate(d06_with(cites=[RETURN]))  # none at all: the rule of v1.1
+    with pytest.raises(ValidationError, match="an obligation for every required citation"):
+        Scenario.model_validate(d06_with(cites=[RETURN, WINDOW], obligations={RETURN: "The shoes must arrive first."}))
+    with pytest.raises(ValidationError, match="an obligation for every required citation"):
+        Scenario.model_validate(d06_with(cites=[RETURN], obligations={RETURN: "x", WINDOW: "y"}))
+
+
+def test_a_quality_citation_is_not_also_required():
+    Scenario.model_validate(d06_with(cites=[RETURN], quality_cites=[WINDOW]))
+    with pytest.raises(ValidationError, match="both required and a quality citation"):
+        Scenario.model_validate(d06_with(cites=[RETURN], quality_cites=[RETURN]))

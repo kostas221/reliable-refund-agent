@@ -1,0 +1,82 @@
+# Development copy of H28 (scenarios/held-out-v1.1/H28-original-card-was-cancelled-after-purchase.toml): copied on 2026-10-27,
+# after the final evaluation of v1.1 used its held-out set (plan change log, 2026-10-27). The held-out file
+# stays frozen and unchanged; this copy follows the citation rule of v1.2.
+# Original card was cancelled after purchase.
+# The author's candidate H28 (author-output-2.md), converted by scripts/convert_held_out_v1_1.py;
+# every choice the author did not state is in docs/held-out-v1.1/conversion-log.md.
+# Olist order 845faa625ef6a2b4549edd96a4bb7308 (data/olist/subset-v1.1.json): 1 item(s), credit_card 73.54 in 6 instalment(s).
+id = "D44"
+title = "Original card was cancelled after purchase"
+split = "development"
+derived_from = "H28"
+category = "eligible"
+template = "original-card-was-cancelled-after-purchase"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 11 days after o1 was delivered
+agent_visible_orders = ["h28-o1"]
+
+[[fixture.customers]]
+id = "h28-caio"
+name = "Caio Monteiro"
+email = "caio.monteiro@example.test"
+
+[[fixture.staff]]
+id = "h28-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h28-o1"
+customer = "h28-caio"
+status = "delivered"
+purchased_at = 2026-10-25T10:58:11Z
+delivered_at = 2026-11-05T10:00:00Z  # delivered 11 days before now
+payments = [{ method = "credit_card", amount_minor = 7354, installments = 6 }]  # 5500 + shipping 1854
+olist_order = "845faa625ef6a2b4549edd96a4bb7308"
+
+[[fixture.orders.units]]
+id = "h28-o1-u1"
+product = "Cotton area rug"
+price_minor = 5500
+paid_minor = 5500
+shipping_minor = 1854
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 1
+
+[customer]
+id = "h28-caio"
+goal = "Refund your returned rug through the normal process despite your old card being cancelled."
+opening_message = "I need a refund for the rug. My credit card was cancelled since I placed the order. Does that stop the refund?"
+facts = [
+    { text = "The credit card used for the order was cancelled after the purchase.", reveal = "upfront" },
+    { text = "You are willing to accept the original-payment refund route.", reveal = "when_asked" },
+]
+behaviour = [
+    "Accept the explanation that the shop must refund the original payment.",
+    "Do not request another account or another person card.",
+    "Confirm the correct proposal.",
+    "Decline a person and end after the receipt.",
+]
+confirms = { units = ["h28-o1-u1"], amount_minor = 5500 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h28-o1-u1"]
+decision = "eligible"
+amount_minor = 5500
+
+[expected]
+refunded_units = ["h28-o1-u1"]
+refund_amount_minor = 5500  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/payment"]
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/payment" = "The refund goes to the original payment record, although the card was cancelled."

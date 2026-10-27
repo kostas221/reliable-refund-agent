@@ -1,0 +1,109 @@
+# Development copy of H35 (scenarios/held-out-v1.1/H35-request-for-all-three-units-when-one-was-previously-refunded.toml): copied on 2026-10-27,
+# after the final evaluation of v1.1 used its held-out set (plan change log, 2026-10-27). The held-out file
+# stays frozen and unchanged; this copy follows the citation rule of v1.2.
+# Request for all three units when one was previously refunded.
+# The author's candidate H35 (author-output-2.md), converted by scripts/convert_held_out_v1_1.py;
+# every choice the author did not state is in docs/held-out-v1.1/conversion-log.md.
+# Olist order 46326cfd1e55e365befe43843126f088 (data/olist/subset-v1.1.json): 3 item(s), credit_card 192.30 in 3 instalment(s).
+id = "D47"
+title = "Request for all three units when one was previously refunded"
+split = "development"
+derived_from = "H35"
+category = "ineligible"
+template = "request-for-all-three-units-when-one-was-previously-refunded"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 14 days after o1 was delivered
+agent_visible_orders = ["h35-o1"]
+
+[[fixture.customers]]
+id = "h35-marina"
+name = "Marina Coelho"
+email = "marina.coelho@example.test"
+
+[[fixture.staff]]
+id = "h35-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h35-o1"
+customer = "h35-marina"
+status = "delivered"
+purchased_at = 2026-10-22T09:10:06Z
+delivered_at = 2026-11-02T10:00:00Z  # delivered 14 days before now
+payments = [{ method = "credit_card", amount_minor = 19230, installments = 3 }]  # 4900 + shipping 1510 + 4900 + shipping 1510 + 4900 + shipping 1510
+olist_order = "46326cfd1e55e365befe43843126f088"
+
+[[fixture.orders.units]]
+id = "h35-o1-u1"
+product = "Cotton pillowcase"
+price_minor = 4900
+paid_minor = 4900
+shipping_minor = 1510
+received_back_at = 2026-11-06T10:00:00Z  # received back 10 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h35-o1-u2"
+product = "Cotton pillowcase"
+price_minor = 4900
+paid_minor = 4900
+shipping_minor = 1510
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 2
+
+[[fixture.orders.units]]
+id = "h35-o1-u3"
+product = "Cotton pillowcase"
+price_minor = 4900
+paid_minor = 4900
+shipping_minor = 1510
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 3
+
+[[fixture.past_refunds]]
+units = ["h35-o1-u1"]
+committed_at = 2026-11-09T10:00:00Z  # 7 days before now
+receipt_number = "R-H35-0001"
+
+[customer]
+id = "h35-marina"
+goal = "Request another refund covering all three pillowcases together, including the one already refunded."
+opening_message = "I returned three identical pillowcases. I'd like the refund for all three together, not a refund for just one or two."
+facts = [
+    { text = "One pillowcase was refunded earlier, but you still want all three included in the new refund.", reveal = "when_asked" },
+]
+behaviour = [
+    "Insist that the new refund cover three physical units.",
+    "If offered a refund for only the two remaining units, decline that alternative.",
+    "Do not confirm a reduced proposal.",
+    "Decline a staff handoff.",
+    "End after the agent explains that the already-refunded unit cannot be paid again.",
+]
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h35-o1-u1", "h35-o1-u2", "h35-o1-u3"]
+decision = "refused"
+reasons = ["remaining"]
+
+[[policy_checks]]
+units = ["h35-o1-u2", "h35-o1-u3"]
+decision = "eligible"
+amount_minor = 9800
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["none", "ineligible", "cancelled"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/remaining"]
+communication = ["explains_refusal_reason"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/remaining" = "The pillowcase already refunded cannot be refunded again."

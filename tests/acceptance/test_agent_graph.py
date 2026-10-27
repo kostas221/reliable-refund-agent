@@ -416,7 +416,9 @@ def test_the_fact_line_follows_an_answer_that_states_a_paid_refund_without_its_s
     assert [author for author, _ in s.said()] == ["customer", "agent", "agent", "customer", "agent"]
     assert len(model.requests) == 3  # the line asked the model nothing
     verdict = evaluate(s.scenario, s.app, s.baseline)
-    assert next(item for item in verdict.items if item.name == "cites:refund-policy/v2/remaining").status == "passed"
+    # Shown, so not failed; D20 states its obligation, so the reader checks it (the citation rule of v1.2).
+    cited = next(item for item in verdict.items if item.name == "cites:refund-policy/v2/remaining")
+    assert cited.status == "pending" and cited.evidence.startswith("shown; the reader checks that it told:")
 
 
 def test_no_fact_line_cuts_in_between_an_answer_and_its_tool_calls(shop):

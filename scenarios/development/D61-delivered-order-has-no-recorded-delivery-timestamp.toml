@@ -1,0 +1,81 @@
+# Development copy of H77 (scenarios/held-out-v1.1/H77-delivered-order-has-no-recorded-delivery-timestamp.toml): copied on 2026-10-27,
+# after the final evaluation of v1.1 used its held-out set (plan change log, 2026-10-27). The held-out file
+# stays frozen and unchanged; this copy follows the citation rule of v1.2.
+# Delivered order has no recorded delivery timestamp.
+# The author's candidate H77 (author-output-4.md), converted by scripts/convert_held_out_v1_1.py;
+# every choice the author did not state is in docs/held-out-v1.1/conversion-log.md.
+# Olist order 20edc82cf5400ce95e1afacc25798b31 (data/olist/subset-v1.1.json): 1 item(s), credit_card 54.97 in 1 instalment(s).
+id = "D61"
+title = "Delivered order has no recorded delivery timestamp"
+split = "development"
+derived_from = "H77"
+category = "clarification_handoff"
+template = "delivered-order-has-no-recorded-delivery-timestamp"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 12 days after o1 first changed to delivered status; the delivery-time field is missing
+agent_visible_orders = ["h77-o1"]
+
+[[fixture.customers]]
+id = "h77-mariana"
+name = "Mariana Prado"
+email = "mariana.prado@example.test"
+
+[[fixture.staff]]
+id = "h77-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h77-o1"
+customer = "h77-mariana"
+status = "delivered"
+purchased_at = 2026-10-14T02:09:12Z
+# no delivered_at: status changed to delivered 12 days before now; actual delivery timestamp is missing
+payments = [{ method = "credit_card", amount_minor = 5497, installments = 1 }]  # 4590 + shipping 907
+olist_order = "20edc82cf5400ce95e1afacc25798b31"
+
+[[fixture.orders.units]]
+id = "h77-o1-u1"
+product = "Stainless steel electric kettle"
+price_minor = 4590
+paid_minor = 4590
+shipping_minor = 907
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 1
+
+[customer]
+id = "h77-mariana"
+goal = "Get a refund for your returned electric kettle despite the order lacking a recorded delivery timestamp."
+opening_message = "My electric kettle shows as delivered, and you've already received the return. But I can't find a delivery date anywhere in the order details. Could you process the refund?"
+facts = [
+    { text = "The order status is delivered, but no delivery timestamp is recorded.", reveal = "upfront" },
+    { text = "You do not know the exact UTC delivery time.", reveal = "when_asked" },
+]
+behaviour = [
+    "Do not invent a delivery date or ask the agent to use the purchase date instead.",
+    "If told the missing timestamp requires staff review, accept the handoff.",
+    "Do not insist on an automatic refund after the rule is explained.",
+    "End when a person is announced as taking over.",
+]
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h77-o1-u1"]
+decision = "needs_person"
+reasons = ["eligible-orders"]
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["ineligible"]
+handoff = "required"
+handoff_origins = ["agent"]
+cites = ["refund-policy/v2/eligible-orders"]
+communication = ["announces_handoff"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/eligible-orders" = "An order with no recorded delivery time goes to a staff member."

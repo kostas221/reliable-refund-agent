@@ -1,0 +1,90 @@
+# Development copy of H74 (scenarios/held-out-v1.1/H74-new-timely-proposal-after-an-order-change-invalidated-the-old-one.toml): copied on 2026-10-27,
+# after the final evaluation of v1.1 used its held-out set (plan change log, 2026-10-27). The held-out file
+# stays frozen and unchanged; this copy follows the citation rule of v1.2.
+# New timely proposal after an order change invalidated the old one.
+# The author's candidate H74 (author-output-3.md), converted by scripts/convert_held_out_v1_1.py;
+# every choice the author did not state is in docs/held-out-v1.1/conversion-log.md.
+# Olist order 45e12e19713820e099be97aaeb65b4d4 (data/olist/subset-v1.1.json): 1 item(s), credit_card 329.39 in 3 instalment(s).
+id = "D60"
+title = "New timely proposal after an order change invalidated the old one"
+split = "development"
+derived_from = "H74"
+category = "eligible"
+template = "new-timely-proposal-after-an-order-change-invalidated-the-old-one"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 12 days after o1 was delivered
+agent_visible_orders = ["h74-o1"]
+
+[[fixture.customers]]
+id = "h74-andre"
+name = "Andre Vieira"
+email = "andre.vieira@example.test"
+
+[[fixture.staff]]
+id = "h74-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h74-o1"
+customer = "h74-andre"
+status = "delivered"
+purchased_at = 2026-10-15T22:39:29Z
+delivered_at = 2026-11-04T10:00:00Z  # delivered 12 days before now
+payments = [{ method = "credit_card", amount_minor = 32939, installments = 3 }]  # 27999 + shipping 4940
+olist_order = "45e12e19713820e099be97aaeb65b4d4"
+
+[[fixture.orders.units]]
+id = "h74-o1-u1"
+product = "Adjustable phone tripod"
+price_minor = 27999
+paid_minor = 27999
+shipping_minor = 4940
+received_back_at = 2026-11-07T10:00:00Z  # received back 9 days before now
+olist_item = 1
+
+[[fixture.past_proposals]]
+id = "h74-p1"
+units = ["h74-o1-u1"]
+created_at = 2026-11-09T10:00:00Z  # created 7 days before now; invalidated 5 days before now when the order record was corrected, before payment
+status = "invalidated"
+
+[customer]
+id = "h74-andre"
+goal = "Get a fresh refund proposal for your returned phone tripod after an earlier proposal was invalidated by a correction to the order record."
+opening_message = "The refund request for my phone tripod stopped being valid after a correction to the order details. I didn't cancel it, and no refund came through. Could you create a fresh one?"
+facts = [
+    { text = "The earlier proposal was invalidated after the order record changed.", reveal = "upfront" },
+    { text = "The earlier proposal was never paid.", reveal = "upfront" },
+    { text = "The current order record still shows one valid original payment and the returned unit.", reveal = "when_asked" },
+]
+behaviour = [
+    "Ask for a new proposal rather than attempting to confirm the invalidated one.",
+    "Do not claim that the previous proposal was paid.",
+    "Confirm the new proposal for the tripod.",
+    "Decline a person.",
+    "End once the new refund receipt is given.",
+]
+confirms = { units = ["h74-o1-u1"], amount_minor = 27999 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h74-o1-u1"]
+decision = "eligible"
+amount_minor = 27999
+
+[expected]
+refunded_units = ["h74-o1-u1"]
+refund_amount_minor = 27999  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/validity"]
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/validity" = "The earlier request stopped being valid when the order changed, so a new proposal is needed."

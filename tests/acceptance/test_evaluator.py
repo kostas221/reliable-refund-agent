@@ -361,6 +361,50 @@ def test_a_missing_citation_fails(db):
     assert verdict.names("failed") == ["cites:refund-policy/v2/return"]
 
 
+# The citation rule of v1.2 (docs/v1.2/citation-rule.md, approved on 2026-10-27): a required citation with an obligation
+# is the reader's to check once shown, since a section ID beside a wrong statement is not the explanation the customer
+# needed; one without an obligation, as in the frozen sets, is checked as before; a quality citation never fails.
+
+RETURN, APPROVAL = "refund-policy/v2/return", "refund-policy/v2/approval"
+MUST_ARRIVE = "The shoes must reach the shop before a refund can be requested."
+
+
+def under_rule(scenario_id, obligations, quality=()):
+    scenario = SCENARIOS[scenario_id]
+    expected = scenario.expected.model_copy(update={"obligations": obligations, "quality_cites": tuple(quality)})
+    return scenario.model_copy(update={"expected": expected})
+
+
+def told(db, said):
+    _, app, baseline = seeded(db, "D06")
+    c = Conversation(app, "D06")
+    c.propose(["d06-o1-u1"], "propose-1")
+    c.agent(said)
+    return app, baseline
+
+
+def test_a_shown_citation_with_an_obligation_waits_for_the_reader(db):
+    app, baseline = told(db, f"We need the shoes back before a refund can be requested ({RETURN}).")
+    item = evaluate(under_rule("D06", {RETURN: MUST_ARRIVE}), app, baseline).item(f"cites:{RETURN}")
+    assert item.status == "pending" and MUST_ARRIVE in item.evidence
+
+
+def test_a_missing_citation_with_an_obligation_still_fails(db):
+    app, baseline = told(db, "We need the shoes back before a refund can be requested.")
+    assert evaluate(under_rule("D06", {RETURN: MUST_ARRIVE}), app, baseline).names("failed") == [f"cites:{RETURN}"]
+
+
+def test_a_shown_citation_without_an_obligation_passes_as_before(db):
+    app, baseline = told(db, f"We need the shoes back before a refund can be requested ({RETURN}).")
+    assert evaluate(under_rule("D06", {}), app, baseline).item(f"cites:{RETURN}").status == "passed"
+
+
+def test_a_quality_citation_never_enters_the_verdict(db):
+    app, baseline = told(db, f"We need the shoes back first ({RETURN}).")
+    verdict = evaluate(under_rule("D06", {RETURN: MUST_ARRIVE}, quality=[APPROVAL]), app, baseline)
+    assert not [item.name for item in verdict.items if APPROVAL in item.name]
+
+
 def test_another_customers_data_in_an_agent_message_fails(db):
     _, app, baseline = seeded(db, "D07")
     c = Conversation(app, "D07")
@@ -462,18 +506,94 @@ def test_proposing_what_the_customer_named_at_once_waits_for_the_reader(db):
     assert verdict.item("communication:proposes_without_asking").status == "pending"
 
 
-def test_asking_which_items_after_the_customer_named_them_fails(db):
+# Whether a question asked which items were meant is a reading of its words, so the reader decides it (review of
+# 2026-10-27): the word rule of 2026-10-26 still failed, definitively, questions about other things that use "which",
+# "or just" or "do you mean". The machine fails the criterion only with no proposal at all, and flags for the reader a
+# question that may ask which items, quoted, when the customer answered it before the first proposal.
+
+
+def test_asking_which_items_after_the_customer_named_them_is_flagged_for_the_reader(db):
     _, app, baseline = seeded(db, "D32")
     c = Conversation(app, "D32")
-    c.agent("You returned two linen scarves, olive and rust. Which one would you like refunded?")  # both were named
+    question = "You returned two linen scarves, olive and rust. Which one would you like refunded?"  # both were named
+    c.agent(question)
     c.customer("Both of them, as I said.")
     refund(c, ["d32-o1-u1", "d32-o1-u2"], "R$ 149,80", "both linen scarves")
     verdict = judged(app, "D32", baseline)
-    assert verdict.names("failed") == ["communication:proposes_without_asking"]
+    item = verdict.item("communication:proposes_without_asking")
+    assert (verdict.names("failed"), item.status) == ([], "pending")
+    assert "flag for the reader" in item.evidence and question in item.evidence
+    # The reader who judges it a needless question fails it, as for every pending item.
+    assert verdict.with_audit({item.name: "failed"}).item(item.name).status == "failed"
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Would you like a short explanation, or just the proposal?",
+        "Which part of the payment policy would you like me to explain?",
+        "Do you mean you already sent the parcel?",
+    ],
+)
+def test_a_question_about_something_else_is_never_failed_by_the_machine(db, question):
+    _, app, baseline = seeded(db, "D32")
+    c = Conversation(app, "D32")
+    c.agent(question)
+    c.customer("No need, please just refund both.")
+    refund(c, ["d32-o1-u1", "d32-o1-u2"], "R$ 149,80", "both linen scarves")
+    verdict = judged(app, "D32", baseline)
+    assert verdict.names("failed") == []
+    item = verdict.item("communication:proposes_without_asking")
+    assert verdict.with_audit({item.name: "passed"}).item(item.name).status == "passed"  # the reader decides
+
+
+def test_no_proposal_at_all_fails_the_criterion(db):
+    _, app, baseline = seeded(db, "D32")
+    c = Conversation(app, "D32")
+    c.agent("Both scarves were received back.")
+    verdict = judged(app, "D32", baseline)
+    item = verdict.item("communication:proposes_without_asking")
+    assert (item.status, item.evidence) == ("failed", "pre-check failed: no proposal in this run")
+
+
+def test_asking_whether_to_start_after_answering_a_question_waits_for_the_reader(db):
+    # Final evaluation of v1.1 (H29, H52): the customer asked a question, the agent answered it and asked whether to
+    # start the refund. That is not asking which items are meant, which is all the criterion forbids; the pre-check
+    # failed it because any customer message came before the proposal, and a machine failure is final.
+    _, app, baseline = seeded(db, "D32")
+    c = Conversation(app, "D32")
+    c.agent("Both scarves were received back, so both can be refunded. Would you like me to start that refund now?")
+    c.customer("Yes, please.")
+    refund(c, ["d32-o1-u1", "d32-o1-u2"], "R$ 149,80", "both linen scarves")
+    verdict = judged(app, "D32", baseline)
+    assert verdict.names("failed") == []
+    assert verdict.item("communication:proposes_without_asking").status == "pending"
+    assert "flag" not in verdict.item("communication:proposes_without_asking").evidence  # nothing for the reader to see
+
+
+def test_a_question_that_names_the_alternatives_is_flagged_for_the_reader(db):
+    _, app, baseline = seeded(db, "D32")
+    c = Conversation(app, "D32")
+    c.agent("Do you mean the olive scarf or the rust one?")
+    c.customer("Both, as I said.")
+    refund(c, ["d32-o1-u1", "d32-o1-u2"], "R$ 149,80", "both linen scarves")
+    verdict = judged(app, "D32", baseline)
+    assert verdict.names("failed") == []
+    assert "flag for the reader" in verdict.item("communication:proposes_without_asking").evidence
+
+
+def test_a_question_the_customer_never_had_to_answer_waits_for_the_reader(db):
+    # Asked which and proposed in the same turn: the customer was not made to say again what they had said.
+    _, app, baseline = seeded(db, "D32")
+    c = Conversation(app, "D32")
+    c.agent("Which one would you like refunded, or would you like both? I'll start with both, as you asked.")
+    refund(c, ["d32-o1-u1", "d32-o1-u2"], "R$ 149,80", "both linen scarves")
+    verdict = judged(app, "D32", baseline)
+    assert verdict.names("failed") == []
+    assert verdict.item("communication:proposes_without_asking").status == "pending"
     assert (
-        "1 customer message(s) came before the first proposal"
-        in verdict.item("communication:proposes_without_asking").evidence
-    )
+        "flag" not in verdict.item("communication:proposes_without_asking").evidence
+    )  # the customer was not made to answer
 
 
 def test_a_handoff_after_the_customer_declined_a_staff_member_fails(db):

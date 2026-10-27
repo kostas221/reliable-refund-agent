@@ -24,7 +24,7 @@ def configuration(run, name, scenarios, repeats=3):
     return folder
 
 
-def save(folder, scenario, attempt, failed=(), agent_usd=0.001, seconds=(1.0, 2.0)):
+def save(folder, scenario, attempt, failed=(), agent_usd=0.001, seconds=(1.0, 2.0), messages=()):
     items = [{"name": name, "status": "failed", "evidence": "seen"} for name in failed]
     items.append({"name": PENDING, "status": "pending", "evidence": "seen"})
     result = {
@@ -34,7 +34,7 @@ def save(folder, scenario, attempt, failed=(), agent_usd=0.001, seconds=(1.0, 2.
         "system_error": None,
         "simulator_error": None,
         "stopped_by_budget": None,
-        "messages": [],
+        "messages": list(messages),
         "spent_usd": {"agent": agent_usd, "simulator": 0.0002},
         "refusals": [{"event": "execute", "check": "status_approved", "actor": "agent"}],
         "handoff_origins": [],
@@ -174,3 +174,116 @@ def test_a_development_run_is_one_configuration_and_never_judged_by_the_targets(
     assert (built["kind"], list(built["configurations"]), built["targets"]) == ("development", ["A"], None)
     assert built["configurations"]["A"]["passed"] == 3
     assert report.render(built).startswith("# Run report: pilot-run")
+
+
+# How each run was measured (review of 2026-10-27): a difference between two runs is the product's alone only when the
+# evaluator, the runner that plays the people, the simulated customer, the fixtures' seeding and the paired scenarios'
+# files were the same. Otherwise the comparison says it is a combined change.
+
+PRODUCT = {
+    "refund_agent/agent/tools.py": "t1",
+    "refund_agent/evaluation/evaluator.py": "e1",
+    "refund_agent/evaluation/customers.py": "c1",
+    "prompts/customer-simulator-v1.md": "p1",
+    "scenarios/development/D01-single-returned-item.toml": "s1",
+}
+
+
+def measured(folder, files, instructions="prompts/customer-simulator-v1.md", model="gpt-6-luna"):
+    path = folder / "manifest.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["identity"].update({"simulator_model": model, "simulator_instructions": instructions})
+    manifest["files"] = files
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+
+
+def two_runs(tmp_path):
+    folders = []
+    for name in ("before", "after"):
+        folder = configuration(tmp_path, name, ["D01"])
+        for attempt in (1, 2, 3):
+            save(folder, "D01", attempt)
+        audit(folder, report.CLAUDE)
+        folders.append(folder)
+    return folders
+
+
+def test_a_change_of_the_product_alone_is_measured_the_same_way(tmp_path):
+    base, new = two_runs(tmp_path)
+    measured(base, PRODUCT)
+    measured(new, {**PRODUCT, "refund_agent/agent/tools.py": "t2"})
+    c = report.compare_runs(new, [base])
+    assert c["measurement_changes"] == []
+    assert "Measured the same way" in report.render_comparison(c)
+
+
+def test_a_comparison_names_every_change_in_how_the_runs_were_measured(tmp_path):
+    base, new = two_runs(tmp_path)
+    measured(base, PRODUCT)
+    changed = {
+        **PRODUCT,
+        "refund_agent/evaluation/evaluator.py": "e2",
+        "scenarios/development/D01-single-returned-item.toml": "s2",
+        "prompts/customer-simulator-v2.md": "p2",
+    }
+    measured(new, changed, instructions="prompts/customer-simulator-v2.md", model="gpt-6.1-sol")
+    c = report.compare_runs(new, [base])
+    assert c["measurement_changes"] == [
+        "refund_agent/evaluation/evaluator.py",
+        "scenarios/development/D01-single-returned-item.toml",
+        "simulator instructions: prompts/customer-simulator-v1.md -> prompts/customer-simulator-v2.md",
+        "simulator model: gpt-6-luna -> gpt-6.1-sol",
+    ]
+    assert "a combined change of the product and the measurement" in report.render_comparison(c)
+
+
+def test_a_final_runs_configuration_is_measured_by_the_runs_manifest(tmp_path):
+    base, new = two_runs(tmp_path)
+    measured(new, PRODUCT)
+    final = tmp_path / "final"
+    folder = configuration(final, "A", ["D01"])  # a configuration's own manifest holds no file hashes
+    for attempt in (1, 2, 3):
+        save(folder, "D01", attempt)
+    audit(folder, report.CLAUDE)
+    simulator = {"model": "gpt-6-luna", "reasoning": "low"}
+    run_identity = {"simulator": simulator, "simulator_instructions": "prompts/customer-simulator-v1.md"}
+    (final / "manifest.json").write_text(json.dumps({"identity": run_identity, "files": PRODUCT}), encoding="utf-8")
+    assert report.compare_runs(new, [folder])["measurement_changes"] == []
+    unknown = report.compare_runs(new, [base])["measurement_changes"]  # its manifest holds no file hashes
+    assert unknown == [f"unknown: {base.as_posix()} records no file hashes"]
+
+
+# The result under the v1.1 citation rule too (docs/v1.2/citation-rule.md): there, every citation a scenario lists,
+# required or quality, is judged by its presence alone, as v1.1 judged it.
+
+
+def test_the_result_is_also_given_under_the_v1_1_citation_rule(tmp_path):
+    # A citation the v1.2 rule makes a quality one (as H30's approval) was required under v1.1.
+    from refund_agent.scenarios import load_split
+
+    scenarios = {s.id: s for s in load_split("development")}
+    quality = {"cites": (), "obligations": {}, "quality_cites": ("refund-policy/v2/eligible-orders",)}
+    scenarios["D35"] = scenarios["D35"].model_copy(
+        update={"expected": scenarios["D35"].expected.model_copy(update=quality)}
+    )
+    folder = configuration(tmp_path, "A", ["D35"])
+    shown = [{"role": "agent", "text": "Your lamp is on its way (refund-policy/v2/eligible-orders)."}]
+    for attempt, messages in ((1, shown), (2, ()), (3, ())):
+        save(folder, "D35", attempt, messages=messages)
+    audit(folder, report.CLAUDE)
+    c = report.summarize("A", report.tries(folder), scenarios, folder)
+    assert (c["passed"], c["pass3"]) == (3, 1)
+    assert (c["v1_1_rule"]["passed"], c["v1_1_rule"]["pass3"]) == (1, 0)
+    assert "Success under the v1.1 citation rule" in report.render(report.build(tmp_path))
+
+
+def test_under_the_v1_1_citation_rule_every_other_failure_still_fails(tmp_path):
+    folder = configuration(tmp_path, "A", ["D01"])
+    save(folder, "D01", 1, failed=["outcome:refunds"])
+    save(folder, "D01", 2)
+    save(folder, "D01", 3)
+    audit(folder, report.CLAUDE)
+    from refund_agent.scenarios import load_split
+
+    c = report.summarize("A", report.tries(folder), {s.id: s for s in load_split("development")}, folder)
+    assert (c["passed"], c["v1_1_rule"]["passed"], c["v1_1_rule"]["pass3"]) == (2, 2, 0)

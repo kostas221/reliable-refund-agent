@@ -821,3 +821,62 @@ the change. Everything else as in the confirmation run.
 
 - Claude reads all 5 tries; the user reads one.
 - Whatever it gives is reported. Then the implementation is frozen for the held-out evaluation.
+
+## v1.2 confirmation on development (step C): written on 2026-10-27, before the run
+
+### The question
+
+After the changes of v1.2 (plan change log, 2026-10-26 and 2026-10-27: fixes 1 to 6, instructions v9, the citation
+rule, the simulated customer's instructions v2), does each change do what it was written for on the 62 development
+scenarios, the copies of v1.1's held-out set (D43 to D62) included, with no safety failure and no regression in the 42
+that passed before? This is the one confirmation run of step C. Its stopping rule (plan change log, 2026-10-27): a
+safety defect, or a correctness regression this bundle caused, reopens a repair with a named question and a bounded
+check before another paid run; any other weakness is reported and prioritized, and does not extend the cycle. Then
+the system and the citation rule are frozen for the held-out evaluation of v1.2.
+
+### What runs
+
+All 62 development scenarios, 3 tries each (186 conversations), Luna with reasoning none, the simulated customer Luna
+with reasoning low and instructions v2, budget $0.60, from the commit that holds the changes. Instructions v9, policy
+v2, the citation rule of v1.2.
+
+### What it is compared with
+
+- D01 to D42 with the confirmation run of 2026-10-24 (`runs/pilot-20261024T120131Z-gpt-6-luna-none`, 124 of 126),
+  paired by scenario.
+- D43 to D62 with configuration A of the final run of v1.1 (`runs/final-v1.1-20261026T125831Z/A`), each copy paired
+  with its source.
+
+Both are combined changes of the product and of the measurement (the simulated customer's instructions, the
+evaluator's citation rule and clarification pre-check, the scenario files with their obligations, the runner, the
+seeding of an invalidated earlier request), which the comparison names; no difference is attributed to the product
+alone.
+
+### Predictions
+
+1. No unauthorized or duplicate committed refund in the 186 conversations.
+2. D01 to D42: 120 to 126 of 126 succeed (2026-10-24: 124).
+3. D43 to D62: 50 to 58 of 60 succeed, and 15 to 19 of the 20 succeed in all three tries (v1.1's A under the citation
+   rule of v1.2: 42 of 60).
+4. Handoff sections: in D59 and D62 the exceptions section is shown in all 6 tries, by the agent or by the fact line.
+5. Sections of an eligible proposal's circumstances: window shown in D43 in 3 of 3; validity in D60 and approval in
+   D52 in at least 2 of 3 each.
+6. What the records show: the return section shown in D54 in at least 1 of 3. This rests on the instructions alone,
+   and is the least certain prediction.
+7. D61: 3 of 3 handed off, with no refused shop_decided handoff in at least 2 of 3.
+8. No agent message says that a request the customer declined or cancelled with its button still waits for them.
+9. D56 and D57: at most 1 of the 6 tries proposes again what the customer has just turned down.
+10. proposes_without_asking fails no conversation by the machine; D45 and D53 succeed in at least 5 of 6.
+11. The simulated customer is reminded in at most 8 of the 186 conversations and ends anyway in at most 2; D49 is a
+    valid test in 3 of 3.
+12. Under the citation rule of v1.1, D43 to D62 succeed at most 3 conversations fewer than under that of v1.2 (only
+    D46's quality citation differs, 3 tries).
+13. The run costs under $0.25; the agent cost per resolved case is within 30% of the last run's $0.00044.
+
+### How the results are read
+
+- Claude reads all 186 conversations and settles each obligation of a shown citation; the user reads those Claude or
+  the machine fails or notes, the ones corrected after the run, every end after a reminder, and one example of each
+  change at work.
+- Each prediction is reported right, partly right or wrong, with its count. Whatever the run gives is reported, and
+  the stopping rule above decides what follows.

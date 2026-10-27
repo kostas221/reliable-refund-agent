@@ -1,0 +1,88 @@
+# Development copy of H50 (scenarios/held-out-v1.1/H50-fresh-refund-after-an-earlier-staff-rejection.toml): copied on 2026-10-27,
+# after the final evaluation of v1.1 used its held-out set (plan change log, 2026-10-27). The held-out file
+# stays frozen and unchanged; this copy follows the citation rule of v1.2.
+# Fresh refund after an earlier staff rejection.
+# The author's candidate H50 (author-output-2.md), converted by scripts/convert_held_out_v1_1.py;
+# every choice the author did not state is in docs/held-out-v1.1/conversion-log.md.
+# Olist order 38f48d4adfebeacd5c07311b4502498f (data/olist/subset-v1.1.json): 1 item(s), debit_card 1431.63 in 1 instalment(s).
+id = "D52"
+title = "Fresh refund after an earlier staff rejection"
+split = "development"
+derived_from = "H50"
+category = "eligible"
+template = "fresh-refund-after-an-earlier-staff-rejection"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 18 days after o1 was delivered
+agent_visible_orders = ["h50-o1"]
+
+[[fixture.customers]]
+id = "h50-gustavo"
+name = "Gustavo Pires"
+email = "gustavo.pires@example.test"
+
+[[fixture.staff]]
+id = "h50-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h50-o1"
+customer = "h50-gustavo"
+status = "delivered"
+purchased_at = 2026-10-23T13:53:22Z
+delivered_at = 2026-10-29T10:00:00Z  # delivered 18 days before now
+payments = [{ method = "debit_card", amount_minor = 143163, installments = 1 }]  # 139990 + shipping 3173
+olist_order = "38f48d4adfebeacd5c07311b4502498f"
+
+[[fixture.orders.units]]
+id = "h50-o1-u1"
+product = "Compact electric food chopper"
+price_minor = 139990
+paid_minor = 139990
+shipping_minor = 3173
+received_back_at = 2026-11-06T10:00:00Z  # received back 10 days before now
+olist_item = 1
+
+[[fixture.past_proposals]]
+id = "h50-p1"
+units = ["h50-o1-u1"]
+created_at = 2026-11-09T10:00:00Z  # 7 days before now, after the return had been received
+status = "rejected"
+
+[customer]
+id = "h50-gustavo"
+goal = "Make a fresh refund request for your returned food chopper after a previous proposal was rejected by staff."
+opening_message = "My food chopper refund was rejected last week, even though the return had arrived. I still want a refund. Could we make a fresh request?"
+facts = [
+    { text = "The previous proposal was rejected by staff and no refund was paid.", reveal = "upfront" },
+    { text = "The shop received the returned unit before the earlier proposal was created.", reveal = "upfront" },
+]
+behaviour = [
+    "Request a fresh proposal rather than reopening the rejected one.",
+    "Confirm the newly proposed refund.",
+    "Decline a person.",
+    "End when the new refund receipt is provided.",
+]
+confirms = { units = ["h50-o1-u1"], amount_minor = 139990 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h50-o1-u1"]
+decision = "eligible"
+amount_minor = 139990
+
+[expected]
+refunded_units = ["h50-o1-u1"]
+refund_amount_minor = 139990  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/approval"]
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/approval" = "A fresh request is a new proposal that needs the customer's confirmation and a staff member's approval again."

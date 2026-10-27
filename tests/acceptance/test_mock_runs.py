@@ -8,7 +8,7 @@ import pytest
 from langgraph.checkpoint.postgres import PostgresSaver
 
 from refund_agent import db as database
-from refund_agent.agent.model import Call, Say, ScriptedModel
+from refund_agent.agent.model import Call, ModelTurn, Say, ScriptedModel
 from refund_agent.evaluation.customers import ScriptedCustomer, SimulatedCustomer
 from refund_agent.evaluation.mock_scripts import CARELESS_D01, MOCK, MockRun
 from refund_agent.evaluation.runner import run_scenario
@@ -58,6 +58,30 @@ def test_every_development_scenario_runs_end_to_end_in_mock_mode(play, scenario_
     assert result.verdict.with_audit(lenient_audit(result.verdict)).result == "passed"
 
 
+def test_a_case_for_staff_named_in_the_handoff_passes_without_a_proposal_first(play):
+    # Final evaluation of v1.1, H77: the agent handed off a case for staff with its order and units before any
+    # proposal. The backend records the request itself now, so the conversation ends as the two steps end.
+    steps = [s for s in MOCK["D10"].agent if not (isinstance(s, Call) and s.name == "propose_refund")]
+    at = next(i for i, s in enumerate(steps) if isinstance(s, Call) and s.name == "request_handoff")
+    steps[at] = Call("request_handoff", {**steps[at].arguments, "order_id": "d10-o1", "unit_ids": ["d10-o1-u1"]})
+    result = play("D10", MockRun(agent=tuple(steps)))
+    assert result.verdict.names("failed") == [], result.verdict.report()
+    assert result.verdict.with_audit(lenient_audit(result.verdict)).result == "passed"
+
+
+def test_a_handoff_announced_without_its_section_is_cited_by_the_fact_line(play):
+    # Final evaluation of v1.1, H72 and H80: the customer asked for a person, the agent handed off and announced it
+    # without the exceptions section the scenario required. D36's script announces it so too.
+    scenario = DEVELOPMENT["D36"]
+    cited = scenario.model_copy(
+        update={"expected": scenario.expected.model_copy(update={"cites": ["refund-policy/v2/exceptions"]})}
+    )
+    result = play("D36", MOCK["D36"], scenario=cited)
+    assert result.verdict.item("cites:refund-policy/v2/exceptions").status == "passed", result.verdict.report()
+    (line,) = [m for m in result.messages if m.get("fact_line")]
+    assert line["text"] == "A person takes over whenever you ask for one (refund-policy/v2/exceptions)."
+
+
 def with_cards(scenario_id, **cards):
     """The scenario with another plan for the customer's cards."""
     scenario = DEVELOPMENT[scenario_id]
@@ -78,8 +102,16 @@ def test_a_customer_who_waits_gets_the_open_proposal_replaced(play, db):
 
 
 def test_a_customer_who_declines_other_cards_declines_them_at_once(play, db):
-    play("D02", MOCK["D02"], scenario=with_cards("D02", other="decline"))
+    result = play("D02", MOCK["D02"], scenario=with_cards("D02", other="decline"))
     assert rows(db("app"), STATUSES) == [("cancelled", "declined"), ("refunded", None)]
+    # The agent is told before the customer writes again (final evaluation of v1.1: it was not, and said seven times
+    # that a declined request still waited for the customer's button).
+    (declined,) = rows(db("app"), "SELECT id FROM proposals WHERE status_reason = 'declined'")
+    roles = [m["role"] for m in result.messages]
+    at = next(i for i, m in enumerate(result.messages) if declined[0] in (m.get("text") or "") and m["role"] == "event")
+    assert result.messages[at]["text"].startswith(f"The customer declined request {declined[0]} with the button")
+    # Before the customer's next message, not with the staff decision later: the customer's second line comes after it.
+    assert roles.index("customer", 1) > at, roles
 
 
 def test_a_customer_who_cancels_after_confirming_stops_the_refund_before_the_staff_decision(play, db):
@@ -180,6 +212,26 @@ def test_a_conversation_cut_off_by_the_round_limit_waits_for_a_reader(play):
     assert (result.ended, result.system_error, result.simulator_error) == ("round_limit", None, None)
     cut = result.verdict.item("conversation:cut_off")
     assert cut.status == "pending" and "runner's limit of rounds" in cut.evidence
+
+
+class InOrder:
+    """A simulated customer's model that says its answers in order, however it is asked."""
+
+    name = "in-order"
+
+    def __init__(self, *answers):
+        self.answers = list(answers)
+
+    def respond(self, instructions, messages, tools):
+        return ModelTurn(text=self.answers.pop(0))
+
+
+def test_a_reminder_to_answer_the_agents_offer_is_kept_with_the_result(play):
+    # Review of 2026-10-27: the simulated customer ends in front of the offer, is reminded once, and says yes.
+    customer = SimulatedCustomer(DEVELOPMENT["D40"], InOrder("[END]", "Yes, please.", "[END]"))
+    result = play("D40", MOCK["D40"], customer=customer)
+    assert result.simulator_reminders == ["answered"]
+    assert result.verdict.names("failed") == [], result.verdict.report()
 
 
 def test_a_conversation_cut_off_by_the_simulators_limit_says_so(play):

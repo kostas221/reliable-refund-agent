@@ -9,7 +9,7 @@ Luna try 2 cited nothing, Sol try 2 cited the exceptions section), D25 (a receip
 
 import json
 
-from refund_agent.agent.facts import fact_line
+from refund_agent.agent.facts import HANDOFF_CASES, fact_line
 from refund_agent.policy import load_policy
 
 POLICY = load_policy()
@@ -98,3 +98,64 @@ def test_both_facts_go_in_one_line_and_each_cites_its_section():
     )
     line = fact_line([both], "Receipt R-H10-0001 is paid; your lamp is shipped.", POLICY)
     assert REMAINING in line and ELIGIBLE in line
+
+
+# A handoff's section (final evaluation of v1.1, 2026-10-26). Every refusal's tool result gave its sections, and all 98
+# required refusal citations of the runs on policy v2 were shown; a handoff's result gave none, and 11 of 18 required
+# handoff citations were missed (H72, H80: the customer asked for a person, and the announcement left out the section).
+
+EXCEPTIONS, WINDOW, PAYMENT = "refund-policy/v2/exceptions", "refund-policy/v2/window", "refund-policy/v2/payment"
+
+
+def handed_off(code, citations, ok=True):
+    result = (
+        {"ok": True, "handoff_id": "hand-1", "reason_code": code, "policy_citations": list(citations)}
+        if ok
+        else {"ok": False, "refused": "handoff_reason", "explanation": "not a case the policy names"}
+    )
+    return {"role": "tool", "call_id": "h1", "name": "request_handoff", "content": json.dumps(result)}
+
+
+def test_a_handoff_announced_without_its_section_gets_it():
+    # H80 try 1 of Luna none: "A person will take over from here."
+    line = fact_line([handed_off("customer_asked", [EXCEPTIONS])], "A person will take over from here.", POLICY)
+    assert line == f"A person takes over whenever you ask for one ({EXCEPTIONS})."
+
+
+def test_each_kind_of_handoff_says_its_own_case():
+    for code, case in (
+        ("shop_decided", "Under the policy, a staff member decides this request"),
+        ("return_disputed", "A staff member reviews units you say were sent but are not recorded as received back"),
+        ("delivery_disputed", "A staff member reviews an order recorded as delivered that you say never arrived"),
+        ("shipping_refund", "A staff member reviews a request to refund the shipping charge"),
+    ):
+        line = fact_line([handed_off(code, [WINDOW])], "A person will take over.", POLICY)
+        assert line == f"{case} ({WINDOW}).", code
+
+
+def test_a_handoff_announced_with_its_section_gets_nothing():
+    answer = f"A person takes over whenever you ask for one ({EXCEPTIONS}). They will be with you shortly."
+    assert fact_line([handed_off("customer_asked", [EXCEPTIONS])], answer, POLICY) == ""
+
+
+def test_only_the_sections_not_cited_yet_are_said():
+    # D10: the agent explained the late request with the window section before it handed off.
+    first = agent(f"Your request is past the 30-day limit ({WINDOW}), but an earlier one was made in time.")
+    history = [first, handed_off("shop_decided", [WINDOW, PAYMENT])]
+    assert fact_line(history, "A person will take over.", POLICY) == (
+        f"Under the policy, a staff member decides this request ({PAYMENT})."
+    )
+    assert fact_line([first, handed_off("shop_decided", [WINDOW])], "A person will take over.", POLICY) == ""
+
+
+def test_a_refused_handoff_gets_nothing():
+    assert fact_line([handed_off("customer_asked", [], ok=False)], "I can't hand this over.", POLICY) == ""
+
+
+def test_every_reason_for_a_handoff_has_its_case_and_its_sections():
+    from refund_agent.agent.tools import HANDOFF_SECTIONS
+    from refund_agent.refunds import HANDOFF_REASONS
+
+    assert set(HANDOFF_CASES) == set(HANDOFF_REASONS)
+    assert set(HANDOFF_SECTIONS) | {"shop_decided"} == set(HANDOFF_REASONS)  # shop_decided: the decision's reasons
+    assert all(POLICY.citation(section) for sections in HANDOFF_SECTIONS.values() for section in sections)

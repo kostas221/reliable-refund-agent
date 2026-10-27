@@ -115,3 +115,30 @@ def test_a_conversation_that_fails_on_citations_alone_is_counted():
     assert (alone["failed_on_citations_alone"], besides["failed_on_citations_alone"]) == (True, False)
     assert passed["failed_on_citations_alone"] is False
     assert summarize([alone, besides, passed])["failed_on_citations_alone"] == 1
+
+
+def test_the_simulators_reminders_are_counted_apart():
+    # Review of 2026-10-27: a reminder changes the conversation's course, and a second [END] read as an ordinary end.
+    from refund_agent.evaluation.diagnostics import of_try, summarize
+    from refund_agent.scenarios import load_split
+
+    d40 = next(s for s in load_split("development") if s.id == "D40")
+    first = of_try({"messages": [], "simulator_reminders": ["answered", "ended"]}, set(), {}, d40, "", POLICY)
+    second = of_try({"messages": [], "simulator_reminders": ["answered"]}, set(), {}, d40, "", POLICY)
+    older = of_try({"messages": []}, set(), {}, d40, "", POLICY)  # saved before reminders existed
+    assert summarize([first, second, older])["simulator_reminders"] == {"answered": 2, "ended": 1}
+
+
+def test_quality_citations_are_counted_shown_or_not():
+    # The citation rule of v1.2: a quality citation never fails a conversation, and the report counts it.
+    from refund_agent.evaluation.diagnostics import of_try, summarize
+    from refund_agent.scenarios import load_split
+
+    d35 = next(s for s in load_split("development") if s.id == "D35")
+    quality = d35.model_copy(
+        update={"expected": d35.expected.model_copy(update={"quality_cites": ("refund-policy/v2/eligible-orders",)})}
+    )
+    said = {"role": "agent", "text": "It is on its way (refund-policy/v2/eligible-orders)."}
+    shown = of_try({"messages": [said]}, set(), {}, quality, "", POLICY)
+    missed = of_try({"messages": []}, set(), {}, quality, "", POLICY)
+    assert summarize([shown, missed])["quality_citations"] == {"shown": 1, "not shown": 1}

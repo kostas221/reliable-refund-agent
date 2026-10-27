@@ -231,6 +231,55 @@ def test_a_cancellation_is_told_to_the_agent_without_starting_a_run(shop):
     assert rows(shop.app, "SELECT count(*) FROM refund_operations") == [(0,)]
 
 
+# The customer's decline button (final evaluation of v1.1, 2026-10-26): the customer declined proposal cards, the agent
+# was told nothing, and seven times it said a declined request still waited for the customer's button. A decline now
+# stores its notice in the same transaction, as a cancellation does, and starts no run either.
+
+DECLINED = [*CANCELLED[:3], Say("No. You declined the request, so nothing will be paid.")]
+
+
+def test_a_declined_card_is_told_to_the_agent_without_starting_a_run(shop):
+    agent, model = shop.server(ScriptedModel(DECLINED))
+    agent.receive(shop.conversation, "Please refund my blue mug.")
+    proposal = rows(shop.app, "SELECT id FROM proposals")[0][0]
+    assert confirm(shop.app, CUSTOMER, proposal, "declined", NOW, POLICY) == "cancelled"
+    assert rows(shop.app, NOTICES) == [("declined", 0, False, False)]
+    asked = len(model.requests)
+    assert deliver_pending(shop.app, agent, lambda: NOW) == 1
+    assert len(model.requests) == asked  # the model was asked nothing, so it could propose nothing
+    event = {
+        "role": "event",
+        "text": f"The customer declined request {proposal} with the button on its card, so nothing will be paid.",
+        "notice_id": f"notice-decline-{proposal}",
+    }
+    assert agent.messages(shop.conversation)[-1] == event
+    answer = agent.receive(shop.conversation, "Will anything still be paid?")
+    assert model.requests[-1]["messages"][-2:] == [event, {"role": "customer", "text": "Will anything still be paid?"}]
+    assert answer[-1]["text"] == "No. You declined the request, so nothing will be paid."
+
+
+def test_a_decline_on_a_request_already_closed_tells_its_status(shop):
+    agent, _ = shop.server(ScriptedModel(DECLINED))
+    agent.receive(shop.conversation, "Please refund my blue mug.")
+    proposal = rows(shop.app, "SELECT id FROM proposals")[0][0]
+    later = NOW + timedelta(hours=73)  # past the proposal's 72 hours: the button closes it as expired
+    with pytest.raises(Refused, match="proposal_current"):
+        confirm(shop.app, CUSTOMER, proposal, "declined", later, POLICY)
+    assert deliver_pending(shop.app, agent, lambda: later) == 1
+    assert agent.messages(shop.conversation)[-1]["text"] == (
+        f"The customer pressed decline on request {proposal}, which was already expired, so nothing will be paid."
+    )
+
+
+def test_a_confirmation_stores_no_notice_of_its_own(shop):
+    # The staff decision that follows tells the agent that the customer confirmed (staff_decision).
+    agent, _ = shop.server(ScriptedModel(DECLINED))
+    agent.receive(shop.conversation, "Please refund my blue mug.")
+    proposal = rows(shop.app, "SELECT id FROM proposals")[0][0]
+    assert confirm(shop.app, CUSTOMER, proposal, "confirmed", NOW, POLICY) == "awaiting_staff_approval"
+    assert rows(shop.app, NOTICES) == []
+
+
 def test_a_cancellation_told_twice_is_recorded_once(shop):
     agent, model = shop.server(ScriptedModel(CANCELLED))
     agent.receive(shop.conversation, "Please refund my blue mug.")

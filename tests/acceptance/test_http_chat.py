@@ -231,3 +231,26 @@ def test_a_cancellation_is_told_to_the_agent_without_waking_it(shop):
     assert len(s.model.requests) == asked  # told, not woken
     answer = ana.post(f"/api/conversations/{conversation}/messages", {"text": "Will anything still be paid?"})
     assert answer.json() == {"answers": ["No. You cancelled the request, so nothing will be paid."]}
+
+
+def test_a_declined_card_is_told_to_the_agent_without_waking_it(shop):
+    # Final evaluation of v1.1, 2026-10-26: declines were not told, and the agent said the requests still waited.
+    script = [
+        Call("list_my_orders"),
+        Call("propose_refund", {"order_id": "d01-o1", "unit_ids": ["d01-o1-u1"]}),
+        Say("I can refund {propose_refund.amount_minor|brl} for the blue mug. Please confirm on the proposal card."),
+        Say("No. You declined the request, so nothing will be paid."),
+    ]
+    s = shop(script=script)
+    ana = s.browser("d01-ana")
+    conversation = ana.post("/api/conversations").json()["conversation_id"]
+    ana.post(f"/api/conversations/{conversation}/messages", {"text": s.scenario.customer.opening_message})
+    proposal = conversation_of(s, conversation)["proposals"][0]["proposal_id"]
+    asked = len(s.model.requests)
+    declined = ana.post(f"/api/proposals/{proposal}/confirmation", {"decision": "declined"})
+    assert declined.json()["status"] == "cancelled"
+    told = [m["text"] for m in s.agent.messages(conversation) if m["role"] == "event"]
+    assert told == [notices.customer_declined(proposal, "cancelled")]
+    assert len(s.model.requests) == asked  # told, not woken
+    answer = ana.post(f"/api/conversations/{conversation}/messages", {"text": "Will anything still be paid?"})
+    assert answer.json() == {"answers": ["No. You declined the request, so nothing will be paid."]}

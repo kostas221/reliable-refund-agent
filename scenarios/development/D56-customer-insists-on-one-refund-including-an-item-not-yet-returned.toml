@@ -1,0 +1,103 @@
+# Development copy of H60 (scenarios/held-out-v1.1/H60-customer-insists-on-one-refund-including-an-item-not-yet-returned.toml): copied on 2026-10-27,
+# after the final evaluation of v1.1 used its held-out set (plan change log, 2026-10-27). The held-out file
+# stays frozen and unchanged; this copy follows the citation rule of v1.2.
+# Customer insists on one refund including an item not yet returned.
+# The author's candidate H60 (author-output-2.md), converted by scripts/convert_held_out_v1_1.py;
+# every choice the author did not state is in docs/held-out-v1.1/conversion-log.md.
+# Olist order 344d7792475d51c5c3b9d41758ef8f44 (data/olist/subset-v1.1.json): 3 item(s), credit_card 137.25 in 10 instalment(s).
+id = "D56"
+title = "Customer insists on one refund including an item not yet returned"
+split = "development"
+derived_from = "H60"
+category = "ineligible"
+template = "customer-insists-on-one-refund-including-an-item-not-yet-returned"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 14 days after o1 was delivered
+agent_visible_orders = ["h60-o1"]
+
+[[fixture.customers]]
+id = "h60-bruno"
+name = "Bruno Tavares"
+email = "bruno.tavares@example.test"
+
+[[fixture.staff]]
+id = "h60-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h60-o1"
+customer = "h60-bruno"
+status = "delivered"
+purchased_at = 2026-10-31T10:23:37Z
+delivered_at = 2026-11-02T10:00:00Z  # delivered 14 days before now
+payments = [{ method = "credit_card", amount_minor = 13725, installments = 10 }]  # 3600 + shipping 1371 + 3300 + shipping 1372 + 4000 + shipping 82
+olist_order = "344d7792475d51c5c3b9d41758ef8f44"
+
+[[fixture.orders.units]]
+id = "h60-o1-u1"
+product = "Ceramic salad plate"
+price_minor = 3600
+paid_minor = 3600
+shipping_minor = 1371
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h60-o1-u2"
+product = "Stainless steel serving spoon"
+price_minor = 3300
+paid_minor = 3300
+shipping_minor = 1372
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 2
+
+[[fixture.orders.units]]
+id = "h60-o1-u3"
+product = "Wooden salad tongs"
+price_minor = 4000
+paid_minor = 4000
+shipping_minor = 82
+olist_item = 3
+
+[customer]
+id = "h60-bruno"
+goal = "Obtain a single refund for the plate, serving spoon and tongs together before sending back the tongs."
+opening_message = "I've returned the plate and the serving spoon. The wooden tongs are still with me and I'll send them next week. I'd rather get one refund covering all three now."
+facts = [
+    { text = "The tongs have not yet been sent back.", reveal = "upfront" },
+]
+behaviour = [
+    "Insist that the refund include all three products at once.",
+    "Decline any proposal covering only the plate and spoon.",
+    "Accept the explanation that the tongs must arrive first.",
+    "Decline a person.",
+    "End when the return requirement is clear.",
+]
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h60-o1-u1", "h60-o1-u2", "h60-o1-u3"]
+decision = "refused"
+reasons = ["return"]
+
+[[policy_checks]]
+units = ["h60-o1-u1", "h60-o1-u2"]
+decision = "eligible"
+amount_minor = 6900
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["none", "ineligible", "cancelled"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/return"]
+communication = ["explains_refusal_reason"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/return" = "The tongs must arrive before they can be refunded."

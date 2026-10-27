@@ -12,7 +12,8 @@ from sqlalchemy import text
 
 from refund_agent.agent.tools import UNTRUSTED, ToolContext, call_tool
 from refund_agent.fixtures import seed
-from refund_agent.refunds import Actor, cancel, confirm, decide, open_conversation
+from refund_agent.refunds import Actor, Refused, cancel, confirm, decide, open_conversation, refer_to_staff
+from refund_agent.scenarios import PastProposal
 from tests.acceptance.flows import DEVELOPMENT, POLICY, SCENARIOS, policy_of, proposed, rows
 
 
@@ -337,13 +338,275 @@ def test_a_decision_of_the_shop_is_the_latest_of_the_conversation_on_the_order_a
     assert call(late, "propose_refund", "p-3", order_id="d02-o1", unit_ids=[plate])["outcome"] == "refused"
     refused = handoff(late, "shop_decided")
     assert refused["refused"] == "handoff_reason"
-    assert "For a refund request, call propose_refund and follow its result." in refused["explanation"]
+    assert "name its order and units in the handoff" in refused["explanation"]
     assert call(late, "propose_refund", "p-4", order_id="d02-o1", unit_ids=[bowl])["outcome"] == "needs_person"
     with db("owner").begin() as conn:  # for example, a corrected return record
         conn.execute(text("UPDATE orders SET material_version = material_version + 1 WHERE id = 'd02-o1'"))
     assert handoff(late, "shop_decided", call_id="hand-2")["refused"] == "handoff_reason"  # decided on the old order
     assert call(late, "propose_refund", "p-5", order_id="d02-o1", unit_ids=[bowl])["outcome"] == "needs_person"
     assert handoff(late, "shop_decided", call_id="hand-3")["ok"] is True
+
+
+# A case for staff named in the handoff itself (final evaluation of v1.1, H77): the agent knew that a staff member
+# decides an order with no delivery time and handed off with its order and unit before any proposal; the handoff was
+# refused for want of one, and the agent explained instead of proposing. The backend now decides the named units.
+
+
+def proposals_of(ctx):
+    """This conversation's proposals; a fixture's past ones (D10's expired one) belong to none."""
+    return rows(
+        ctx.engine,
+        "SELECT status, status_reason, order_id FROM proposals "
+        f"WHERE conversation_id = '{ctx.conversation_id}' ORDER BY created_at, id",
+    )
+
+
+def events_of(ctx):
+    return rows(
+        ctx.engine,
+        "SELECT event, outcome, reason FROM audit_events WHERE event IN ('propose', 'hand_off') ORDER BY id",
+    )
+
+
+def test_a_handoff_that_names_a_case_for_staff_records_the_request_and_hands_off(db):
+    ctx = agent_for(db, "D10")
+    answer = handoff(ctx, "shop_decided", "d10-o1", units=["d10-o1-u1"])
+    assert answer["ok"] is True
+    assert proposals_of(ctx) == [("ineligible", "needs_person", "d10-o1")]  # the staff member sees what was asked
+    units = (
+        "SELECT u.order_unit_id FROM proposal_units u JOIN proposals p ON p.id = u.proposal_id "
+        f"WHERE p.conversation_id = '{ctx.conversation_id}'"
+    )
+    assert rows(ctx.engine, units) == [("d10-o1-u1",)]
+    assert control(ctx) == [("human_controlled",)]
+    # Recorded as propose_refund records it, before the handoff: the same events as the two steps.
+    assert events_of(ctx) == [("propose", "committed", None), ("hand_off", "committed", None)]
+
+
+def test_a_handoff_for_units_the_policy_allows_is_refused_and_writes_nothing(db):
+    ctx = agent_for(db, "D01")
+    refused = handoff(ctx, "shop_decided", "d01-o1", units=["d01-o1-u1"])
+    assert refused["refused"] == "handoff_reason"
+    assert "call propose_refund with them" in refused["explanation"]
+    assert proposals_of(ctx) == []  # a handoff never leaves a proposal waiting for the customer's button
+    assert control(ctx) == [("agent",)]
+    assert events_of(ctx) == [("hand_off", "rejected", "handoff_reason")]
+
+
+def test_a_handoff_for_units_the_policy_refuses_is_refused_with_the_reason(db):
+    late = replace(agent_for(db, "D02"), clock=lambda: datetime(2026, 10, 9, 12, 0, tzinfo=UTC))  # past the deadline
+    refused = handoff(late, "shop_decided", "d02-o1", units=["d02-o1-u2"])
+    assert refused["refused"] == "handoff_reason"
+    assert "(refund-policy/v2/window)" in refused["explanation"]
+    assert "without offering a person" in refused["explanation"]
+    assert proposals_of(late) == []
+    assert control(late) == [("agent",)]
+
+
+def test_a_handoff_for_an_order_on_its_way_is_refused_with_its_status_and_the_offer_the_policy_makes(db):
+    # D19 of 2026-10-21, try 3, named the order on its way in a shop_decided handoff. The policy refuses its refund
+    # and offers a staff member for cancelling it (section eligible-orders), so the refusal must not forbid that offer.
+    ctx = agent_for(db, "D19")
+    refused = handoff(ctx, "shop_decided", "h09-o1", units=["h09-o1-u1"])
+    assert refused["refused"] == "handoff_reason"
+    assert "offer a person for that (refund-policy/v2/eligible-orders)" in refused["explanation"]
+    assert "without offering a person" not in refused["explanation"]
+    assert proposals_of(ctx) == []
+
+
+def test_a_handoff_after_the_two_steps_records_the_request_once(db):
+    ctx = agent_for(db, "D10")
+    assert call(ctx, "propose_refund", "p-1", order_id="d10-o1", unit_ids=["d10-o1-u1"])["outcome"] == "needs_person"
+    assert handoff(ctx, "shop_decided", "d10-o1", units=["d10-o1-u1"])["ok"] is True
+    assert proposals_of(ctx) == [("ineligible", "needs_person", "d10-o1")]
+
+
+def test_an_earlier_referral_is_decided_again_for_other_units_or_a_changed_order(db):
+    ctx = agent_for(db, "D02")  # delivered 8 September 12:00, so the deadline is 8 October 12:00
+    bowl, plate = "d02-o1-u1", "d02-o1-u2"
+    assert call(ctx, "propose_refund", "p-1", order_id="d02-o1", unit_ids=[bowl])["outcome"] == "eligible"
+    late = replace(ctx, clock=lambda: datetime(2026, 10, 9, 12, 0, tzinfo=UTC))  # the bowl's proposal lapsed
+    assert call(late, "propose_refund", "p-2", order_id="d02-o1", unit_ids=[bowl])["outcome"] == "needs_person"
+    # The bowl's referral does not stand for the plate, which has no request made in time.
+    assert handoff(late, "shop_decided", "d02-o1", units=[plate])["refused"] == "handoff_reason"
+    with db("owner").begin() as conn:  # for example, a corrected return record
+        conn.execute(text("UPDATE orders SET material_version = material_version + 1 WHERE id = 'd02-o1'"))
+    # Decided on the old order, so decided again, and recorded again, before the handoff.
+    assert handoff(late, "shop_decided", "d02-o1", "hand-2", units=[bowl])["ok"] is True
+    assert proposals_of(late)[-2:] == [("ineligible", "needs_person", "d02-o1")] * 2
+
+
+def test_a_referral_is_never_returned_to_another_customer(db):
+    ctx = agent_for(db, "D10")
+    assert call(ctx, "propose_refund", "p-1", order_id="d10-o1", unit_ids=["d10-o1-u1"])["outcome"] == "needs_person"
+    with pytest.raises(Refused) as refused:
+        refer_to_staff(
+            ctx.engine,
+            Actor("agent", "d10-rui"),
+            ctx.conversation_id,
+            "d10-o1",
+            ["d10-o1-u1"],
+            "k",
+            ctx.clock(),
+            POLICY,
+        )
+    assert refused.value.check == "actor_owns"
+
+
+def test_a_handoff_made_again_with_its_call_id_returns_the_same_handoff(db):
+    ctx = agent_for(db, "D10")
+    first = handoff(ctx, "shop_decided", "d10-o1", units=["d10-o1-u1"])
+    again = handoff(ctx, "shop_decided", "d10-o1", units=["d10-o1-u1"])  # a resumed run makes the same call again
+    assert again["ok"] is True and again["handoff_id"] == first["handoff_id"]
+    assert len(proposals_of(ctx)) == 1
+
+
+def test_a_handoff_for_staff_names_the_customers_order_and_its_units(db):
+    ctx = agent_for(db, "D07")  # d07-o2 is another customer's order
+    assert handoff(ctx, "shop_decided", "d07-o2", units=["d07-o2-u1"])["refused"] == "actor_owns"
+    named = handoff(ctx, "shop_decided", "", "hand-2", units=["d07-o1-u1"])
+    assert named["refused"] == "handoff_reason"
+    assert "name the customer's order and the units of the request" in named["explanation"]
+    assert proposals_of(ctx) == []
+    assert [event for event, _, _ in events_of(ctx)] == ["hand_off", "hand_off"]  # recorded as the handoff's
+
+
+# A handoff's result gives the section it rests on, as a refusal's does (final evaluation of v1.1: all 98 required
+# refusal citations were shown, and 11 of 18 required handoff citations were missed).
+
+
+@pytest.mark.parametrize(
+    ("scenario_id", "code", "order_id", "units", "section"),
+    [
+        ("D10", "shop_decided", "d10-o1", ["d10-o1-u1"], "window"),  # the decision's own reasons
+        ("D22", "return_disputed", "h12-o1", ["h12-o1-u1"], "return"),
+        ("D15", "delivery_disputed", "h05-o1", [], "eligible-orders"),
+    ],
+)
+def test_a_handoff_result_gives_the_section_it_rests_on(db, scenario_id, code, order_id, units, section):
+    answer = handoff(agent_for(db, scenario_id), code, order_id, units=units)
+    citation = f"refund-policy/v2/{section}"
+    assert (answer["reason_code"], answer["policy_citations"]) == (code, [citation])
+    assert f"and why, citing ({citation})" in answer["next_step"]
+
+
+def test_a_handoff_the_customer_asked_for_rests_on_the_exceptions_section(db):
+    ctx = agent_for(db, "D36")
+    said(ctx, "I'd like to talk to someone from your team about it, please.")
+    answer = call(
+        ctx,
+        "request_handoff",
+        reason_code="customer_asked",
+        customer_words="I'd like to talk to someone from your team about it",
+        reason="The customer asks for a person.",
+        customer_goal="",
+        confirmed_facts="",
+        decision_needed="",
+    )
+    assert answer["policy_citations"] == ["refund-policy/v2/exceptions"]
+
+
+# The sections an eligible proposal's circumstances rest on (final evaluation of v1.1, 2026-10-26): its result gave only
+# the amount section, and the scenarios' authors required window (H26, 6 hours before the deadline: 9 misses), validity
+# (H74, an earlier request invalidated by an order correction: 10) and approval (H30 and H50, an earlier request
+# cancelled or rejected: 6). A refusal's result gives its sections, and all 98 required refusal citations were shown.
+
+WINDOW, VALIDITY, APPROVAL, AMOUNT = (f"refund-policy/v2/{s}" for s in ("window", "validity", "approval", "amount"))
+
+
+def proposed_at(ctx, when, call_id="p-1", units=("d01-o1-u1",), order_id="d01-o1"):
+    at = replace(ctx, clock=lambda: when)
+    return call(at, "propose_refund", call_id, order_id=order_id, unit_ids=list(units))
+
+
+def test_a_first_proposal_far_from_the_deadline_cites_only_its_amount(db):
+    answer = call(agent_for(db, "D01"), "propose_refund", order_id="d01-o1", unit_ids=["d01-o1-u1"])
+    assert answer["policy_citations"] == [AMOUNT]
+    assert "Tell the customer also" not in answer["next_step"]
+
+
+def test_a_proposal_made_close_to_the_deadline_says_it_is_on_time(db):
+    ctx = agent_for(db, "D01")  # delivered 6 September 16:00, so the 30-day limit ends 6 October 16:00
+    # Made exactly 72 hours before the deadline, the proposal expires at the deadline: the limit never passes while it
+    # is open. A minute later it would.
+    assert proposed_at(ctx, datetime(2026, 10, 3, 16, 0, tzinfo=UTC))["policy_citations"] == [AMOUNT]
+    answer = proposed_at(ctx, datetime(2026, 10, 3, 16, 1, tzinfo=UTC), "p-2")
+    assert answer["policy_citations"] == [AMOUNT, WINDOW]
+    assert "ends at 2026-10-06 16:00 UTC" in answer["next_step"] and f"({WINDOW})" in answer["next_step"]
+
+
+def test_a_proposal_after_an_earlier_one_lapsed_says_why_a_new_one_was_needed(db):
+    ctx = agent_for(db, "D01")
+    first = call(ctx, "propose_refund", "p-1", order_id="d01-o1", unit_ids=["d01-o1-u1"])
+    answer = proposed_at(ctx, ctx.clock() + timedelta(hours=73), "p-2")  # the first one expired, unpaid
+    assert answer["policy_citations"] == [AMOUNT, VALIDITY]
+    assert f"{first['proposal_id']}" in answer["next_step"] and "expired" in answer["next_step"]
+    with db("owner").begin() as conn:  # the order record is corrected: the open proposal stops being valid
+        conn.execute(text("UPDATE orders SET material_version = material_version + 1 WHERE id = 'd01-o1'"))
+    again = proposed_at(ctx, ctx.clock() + timedelta(hours=74), "p-3")
+    assert again["policy_citations"] == [AMOUNT, VALIDITY]
+    assert "stopped being valid" in again["next_step"]
+
+
+def test_a_proposal_after_an_earlier_one_was_declined_or_rejected_needs_both_decisions_again(db):
+    ctx = agent_for(db, "D01")
+    first = call(ctx, "propose_refund", "p-1", order_id="d01-o1", unit_ids=["d01-o1-u1"])
+    confirm(ctx.engine, Actor("customer", ctx.customer_id), first["proposal_id"], "declined", ctx.clock(), POLICY)
+    answer = call(ctx, "propose_refund", "p-2", order_id="d01-o1", unit_ids=["d01-o1-u1"])
+    assert answer["policy_citations"] == [AMOUNT, APPROVAL]
+    assert "cancelled" in answer["next_step"] and f"({APPROVAL})" in answer["next_step"]
+    confirm(ctx.engine, Actor("customer", ctx.customer_id), answer["proposal_id"], "confirmed", ctx.clock(), POLICY)
+    decide(ctx.engine, Actor("staff", "d01-rui"), answer["proposal_id"], "rejected", ctx.clock(), POLICY, reason="No")
+    again = call(ctx, "propose_refund", "p-3", order_id="d01-o1", unit_ids=["d01-o1-u1"])
+    assert again["policy_citations"] == [AMOUNT, APPROVAL]
+    assert "rejected by a staff member" in again["next_step"]
+
+
+def test_a_proposal_replaced_by_the_customers_change_counts_for_neither(db):
+    ctx = agent_for(db, "D02")  # the bowl, then the bowl and the plate: the first is superseded
+    call(ctx, "propose_refund", "p-1", order_id="d02-o1", unit_ids=["d02-o1-u1"])
+    answer = call(ctx, "propose_refund", "p-2", order_id="d02-o1", unit_ids=["d02-o1-u1", "d02-o1-u2"])
+    assert answer["policy_citations"] == [AMOUNT]
+
+
+def test_an_earlier_request_names_only_the_items_it_was_for(db):
+    # Review of 2026-10-27: an earlier request for the bowl alone is not one "for these items" when the new proposal
+    # adds the plate. The fact names what the records show, and an earlier request for other items counts for nothing.
+    ctx = agent_for(db, "D02")
+    customer = Actor("customer", ctx.customer_id)
+    plate = call(ctx, "propose_refund", "p-1", order_id="d02-o1", unit_ids=["d02-o1-u2"])
+    confirm(ctx.engine, customer, plate["proposal_id"], "declined", ctx.clock(), POLICY)
+    bowl = call(ctx, "propose_refund", "p-2", order_id="d02-o1", unit_ids=["d02-o1-u1"])
+    assert bowl["policy_citations"] == [AMOUNT]  # the declined plate is another item
+    confirm(ctx.engine, customer, bowl["proposal_id"], "declined", ctx.clock(), POLICY)
+    both = call(ctx, "propose_refund", "p-3", order_id="d02-o1", unit_ids=["d02-o1-u1", "d02-o1-u2"])
+    assert both["policy_citations"] == [AMOUNT, APPROVAL]
+    said = both["next_step"].lower()  # the step's first fact starts with a capital
+    assert f"an earlier request for the stoneware dinner plate ended unpaid ({plate['proposal_id']} was cancelled)" in (
+        said
+    )
+    assert f"an earlier request for the glass salad bowl ended unpaid ({bowl['proposal_id']} was cancelled)" in said
+    assert said.index("dinner plate") < said.index("salad bowl")  # in the order they were made
+    assert "these items" not in said
+
+
+@pytest.mark.parametrize(
+    ("status", "section"), [("rejected", APPROVAL), ("cancelled", APPROVAL), ("invalidated", VALIDITY)]
+)
+def test_an_earlier_request_in_the_shops_history_counts_too(db, status, section):
+    # H30, H50 and H74: the earlier request was made in another conversation, before this one.
+    scenario = DEVELOPMENT["D01"]
+    past = PastProposal(
+        id="d01-p9", units=("d01-o1-u1",), created_at=datetime(2026, 9, 18, 10, tzinfo=UTC), status=status
+    )
+    fixture = scenario.fixture.model_copy(update={"past_proposals": (past,)})
+    seed(db("owner"), scenario.model_copy(update={"fixture": fixture}), POLICY)
+    app = db("app")
+    conversation = open_conversation(app, Actor("customer", "d01-ana"), scenario.now)
+    ctx = ToolContext(app, POLICY, lambda: scenario.now, "d01-ana", conversation)
+    answer = call(ctx, "propose_refund", order_id="d01-o1", unit_ids=["d01-o1-u1"])
+    assert answer["policy_citations"] == [AMOUNT, section]
+    assert "d01-p9" in answer["next_step"]
 
 
 def test_a_refused_handoff_keeps_the_refund_under_way_and_says_what_to_do_instead(db):
@@ -698,11 +961,16 @@ def test_an_assessment_writes_nothing_and_agrees_with_the_proposal(db, scenario_
             found = call(ctx, "assess_refund", f"a-{order.id}-{n}", order_id=order.id, unit_ids=selection)
             assert counts(app) == before, selection
             made = call(ctx, "propose_refund", f"p-{order.id}-{n}", order_id=order.id, unit_ids=selection)
+            # The decision agrees. A new eligible proposal adds after it only the sections of its own circumstances
+            # (refunds.proposal_context: its deadline, earlier requests for its units), which no assessment has, since
+            # an assessment creates no proposal (D43, D46, D50, D52 and D60 have them).
+            decided = len(found["policy_citations"])
             assert (found["outcome"], found["policy_citations"], found["amount_minor"]) == (
                 made["outcome"],
-                made["policy_citations"],
+                made["policy_citations"][:decided],
                 made["amount_minor"],
             ), selection
+            assert set(made["policy_citations"][decided:]) <= {WINDOW, VALIDITY, APPROVAL}, selection
 
 
 def test_an_assessment_of_a_late_request_gives_its_deadline(db):

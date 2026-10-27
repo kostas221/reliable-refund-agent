@@ -124,8 +124,9 @@ COMMUNICATION = {
     # every scenario where asking is right and burden every customer who already said what they want.
     "proposes_without_asking": Criterion(
         "When the customer's words already name the items, proposes them without first asking which ones are meant.",
-        "A proposal exists, and no customer message comes between the opening message and the first proposal, in the "
-        "one order of messages and audit events.",
+        "A proposal exists, and no agent question asking which items are meant (one that asks which, or names the "
+        "alternatives) is answered by the customer before the first proposal, in the one order of messages and audit "
+        "events.",
     ),
 }
 FORBIDDEN = {
@@ -244,6 +245,10 @@ class PastRefund(BaseModel):
 
 
 class PastProposal(BaseModel):
+    """A proposal made before the conversation and never paid, ended as: expired; invalidated, it stopped being valid
+    because the order or the policy changed before it was paid (H74); rejected by a staff member; or cancelled by the
+    customer. One the customer replaced with a change, or that a handoff closed, is not history a rule reads."""
+
     model_config = _STRICT
 
     id: Id
@@ -345,8 +350,21 @@ class Expected(BaseModel):
     handoff: Literal["required", "allowed", "forbidden"]
     handoff_origins: tuple[Literal["customer", "agent", "staff"], ...] = Field(default=(), **_ARRAY)
     cites: tuple[Annotated[str, Field(pattern=r"^[a-z-]+/v[0-9]+/[a-z-]+$")], ...] = Field(default=(), **_ARRAY)
+    # The citation rule of v1.2 (docs/v1.2/citation-rule.md): what the customer must be told, for each required
+    # citation, which the reader checks once the section is shown; none at all in the frozen sets of v1 and v1.1, whose
+    # citations are checked by their presence alone. A quality citation is counted, never failed.
+    obligations: dict[Annotated[str, Field(pattern=r"^[a-z-]+/v[0-9]+/[a-z-]+$")], Text] = Field(default_factory=dict)
+    quality_cites: tuple[Annotated[str, Field(pattern=r"^[a-z-]+/v[0-9]+/[a-z-]+$")], ...] = Field(default=(), **_ARRAY)
     communication: tuple[Communication, ...] = Field(default=(), **_ARRAY)
     forbidden: tuple[Forbidden, ...] = Field(default=(), **_ARRAY)  # in addition to GLOBAL_FORBIDDEN
+
+    @model_validator(mode="after")
+    def _citations(self) -> Expected:
+        if self.obligations and set(self.obligations) != set(self.cites):
+            raise ValueError("an obligation for every required citation, and only for those, or none at all")
+        if set(self.quality_cites) & set(self.cites):
+            raise ValueError("a section is both required and a quality citation")
+        return self
 
 
 class Scenario(BaseModel):
@@ -596,7 +614,7 @@ def derive(source: Path, new_id: str, note: str) -> Path:
     ID, the split and the origin change; the fixture, the customer, the staff member and the expectations stay
     word for word, so a development run of the copy compares with the final run of its source. Never overwrites."""
     scenario = load_scenario(source)
-    if scenario.split != "held_out":
+    if scenario.split not in HELD_OUT_SPLITS:
         raise ValueError(f"{source.name} is not a held-out scenario")
     target = SPLIT_DIRS["development"] / f"{new_id}-{scenario.template}.toml"
     if target.exists():
@@ -604,7 +622,7 @@ def derive(source: Path, new_id: str, note: str) -> Path:
     text = source.read_text(encoding="utf-8").replace("\r\n", "\n")
     for old, new in (
         (f'id = "{scenario.id}"\n', f'id = "{new_id}"\n'),
-        ('split = "held_out"\n', f'split = "development"\nderived_from = "{scenario.id}"\n'),
+        (f'split = "{scenario.split}"\n', f'split = "development"\nderived_from = "{scenario.id}"\n'),
     ):
         if text.count(old) != 1:
             raise ValueError(f"{source.name}: expected one line {old.strip()!r}")
@@ -623,6 +641,10 @@ DERIVE_NOTE = (
     "copied on 2026-10-20,\n# after the final evaluation of v1 used the held-out set (plan change log, 2026-10-20). "
     "The held-out file stays\n# frozen and unchanged."
 )
+DERIVE_NOTE_V1_1 = (
+    "copied on 2026-10-27,\n# after the final evaluation of v1.1 used its held-out set (plan change log, 2026-10-27). "
+    "The held-out file\n# stays frozen and unchanged; this copy follows the citation rule of v1.2."
+)
 
 
 def main() -> None:
@@ -632,9 +654,11 @@ def main() -> None:
     if sys.argv[1:2] == ["derive"]:
         # derive H01 D11 [H02 D12 ...]: pairs of a held-out ID and the new development ID
         pairs = sys.argv[2:]
+        notes = {"held_out": DERIVE_NOTE, "held_out_v1_1": DERIVE_NOTE_V1_1}
         for held_out_id, new_id in zip(pairs[::2], pairs[1::2], strict=True):
-            (source,) = SPLIT_DIRS["held_out"].glob(f"{held_out_id}-*.toml")
-            print(f"wrote {derive(source, new_id, DERIVE_NOTE).relative_to(REPO_ROOT).as_posix()}")
+            (source,) = (path for split in notes for path in SPLIT_DIRS[split].glob(f"{held_out_id}-*.toml"))
+            note = notes[load_scenario(source).split]
+            print(f"wrote {derive(source, new_id, note).relative_to(REPO_ROOT).as_posix()}")
         return
     RENDERED_PATH.write_text(render_markdown(), encoding="utf-8", newline="\n")
     print(f"wrote {RENDERED_PATH.relative_to(REPO_ROOT).as_posix()}")

@@ -189,7 +189,9 @@ TRANSITIONS = (
         Actor.AGENT,
         _PROPOSE_CHECKS,
         "evaluate() refuses or needs a person; the reasons are stored as policy section IDs. For a needs-a-person "
-        "reason the agent must hand off, and the evaluator checks that it did. Nothing is superseded.",
+        "reason the agent must hand off, and the evaluator checks that it did. Nothing is superseded. A handoff with "
+        "shop_decided that names an order and units stores this too, before it hands off (refer_to_staff): only a "
+        "needs-a-person decision, and any other is refused as handoff_reason with nothing written.",
     ),
     Transition(
         "confirm",
@@ -248,7 +250,8 @@ TRANSITIONS = (
         Status.CANCELLED,
         Actor.CUSTOMER,
         ("actor_owns",),
-        "The customer declines or cancels before execution.",
+        "The customer declines or cancels before execution. A notice to the agent is stored in the same transaction "
+        "and read at the customer's next message (agent/notices.py).",
     ),
     Transition(
         "expire",

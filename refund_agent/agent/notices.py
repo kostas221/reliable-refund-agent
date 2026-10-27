@@ -8,13 +8,14 @@ also gives the staff member's reason, so the agent can pass it on (dialogue audi
 customer learned only that the request was rejected).
 
 A staff decision stores its notice in the same transaction (table agent_notices), and deliver_pending() hands the
-stored notices to the agent. The customer's cancel button stores one too (review of the model comparison,
-2026-10-24): in D28 the customer cancelled before the staff decision, and the agent, told nothing, asked the customer
-to cancel with the button. That notice starts no run: the agent reads it at the customer's next message, since a run
-with no customer message in front of it was filled with a new proposal (confirmation run of 2026-10-24). The server
-calls deliver_pending() after a decision or a cancellation, when it starts and every few seconds, so a server that
-stops between the decision and the agent's run loses nothing (outside review of 2026-10-15). The evaluation runner
-calls it too, so it measures the product's path.
+stored notices to the agent. The customer's cancel and decline buttons store one too: in D28 (review of the model
+comparison, 2026-10-24) the customer cancelled before the staff decision and the agent, told nothing, asked the
+customer to cancel with the button; in the final evaluation of v1.1 (2026-10-26) the agent said seven times that a
+declined request still waited for the customer's button. A button's notice starts no run: the agent reads it at the
+customer's next message, since a run with no customer message in front of it was filled with a new proposal
+(confirmation run of 2026-10-24). The server calls deliver_pending() after a decision or a button, when it starts and
+every few seconds, so a server that stops between the decision and the agent's run loses nothing (outside review of
+2026-10-15). The evaluation runner calls it too, so it measures the product's path.
 """
 
 from __future__ import annotations
@@ -52,9 +53,22 @@ def customer_cancelled(proposal_id: str, status: str) -> str:
     return f"The customer pressed cancel on request {proposal_id}, which was already {status}, so nothing will be paid."
 
 
+def customer_declined(proposal_id: str, status: str) -> str:
+    """The customer pressed decline on the proposal card; one already expired or no longer valid was closed as such."""
+    if status == "cancelled":
+        return f"The customer declined request {proposal_id} with the button on its card, so nothing will be paid."
+    return (
+        f"The customer pressed decline on request {proposal_id}, which was already {status}, so nothing will be paid."
+    )
+
+
+# The customer's buttons, told to the agent at the customer's next message; a staff decision wakes it.
+CUSTOMER_BUTTONS = {"cancelled": customer_cancelled, "declined": customer_declined}
+
+
 def notice_text(proposal_id: str, decision: str, reason: str | None, status: str) -> str:
-    if decision == "cancelled":
-        return customer_cancelled(proposal_id, status)
+    if decision in CUSTOMER_BUTTONS:
+        return CUSTOMER_BUTTONS[decision](proposal_id, status)
     return staff_decision(proposal_id, decision, reason)
 
 
@@ -85,8 +99,8 @@ def deliver_pending(
         try:
             event = notice_text(notice["proposal_id"], notice["decision"], notice["reason"], notice["status"])
             # A staff decision wakes the agent, which pays an approved request or passes on a rejection's reason; the
-            # customer's cancellation is read at the customer's next message (confirmation run of 2026-10-24).
-            wake = notice["decision"] != "cancelled"
+            # customer's buttons are read at the customer's next message (confirmation run of 2026-10-24).
+            wake = notice["decision"] not in CUSTOMER_BUTTONS
             agent.notify(notice["conversation_id"], event, notice_id=notice["id"], wake=wake)
         except BudgetExceeded:
             raise  # a paid run's stop, not a failed delivery: the notice stays pending and the run ends

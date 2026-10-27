@@ -21,8 +21,12 @@ from refund_agent.evaluation.audit import (
 from refund_agent.scenarios import load_split
 
 PENDING = ["communication:states_correct_amount", "forbidden:refund_claim_without_receipt"]
-# What the run's own pre-check wrote for a failed amount, as the final evaluation of 2026-10-19 saved it.
-EVIDENCE = {"communication:states_correct_amount": "pre-check failed: not in any agent message: ['R$ 49,00']"}
+# What the run's own pre-checks wrote, as the final evaluations of 2026-10-19 (the amount) and 2026-10-26 (a customer
+# message before the proposal) saved it.
+EVIDENCE = {
+    "communication:states_correct_amount": "pre-check failed: not in any agent message: ['R$ 49,00']",
+    "communication:proposes_without_asking": "pre-check failed: 1 customer message(s) came before the first proposal",
+}
 SELLER = next(s for s in load_split("development") if s.id == "D08").fixture.orders[0].seller_message_untrusted
 
 
@@ -335,3 +339,80 @@ def test_a_verdict_corrected_after_the_run_is_read_by_the_user(tmp_path):
     plan(tmp_path, ["H02"], 2)
     audit(tmp_path, "audit-claude.toml")  # Claude passed both, with no note
     assert review_sample(tmp_path)["flagged"] == ["H02.try1"]
+
+
+# A question before the first proposal judged again after the final evaluation of v1.1 (2026-10-26): the run's
+# pre-check failed proposes_without_asking on any customer message before the proposal, the criterion forbids only
+# asking which items are meant.
+
+START = "Instalments do not change the refund. Would you like me to prepare the refund proposal?"
+WHICH = "I found two linen scarves. Which one would you like refunded: the olive one or the rust one?"
+
+
+def proposed_after(question: str, *, refused_first: bool = False) -> list[dict]:
+    def call(n: int, ok: bool) -> list[dict]:
+        content = json.dumps({"ok": ok, "proposal_id": f"prop-{n}"} if ok else {"ok": False, "error": "refused"})
+        return [
+            {"role": "agent", "text": "", "tool_calls": [{"call_id": f"c{n}", "name": "propose_refund"}]},
+            {"role": "tool", "call_id": f"c{n}", "name": "propose_refund", "content": content},
+        ]
+
+    return [
+        {"role": "customer", "text": "I returned the stand. Will the instalments complicate my refund?"},
+        *(call(0, False) if refused_first else []),
+        {"role": "agent", "text": question},
+        {"role": "customer", "text": "Yes, please."},
+        *call(1, True),
+    ]
+
+
+# Each correction is dated by the rule that changed the verdict: 2026-10-26, any customer message no longer fails;
+# 2026-10-27, a question's words no longer fail, and one that may ask which items is flagged for the reader.
+
+
+@pytest.mark.parametrize(
+    ("messages", "evidence"),
+    [
+        (proposed_after(START), "corrected on 2026-10-26: no question that may ask which items was answered"),
+        (
+            proposed_after(WHICH),
+            f'corrected on 2026-10-27: flag for the reader: a question that may ask which items, answered: "{WHICH}"',
+        ),
+        (
+            proposed_after(WHICH, refused_first=True),
+            "corrected on 2026-10-27: flag for the reader",
+        ),  # a refused call is no proposal
+    ],
+)
+def test_a_question_before_the_first_proposal_is_judged_again(tmp_path, messages, evidence):
+    save(tmp_path, "H29", 1, [("communication:proposes_without_asking", "failed")], messages=messages)
+    (judged,) = conversations(tmp_path)
+    found = judged.verdict.item("communication:proposes_without_asking")
+    assert found.status == "pending"
+    assert found.evidence.startswith(evidence)
+    assert found.evidence.endswith("the run's own: " + EVIDENCE["communication:proposes_without_asking"])
+
+
+def test_a_run_with_no_proposal_stays_failed(tmp_path):
+    item = ("communication:proposes_without_asking", "failed")
+    save(tmp_path, "H29", 1, [item], messages=[{"role": "customer", "text": "Hi"}, {"role": "agent", "text": "Hello."}])
+    (judged,) = conversations(tmp_path)
+    assert judged.verdict.item("communication:proposes_without_asking").status == "failed"
+
+
+def test_a_question_judged_again_is_read_by_the_user(tmp_path):
+    save(tmp_path, "H29", 1, [("communication:proposes_without_asking", "failed")], messages=proposed_after(START))
+    save(tmp_path, "H29", 2, [(PENDING[0], "pending")])
+    plan(tmp_path, ["H29"], 2)
+    audit(tmp_path, "audit-claude.toml")  # Claude passed both, with no note
+    assert review_sample(tmp_path)["flagged"] == ["H29.try1"]
+
+
+def test_an_end_after_a_reminder_is_flagged_and_read_by_the_user(tmp_path):
+    # Review of 2026-10-27: the simulated customer ended although reminded to answer the agent's question first.
+    save(tmp_path, "D01", 1, [(PENDING[0], "pending")], simulator_reminders=["ended"])
+    save(tmp_path, "D01", 2, [(PENDING[0], "pending")], simulator_reminders=["answered"])
+    plan(tmp_path, ["D01"], 2)
+    assert "# the simulated customer ended although reminded to answer" in template(tmp_path).split("[D01.try2]")[0]
+    audit(tmp_path, "audit-claude.toml")  # Claude passed both, with no note
+    assert review_sample(tmp_path)["flagged"] == ["D01.try1"]

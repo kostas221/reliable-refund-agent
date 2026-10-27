@@ -1,0 +1,106 @@
+# Development copy of H80 (scenarios/held-out-v1.1/H80-completed-refund-followed-by-a-request-for-human-assistance.toml): copied on 2026-10-27,
+# after the final evaluation of v1.1 used its held-out set (plan change log, 2026-10-27). The held-out file
+# stays frozen and unchanged; this copy follows the citation rule of v1.2.
+# Completed refund followed by a request for human assistance.
+# The author's candidate H80 (author-output-3.md), converted by scripts/convert_held_out_v1_1.py;
+# every choice the author did not state is in docs/held-out-v1.1/conversion-log.md.
+# Olist order 5d9aa63551a24b92660a08b0e8ef22b6 (data/olist/subset-v1.1.json): 1 item(s), credit_card 183.60 in 3 instalment(s).
+# Olist order 09442375307dcece0366e86601bf99f9 (data/olist/subset-v1.1.json): 1 item(s), boleto 79.80 in 1 instalment(s).
+id = "D62"
+title = "Completed refund followed by a request for human assistance"
+split = "development"
+derived_from = "H80"
+category = "clarification_handoff"
+template = "completed-refund-followed-by-a-request-for-human-assistance"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 10 days after o1 delivery and 4 days after o2 purchase
+agent_visible_orders = ["h80-o1", "h80-o2"]
+
+[[fixture.customers]]
+id = "h80-eduardo"
+name = "Eduardo Lima"
+email = "eduardo.lima@example.test"
+
+[[fixture.staff]]
+id = "h80-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h80-o1"
+customer = "h80-eduardo"
+status = "delivered"
+purchased_at = 2026-10-25T13:55:38Z
+delivered_at = 2026-11-06T10:00:00Z  # delivered 10 days before now
+payments = [{ method = "credit_card", amount_minor = 18360, installments = 3 }]  # 15990 + shipping 2370
+olist_order = "5d9aa63551a24b92660a08b0e8ef22b6"
+
+[[fixture.orders.units]]
+id = "h80-o1-u1"
+product = "Portable document scanner"
+price_minor = 15990
+paid_minor = 15990
+shipping_minor = 2370
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "h80-o2"
+customer = "h80-eduardo"
+status = "shipped"
+purchased_at = 2026-11-12T10:00:00Z
+# no delivered_at: purchased 4 days before now; shipped 2 days before now; not delivered
+payments = [{ method = "boleto", amount_minor = 7980, installments = 1 }]  # 5899 + shipping 2081
+olist_order = "09442375307dcece0366e86601bf99f9"
+
+[[fixture.orders.units]]
+id = "h80-o2-u2"
+product = "Laptop carrying sleeve"
+price_minor = 5899
+paid_minor = 5899
+shipping_minor = 2081
+olist_item = 1
+
+[customer]
+id = "h80-eduardo"
+goal = "Complete the refund for your returned document scanner, receive its receipt, and then speak to a person about a separate still-shipped laptop sleeve order."
+opening_message = "Could you refund the portable document scanner I returned? Let's finish that refund first, please."
+facts = [
+    { text = "You also have a separate shipped order that you want to discuss with a person after the scanner refund is complete.", reveal = "when_asked" },
+]
+behaviour = [
+    "Initially discuss only the returned scanner.",
+    "Confirm the correct scanner proposal through its card.",
+    "After receiving the scanner refund receipt, say: 'Thank you. Now I'd like a real person to help me with my separate laptop sleeve order, which is still being shipped.'",
+    "Do not request an automatic refund for the laptop sleeve.",
+    "Do not ask for another scanner refund.",
+    "End only after the person has been announced as taking over.",
+]
+confirms = { units = ["h80-o1-u1"], amount_minor = 15990 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h80-o1-u1"]
+decision = "eligible"
+amount_minor = 15990
+
+[[policy_checks]]
+units = ["h80-o2-u2"]
+decision = "refused"
+reasons = ["eligible-orders", "return"]
+
+[expected]
+refunded_units = ["h80-o1-u1"]
+refund_amount_minor = 15990  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "required"
+handoff_origins = ["customer"]
+cites = ["refund-policy/v2/exceptions"]
+communication = ["states_correct_amount", "gives_this_receipt", "announces_handoff"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/exceptions" = "A person takes over when the customer asks for one."

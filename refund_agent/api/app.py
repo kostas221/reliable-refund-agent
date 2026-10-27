@@ -224,21 +224,27 @@ def create_app(
             raise _not_found()
         return found
 
+    def deliver_after(background: BackgroundTasks, proposal_id: str) -> None:
+        """A button stored its notice, as a decision does: delivered after the answer is sent."""
+        if agent is None:
+            return
+        with engine.connect() as conn:
+            conversation = conn.execute(
+                text("SELECT conversation_id FROM proposals WHERE id = :id"), {"id": proposal_id}
+            ).scalar_one()
+        background.add_task(deliver, conversation)
+
     @app.post("/api/proposals/{proposal_id}/confirmation")
-    def confirm_proposal(proposal_id: str, body: ConfirmationBody, user: Changing) -> dict:
+    def confirm_proposal(proposal_id: str, body: ConfirmationBody, user: Changing, background: BackgroundTasks) -> dict:
         status = confirm(engine, customer(user), proposal_id, body.decision, clock(), policy)
+        if body.decision == "declined":  # one refused on a card already closed waits for the periodic delivery
+            deliver_after(background, proposal_id)
         return {"proposal_id": proposal_id, "status": status}
 
     @app.post("/api/proposals/{proposal_id}/cancellation")
     def cancel_proposal(proposal_id: str, user: Changing, background: BackgroundTasks) -> dict:
         status = cancel(engine, customer(user), proposal_id, clock(), policy)
-        if agent is not None:
-            # The cancellation stored its notice, as a decision does: delivered after the answer is sent.
-            with engine.connect() as conn:
-                conversation = conn.execute(
-                    text("SELECT conversation_id FROM proposals WHERE id = :id"), {"id": proposal_id}
-                ).scalar_one()
-            background.add_task(deliver, conversation)
+        deliver_after(background, proposal_id)
         return {"proposal_id": proposal_id, "status": status}
 
     @app.post("/api/conversations/{conversation_id}/handoff", status_code=201)

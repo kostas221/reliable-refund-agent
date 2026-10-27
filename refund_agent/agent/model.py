@@ -35,9 +35,13 @@ from refund_agent.scenarios import format_brl
 # v2: cite whenever an answer rests on the policy, hand off only in a case the policy names with its reason code, and
 # the lifecycle rules of the policy v2 specification (docs/pilot/results.md, "v1.1 step 1"). Versions 6 and 7: the
 # plan's change log of 2026-10-21 and 2026-10-22. Version 8 (review of the model comparison, 2026-10-24): a request to
-# refund shipping gets the offer of a staff member first, and the handoff rests on the customer's yes. Earlier
-# versions stay for the runs made with them.
-INSTRUCTIONS_PATH = REPO_ROOT / "prompts" / "agent-v8.md"
+# refund shipping gets the offer of a staff member first, and the handoff rests on the customer's yes. Version 9
+# (v1.2, plan change log of 2026-10-27), one change for each tool change or finding of the final evaluation of v1.1:
+# a case for staff is handed off with its order and units; the agent cites the sections tool results give and what
+# the shop's records decide (H55); after a refusal, what the policy allows is offered in words before a proposal, and
+# a proposal just turned down is not made again (H60, H61); the customer's decline and cancel buttons are told to it.
+# Earlier versions stay for the runs made with them.
+INSTRUCTIONS_PATH = REPO_ROOT / "prompts" / "agent-v9.md"
 
 
 @dataclass(frozen=True)

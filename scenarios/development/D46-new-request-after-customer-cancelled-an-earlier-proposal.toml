@@ -1,0 +1,104 @@
+# Development copy of H30 (scenarios/held-out-v1.1/H30-new-request-after-customer-cancelled-an-earlier-proposal.toml): copied on 2026-10-27,
+# after the final evaluation of v1.1 used its held-out set (plan change log, 2026-10-27). The held-out file
+# stays frozen and unchanged; this copy follows the citation rule of v1.2.
+# New request after customer cancelled an earlier proposal.
+# The author's candidate H30 (author-output-2.md), converted by scripts/convert_held_out_v1_1.py;
+# every choice the author did not state is in docs/held-out-v1.1/conversion-log.md.
+# Olist order 04b7738ad5fbb213eeb7a2145bea8242 (data/olist/subset-v1.1.json): 3 item(s), boleto 392.89 in 1 instalment(s).
+id = "D46"
+title = "New request after customer cancelled an earlier proposal"
+split = "development"
+derived_from = "H30"
+category = "eligible"
+template = "new-request-after-customer-cancelled-an-earlier-proposal"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 16 days after o1 was delivered
+agent_visible_orders = ["h30-o1"]
+
+[[fixture.customers]]
+id = "h30-felipe"
+name = "Felipe Antunes"
+email = "felipe.antunes@example.test"
+
+[[fixture.staff]]
+id = "h30-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h30-o1"
+customer = "h30-felipe"
+status = "delivered"
+purchased_at = 2026-10-29T00:36:33Z
+delivered_at = 2026-10-31T10:00:00Z  # delivered 16 days before now
+payments = [{ method = "boleto", amount_minor = 39289, installments = 1 }]  # 15900 + shipping 1646 + 15900 + shipping 1646 + 3999 + shipping 198
+olist_order = "04b7738ad5fbb213eeb7a2145bea8242"
+
+[[fixture.orders.units]]
+id = "h30-o1-u1"
+product = "Enamel cooking pot"
+price_minor = 15900
+paid_minor = 15900
+shipping_minor = 1646
+received_back_at = 2026-11-08T10:00:00Z  # received back 8 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h30-o1-u2"
+product = "Silicone spatula set"
+price_minor = 15900
+paid_minor = 15900
+shipping_minor = 1646
+received_back_at = 2026-11-14T10:00:00Z  # received back 2 days before now
+olist_item = 2
+
+[[fixture.orders.units]]
+id = "h30-o1-u3"
+product = "Wooden chopping board"
+price_minor = 3999
+paid_minor = 3999
+shipping_minor = 198
+olist_item = 3
+
+[[fixture.past_proposals]]
+id = "h30-p1"
+units = ["h30-o1-u1"]
+created_at = 2026-11-11T10:00:00Z  # 5 days before now
+status = "cancelled"
+
+[customer]
+id = "h30-felipe"
+goal = "Get one new refund covering the cooking pot and spatula set, replacing your previously cancelled single-item request."
+opening_message = "I cancelled my earlier pot refund because I wanted to include the spatulas too. Both returns are there now. Please refund the pot and spatulas, but not the chopping board."
+facts = []
+behaviour = [
+    "Explain that the earlier request was cancelled and never paid if asked.",
+    "Confirm only a new proposal covering u1 and u2.",
+    "Decline a human handoff.",
+    "End after the new refund receipt.",
+]
+confirms = { units = ["h30-o1-u1", "h30-o1-u2"], amount_minor = 31800 }  # paid(u1) + paid(u2)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h30-o1-u1", "h30-o1-u2"]
+decision = "eligible"
+amount_minor = 31800
+
+[[policy_checks]]
+units = ["h30-o1-u1", "h30-o1-u2", "h30-o1-u3"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = ["h30-o1-u1", "h30-o1-u2"]
+refund_amount_minor = 31800  # paid(u1) + paid(u2)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+quality_cites = ["refund-policy/v2/approval"]
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = ["proposal_with_other_units"]

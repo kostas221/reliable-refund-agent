@@ -1,0 +1,120 @@
+{
+  "scenario": "H58",
+  "try": 2,
+  "configuration": "C",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['none', 'ineligible']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v2/window",
+      "status": "passed",
+      "evidence": "shown in an agent message"
+    },
+    {
+      "name": "communication:explains_refusal_reason",
+      "status": "pending",
+      "evidence": "pre-check passed: 1 agent messages"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 2,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    3.411
+  ],
+  "spent_usd": {
+    "agent": 0.00011284000000000294,
+    "simulator": 8.309999999999915e-05
+  },
+  "attempts_sent": 3,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "I applied for a refund on my seat cushion while I was still within the deadline, but the staff member rejected it. Surely that first request keeps my refund window open?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_2JItuvsXAfq32coBZftUVRSi",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_2JItuvsXAfq32coBZftUVRSi",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h58-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-09-29T23:36:32+00:00\", \"delivered_at\": \"2026-10-09T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h58-o1-u1\", \"product\": \"Memory foam seat cushion\", \"paid_minor\": 6900, \"received_back\": true, \"refunded\": false}], \"requests\": [{\"proposal_id\": \"h58-p1\", \"status\": \"rejected\", \"amount_minor\": 6900, \"unit_ids\": [\"h58-o1-u1\"], \"created_at\": \"2026-11-02T10:00:00+00:00\", \"receipt_number\": null, \"rejection_reason\": null}]}]}"
+    },
+    {
+      "role": "agent",
+      "text": "A rejected request doesn’t keep the refund window open. The policy’s exception for an earlier on-time request applies only if it expired or became invalid before payment—not if a staff member rejected it. So if you request the cushion again, it must still be within 30 days of delivery (refund-policy/v2/window).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "A rejected request doesn’t keep the refund window open. The policy’s exception for an earlier on-time request applies only if it expired or became invalid before payment—not if a staff member rejected it. So if you request the cushion again, it must still be within 30 days of delivery (refund-policy/v2/window).",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

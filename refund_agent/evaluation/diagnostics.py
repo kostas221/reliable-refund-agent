@@ -103,6 +103,7 @@ def of_try(
     """One conversation. failed: the item names that failed; items: every item name and its status."""
     shown = shown_sections(saved.get("messages", []), instructions, policy)
     # What the model wrote, without the graph's fact lines (agent/facts.py), so their citations are counted apart.
+    said = " ".join(m.get("text") or "" for m in saved.get("messages", []) if m.get("role") == "agent")
     model_said = " ".join(
         m.get("text") or "" for m in saved.get("messages", []) if m.get("role") == "agent" and not m.get("fact_line")
     )
@@ -130,6 +131,12 @@ def of_try(
         "proposals_after_receipt": proposals_after_receipt(saved.get("messages", [])),
         "proposal_denials": proposal_denials(saved.get("messages", [])),
         "checks_acted": checks_acted(saved.get("messages", [])),
+        # The simulated customer reminded to answer before ending (review of 2026-10-27): answered or ended anyway.
+        "simulator_reminders": Counter(saved.get("simulator_reminders", [])),
+        # A quality citation under the rule of v1.2 never fails a conversation; it is counted here.
+        "quality_citations": Counter(
+            "shown" if citation in said else "not shown" for citation in scenario.expected.quality_cites
+        ),
     }
 
 
@@ -137,6 +144,8 @@ def summarize(per_try: list[dict]) -> dict:
     total = {"citations": Counter(), "handoffs": Counter(), "proposals_after_receipt": 0, "proposal_denials": 0}
     alone = sum(bool(d.get("failed_on_citations_alone")) for d in per_try)
     acted = Counter({name: 0 for name in (*CHECKS_ACTED, REPEATED_SELECTION)})
+    reminders = Counter({"answered": 0, "ended": 0})
+    quality = Counter({"shown": 0, "not shown": 0})
     for d in per_try:
         acted.update(d.get("checks_acted", {}))
         acted[REPEATED_SELECTION] += d.get("checks_acted", {}).get(CHECKS_ACTED[1], 0) >= 2
@@ -144,6 +153,8 @@ def summarize(per_try: list[dict]) -> dict:
         total["handoffs"].update(d["handoffs"])
         total["proposals_after_receipt"] += d["proposals_after_receipt"]
         total["proposal_denials"] += d.get("proposal_denials", 0)
+        reminders.update(d.get("simulator_reminders", {}))
+        quality.update(d.get("quality_citations", {}))
     return {
         "citations": dict(sorted(total["citations"].items())),
         "handoffs": dict(sorted(total["handoffs"].items())),
@@ -151,4 +162,6 @@ def summarize(per_try: list[dict]) -> dict:
         "proposals_after_receipt": total["proposals_after_receipt"],
         "proposal_denials": total["proposal_denials"],
         "checks_acted": dict(acted),
+        "simulator_reminders": dict(reminders),
+        "quality_citations": dict(quality),
     }

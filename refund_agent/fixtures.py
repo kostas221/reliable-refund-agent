@@ -126,7 +126,9 @@ def _seed_history(conn: Connection, scenario: Scenario, policy: Policy) -> None:
             policy_hash=policy.content_hash(),
             order_material_version=1,
             status=status,
-            status_reason=None if refund else status,
+            # A past proposal that stopped being valid did so because the order or the policy changed (PastProposal),
+            # recorded with the reason the backend gives such a change, so the policy rules read it as they read one.
+            status_reason=None if refund else ("order_or_policy_changed" if status == "invalidated" else status),
             created_at=created_at,
             expires_at=expires_at,
             content_hash=content_hash,
