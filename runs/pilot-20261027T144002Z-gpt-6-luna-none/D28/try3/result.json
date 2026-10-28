@@ -1,0 +1,174 @@
+{
+  "scenario": "D28",
+  "try": 3,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal cancelled, acceptable ['cancelled']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "communication:states_correct_amount",
+      "status": "pending",
+      "evidence": "pre-check passed: ['R$ 120,00'] stated"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 5,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    6.069,
+    1.669
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.00034804000000000085,
+    "simulator": 0.00016959999999999892
+  },
+  "attempts_sent": 7,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hi, I sent the hair straightener back because it overheats. Can I get a refund?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_XbUqHaqIvlzuOEhHMoWmoN1J",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_XbUqHaqIvlzuOEhHMoWmoN1J",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h18-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-09-19T21:31:27+00:00\", \"delivered_at\": \"2026-10-08T16:41:28+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h18-o1-u1\", \"product\": \"Ceramic hair straightener\", \"paid_minor\": 12000, \"received_back\": true, \"refunded\": false}], \"requests\": []}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_lrFzGJW5rHZ0nYiREHigmV60",
+          "name": "assess_refund",
+          "arguments": "{\"order_id\":\"h18-o1\",\"unit_ids\":[\"h18-o1-u1\"]}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_lrFzGJW5rHZ0nYiREHigmV60",
+      "name": "assess_refund",
+      "content": "{\"ok\": true, \"outcome\": \"eligible\", \"policy_citations\": [\"refund-policy/v2/amount\"], \"amount_minor\": 12000, \"currency\": \"BRL\", \"order\": {\"order_id\": \"h18-o1\", \"status\": \"delivered\", \"delivered_at\": \"2026-10-08T16:41:28+00:00\", \"refund_deadline\": \"2026-11-07T16:41:28+00:00\", \"payment_records\": 1, \"one_valid_payment\": true}, \"units\": [{\"unit_id\": \"h18-o1-u1\", \"product\": \"Ceramic hair straightener\", \"paid_minor\": 12000, \"received_back\": true, \"refunded\": false, \"receipt_number\": null, \"earlier_on_time_proposal\": false}], \"next_step\": \"This assessment does not create or change a proposal. If these are exactly the units the customer asked for, call propose_refund with them; if the customer's words could mean other units too, ask which first.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_KfXxuriuevRbn89CRXkjYrE8",
+          "name": "propose_refund",
+          "arguments": "{\"order_id\":\"h18-o1\",\"unit_ids\":[\"h18-o1-u1\"],\"summary_for_staff\":\"Customer returned the ceramic hair straightener because it overheats; requests a refund.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_KfXxuriuevRbn89CRXkjYrE8",
+      "name": "propose_refund",
+      "content": "{\"ok\": true, \"proposal_id\": \"prop-c5d4c044b957451d\", \"status\": \"awaiting_customer_confirmation\", \"outcome\": \"eligible\", \"amount_minor\": 12000, \"currency\": \"BRL\", \"policy_citations\": [\"refund-policy/v2/amount\"], \"next_step\": \"The proposal is now on the customer's card, waiting for their button. Tell the customer the amount. They confirm with the button on the proposal card; a typed yes is not a confirmation.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "The shop’s records show it received the ceramic hair straightener back (refund-policy/v2/return). The proposal is for BRL 120.00, the amount paid for it (refund-policy/v2/amount). To continue, confirm the exact proposal using the button on its card; a reply in chat won’t confirm it (refund-policy/v2/approval).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "The shop’s records show it received the ceramic hair straightener back (refund-policy/v2/return). The proposal is for BRL 120.00, the amount paid for it (refund-policy/v2/amount). To continue, confirm the exact proposal using the button on its card; a reply in chat won’t confirm it (refund-policy/v2/approval).",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "event",
+      "text": "The customer cancelled request prop-c5d4c044b957451d with the button on its card, so nothing will be paid.",
+      "notice_id": "notice-cancel-prop-c5d4c044b957451d"
+    },
+    {
+      "role": "customer",
+      "text": "Yes, that’s the refund I wanted. I’ve cancelled the request because my partner had already arranged a replacement with the seller. Will anything still be paid out on this refund request?"
+    },
+    {
+      "role": "agent",
+      "text": "No. The request was cancelled using the card’s button, so nothing will be paid from it (refund-policy/v2/approval).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "No. The request was cancelled using the card’s button, so nothing will be paid from it (refund-policy/v2/approval).",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

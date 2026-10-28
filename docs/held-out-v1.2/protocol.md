@@ -18,7 +18,7 @@ stopping rule (plan change log, 2026-10-27). The freeze records:
 
 | What | Frozen as |
 |---|---|
-| Code, policy, agent instructions, tools, backend, migrations, evaluator, runner and simulated customer | the commit and file fingerprint written here at the freeze |
+| Code, policy, agent instructions, tools, backend, migrations, evaluator, runner and simulated customer | commit `795d430`, file fingerprint `96e452ab42f2267ab1ce14f1b8b72f6a22b4685a5d437e3b168eed240efad778` (frozen on 2026-10-27, after the confirmation run `runs/pilot-20261027T144002Z-gpt-6-luna-none`, 186 of 186, and its stopping rule; `docs/pilot/results.md`) |
 | Policy | `refund-policy/v2` (`policies/refund-policy-v2.toml`) |
 | Agent instructions | `prompts/agent-v9.md` |
 | Citation rule | `docs/v1.2/citation-rule.md`, in the evaluator and the scenario schema |

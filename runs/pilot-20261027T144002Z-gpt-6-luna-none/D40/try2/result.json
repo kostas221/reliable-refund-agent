@@ -1,0 +1,285 @@
+{
+  "scenario": "D40",
+  "try": 2,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['none', 'ineligible']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "handoffs with origin ['agent']; required, origins ['agent']"
+    },
+    {
+      "name": "cites:refund-policy/v2/shipping",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: A request to refund shipping goes to a staff member."
+    },
+    {
+      "name": "communication:announces_handoff",
+      "status": "pending",
+      "evidence": "pre-check passed: an agent message follows the handoff"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 10,
+  "refusals": [
+    {
+      "event": "hand_off",
+      "check": "handoff_reason",
+      "actor": "agent"
+    },
+    {
+      "event": "hand_off",
+      "check": "handoff_reason",
+      "actor": "agent"
+    },
+    {
+      "event": "hand_off",
+      "check": "handoff_reason",
+      "actor": "agent"
+    }
+  ],
+  "handoff_origins": [
+    "agent"
+  ],
+  "agent_seconds": [
+    8.175,
+    3.599,
+    3.973,
+    5.856
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.0010216900000000056,
+    "simulator": 0.00028000000000000247
+  },
+  "attempts_sent": 14,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hello, you refunded my kettle last week, thank you, but I also paid 18 reais shipping for a kettle that arrived broken. I want the shipping refunded."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_jyxX03mzbdBEx2zn6N4NF5as",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_jyxX03mzbdBEx2zn6N4NF5as",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"d40-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-01T10:00:00+00:00\", \"delivered_at\": \"2026-10-05T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"d40-o1-u1\", \"product\": \"Glass electric kettle\", \"paid_minor\": 13990, \"received_back\": true, \"refunded\": true}], \"requests\": [{\"proposal_id\": \"d40-r1\", \"status\": \"refunded\", \"amount_minor\": 13990, \"unit_ids\": [\"d40-o1-u1\"], \"created_at\": \"2026-10-13T12:00:00+00:00\", \"receipt_number\": \"R-D40-0001\", \"rejection_reason\": null, \"policy_citation\": \"refund-policy/v2/remaining\"}]}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_3Drc9HwSEGDVSYnPkmNVm77l",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\":\"shipping_refund\",\"order_id\":\"\",\"unit_ids\":[],\"customer_words\":\"I want the shipping refunded.\",\"reason\":\"The customer asked for a refund of the shipping charge, which requires staff review.\",\"customer_goal\":\"Have the BRL 18 shipping charge refunded for the kettle order.\",\"confirmed_facts\":\"Order d40-o1 is recorded as delivered; its kettle unit is recorded as already refunded, receipt R-D40-0001. The customer says they paid BRL 18 shipping.\",\"decision_needed\":\"Review whether the BRL 18 shipping charge can be refunded.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_3Drc9HwSEGDVSYnPkmNVm77l",
+      "name": "request_handoff",
+      "content": "{\"ok\": false, \"refused\": \"handoff_reason\", \"explanation\": \"that message is not a yes to your offer of a staff member for the shipping charge. Answer a question about shipping from (refund-policy/v2/shipping): shipping is never refunded automatically, and a staff member takes a request to refund it. If the customer wants the shipping charge refunded, ask them: Would you like a staff member to review the shipping charge? Hand off with shipping_refund only after their yes to that question, copying the yes. Meanwhile go on with the refund of any item the customer asked for.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_40kHr9kR6LBHt6O55Bsxitw5",
+          "name": "get_request_status",
+          "arguments": "{\"proposal_id\":\"d40-r1\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_40kHr9kR6LBHt6O55Bsxitw5",
+      "name": "get_request_status",
+      "content": "{\"ok\": true, \"request\": {\"proposal_id\": \"d40-r1\", \"conversation_id\": \"d40-renata-history\", \"order_id\": \"d40-o1\", \"status\": \"refunded\", \"display_status\": \"refunded\", \"status_reason\": null, \"policy_reasons\": [], \"policy_citations\": [], \"policy_version\": \"v2\", \"amount_minor\": 13990, \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"d40-o1-u1\", \"product\": \"Glass electric kettle\", \"amount_minor\": 13990}], \"created_at\": \"2026-10-13T12:00:00+00:00\", \"expires_at\": \"2026-10-16T12:00:00+00:00\", \"receipt\": {\"units\": [{\"unit_id\": \"d40-o1-u1\", \"amount_minor\": 13990}], \"currency\": \"BRL\", \"payment_id\": \"d40-o1-p1\", \"proposal_id\": \"d40-r1\", \"amount_minor\": 13990, \"committed_at\": \"2026-10-13T12:00:00+00:00\", \"operation_id\": \"d40-r1-op\", \"receipt_number\": \"R-D40-0001\"}, \"rejection_reason\": null}}"
+    },
+    {
+      "role": "agent",
+      "text": "The kettle refund of R$139.90 was recorded in the shop’s test ledger, with receipt R-D40-0001, and was recorded against the order’s original payment (refund-policy/v2/payout).\n\nShipping charges are not refunded automatically; a request to refund them needs staff review (refund-policy/v2/shipping). Would you like a staff member to review the R$18 shipping charge?",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "The kettle refund of R$139.90 was recorded in the shop’s test ledger, with receipt R-D40-0001, and was recorded against the order’s original payment (refund-policy/v2/payout).\n\nShipping charges are not refunded automatically; a request to refund them needs staff review (refund-policy/v2/shipping). Would you like a staff member to review the R$18 shipping charge?",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "agent",
+      "text": "The refund with receipt R-D40-0001 is already paid, and each unit is refunded only once, so those units cannot be refunded again (refund-policy/v2/remaining).",
+      "fact_line": true
+    },
+    {
+      "role": "customer",
+      "text": "Yes, please have a staff member review the R$18 shipping charge."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_nYtMilAu32TXYhkaCxsCdGv4",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\":\"shipping_refund\",\"order_id\":\"\",\"unit_ids\":[],\"customer_words\":\"Yes, please have a staff member review the R$18 shipping charge.\",\"reason\":\"The customer agreed to staff review of the shipping charge.\",\"customer_goal\":\"Have the R$18 shipping charge reviewed for a possible refund.\",\"confirmed_facts\":\"The customer reports paying R$18 shipping for the kettle order. Order d40-o1 is recorded as delivered and the kettle unit was refunded with receipt R-D40-0001.\",\"decision_needed\":\"Review whether the R$18 shipping charge can be refunded.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_nYtMilAu32TXYhkaCxsCdGv4",
+      "name": "request_handoff",
+      "content": "{\"ok\": false, \"refused\": \"handoff_reason\", \"explanation\": \"that message is a yes, but your message just before it offers no staff member for the shipping charge in words this check can read. Answer a question about shipping from (refund-policy/v2/shipping): shipping is never refunded automatically, and a staff member takes a request to refund it. If the customer wants the shipping charge refunded, ask them: Would you like a staff member to review the shipping charge? Hand off with shipping_refund only after their yes to that question, copying the yes. Meanwhile go on with the refund of any item the customer asked for.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "I can have a staff member review the R$18 shipping charge. Would you like me to pass it to them?",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "I can have a staff member review the R$18 shipping charge. Would you like me to pass it to them?",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "customer",
+      "text": "Yes, please."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_VnUml7HmlspiUDw7virykbx3",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\":\"shipping_refund\",\"order_id\":\"\",\"unit_ids\":[],\"customer_words\":\"Yes, please.\",\"reason\":\"The customer agreed to have a staff member review the shipping charge.\",\"customer_goal\":\"Have the R$18 shipping charge reviewed for a possible refund.\",\"confirmed_facts\":\"The customer reports paying R$18 shipping for the kettle order. Order d40-o1 is recorded as delivered; its kettle unit was refunded with receipt R-D40-0001.\",\"decision_needed\":\"Review whether the R$18 shipping charge can be refunded.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_VnUml7HmlspiUDw7virykbx3",
+      "name": "request_handoff",
+      "content": "{\"ok\": false, \"refused\": \"handoff_reason\", \"explanation\": \"that message is a yes, but your message just before it offers no staff member for the shipping charge in words this check can read. Answer a question about shipping from (refund-policy/v2/shipping): shipping is never refunded automatically, and a staff member takes a request to refund it. If the customer wants the shipping charge refunded, ask them: Would you like a staff member to review the shipping charge? Hand off with shipping_refund only after their yes to that question, copying the yes. Meanwhile go on with the refund of any item the customer asked for.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Sorry, I need to ask this explicitly: would you like a staff member to review the R$18 shipping charge?",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "Sorry, I need to ask this explicitly: would you like a staff member to review the R$18 shipping charge?",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "customer",
+      "text": "Yes, please have a staff member review the R$18 shipping charge."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_7aVWK6bbs3WPXDuFsd3m3KBf",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\":\"shipping_refund\",\"order_id\":\"\",\"unit_ids\":[],\"customer_words\":\"Yes, please have a staff member review the R$18 shipping charge.\",\"reason\":\"The customer agreed to a staff review of the shipping charge.\",\"customer_goal\":\"Have the R$18 shipping charge reviewed for a possible refund.\",\"confirmed_facts\":\"The customer reports paying R$18 shipping for the kettle order. Order d40-o1 is recorded as delivered; its kettle unit was refunded with receipt R-D40-0001.\",\"decision_needed\":\"Review whether the R$18 shipping charge can be refunded.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_7aVWK6bbs3WPXDuFsd3m3KBf",
+      "name": "request_handoff",
+      "content": "{\"ok\": true, \"handoff_id\": \"hand-ba62e04f3f7a4654\", \"closed_request\": null, \"reason_code\": \"shipping_refund\", \"policy_citations\": [\"refund-policy/v2/shipping\"], \"next_step\": \"This handoff closed no request: say nothing of closing one. Tell the customer a person will take over, and why, citing (refund-policy/v2/shipping). A refund already paid stays paid. Make no more changes.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "A staff member will take over to review your request about the R$18 shipping charge; shipping is not refunded automatically (refund-policy/v2/shipping).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "A staff member will take over to review your request about the R$18 shipping charge; shipping is not refunded automatically (refund-policy/v2/shipping).",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

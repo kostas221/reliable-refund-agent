@@ -211,13 +211,20 @@ v2 (done 2026-10-27, the owner's "συνεχισε" read as approval: `docs/v1.2
 citations kept with obligations, H30's a quality citation, D35 kept required after the scenario check refused it;
 v1.1's A 42/60 under it; the evaluator leaves a shown citation with an obligation to the reader, and the report gives
 the v1.1-rule result too; `docs/held-out-v1.2/author-package.md`, 60 candidates H101-H160, and `protocol.md`); C
-prepared on 2026-10-27 (v1.1's 20 copied to development as D43-D62 with obligations, D46 quality; correct scripts pass
-on every copy; predictions written in `docs/pilot/predictions.md`; the paid run of 62 x 3 waits for the owner's commit
-and command, budget $0.60); C one paid Luna confirmation run on development (v1.1's 20 copied), then a stopping rule (reopen only for a
-safety defect or a regression this bundle caused), freeze, commit; D 40 new held-out scenarios, groups fixed before
-authoring, one A/B/C run, published whatever it shows. Then Phase 7 (README, video, CI, licence) and a light test
-with 5 real users. 126/126 on development would show only that the cases the rules were built on
-are solved. The user reads 1 conversation of the D28 run and 5 of the confirmation run
+done (v1.1's 20 copied to development as D43-D62 with obligations, D46 quality; the confirmation run
+`runs/pilot-20261027T144002Z-gpt-6-luna-none`, commit 795d430, $0.108, results in `docs/pilot/results.md`): 186/186,
+62/62 in all three tries, 0 unsafe, Claude read all 186 and failed none, 117/117 obligations told; paired D01-D42 +1.6
+(95% +0.0 to +4.8), D43-D62 +33.3 against v1.1's A (+16.7 to +51.7), 0 worse, combined product and measurement
+change; 12 of 13 predictions right (3 wrong, above the range). Weaknesses recorded, not repaired: a fact line stored as
+an agent message hides an offer from the yes check (D40 try 2, since 2026-10-24, fails safe; repair: skip fact lines),
+offers the person rule cannot read, the customer's own shipping request refused until a yes, v9's words-first partly
+followed (15 of 21 proposals before the customer wanted the allowed amount; nothing wrong paid). Stopping rule: no
+safety defect, no regression this bundle caused, so **the system is frozen** at 795d430, fingerprint 96e452ab...
+(`docs/held-out-v1.2/protocol.md`); the weaknesses wait for a cycle after step D. Next: D 40 new held-out scenarios
+from a new author, groups fixed before authoring, `novel` and the Olist exclusion in the converter, one A/B/C run,
+published whatever it shows. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
+development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
+`runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run
 (`user-review/`), 7 of the comparison
 (`runs/pilot-20261023T201842Z-gpt-6.1-sol-low/user-review/`, four questions), 6 of the selection check run, and 10
 of step 1 and 9 of each of steps 3, 2 and the repairs (`user-review/`); Claude's verdicts are shown after.

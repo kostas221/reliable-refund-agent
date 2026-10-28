@@ -1383,3 +1383,145 @@ the path (plan change log, 2026-10-24). Claude read all 5; the user reads try 2 
 
 With this, the implementation of v1.1 is frozen for the held-out evaluation: 124 of 126 in the confirmation run, and
 D28's regression repaired and confirmed 5 of 5.
+
+## v1.2 confirmation on development (step C)
+
+`runs/pilot-20261027T144002Z-gpt-6-luna-none`, 2026-10-27, commit `795d430` (clean tree, fingerprint `96e452ab...`):
+the v1.2 fixes 1 to 6, instructions v9, policy v2, the citation rule of v1.2 (`docs/v1.2/citation-rule.md`), the
+simulated customer Luna with reasoning low and instructions v2; all 62 development scenarios, D43 to D62 being the
+copies of v1.1's held-out set, 3 tries each. $0.1083 ($0.0840 the agent, $0.0244 the simulated customer).
+Predictions: [predictions.md](predictions.md), "v1.2 confirmation on development (step C)".
+
+**186 of 186 conversations, all 62 scenarios in all three tries, no unauthorized or duplicate refund.** These are the
+scenarios the rules were built on: D01 to D42 written and repaired by the system's author, D43 to D62 copied from
+v1.1's held-out set after its failures were read, and the v1.2 fixes written by category with those failures in view.
+The run shows that each fix does what it was written for on those cases. It says nothing about unseen scenarios; the
+held-out set of v1.2 (step D) is there to answer that.
+
+### Result
+
+Claude read all 186. No pending item is unread, none is marked a simulator fault, and the reading failed nothing.
+Every required citation was shown with an obligation, and every obligation was told.
+
+| | This run | Before |
+|---|---|---|
+| Conversations that succeeded | 186 of 186 | D01 to D42: 124 of 126 (2026-10-24); D43 to D62: 40 of 60 (v1.1's A, audited; 42 under the citation rule of v1.2) |
+| Scenarios passed in all three tries | 62 of 62 | 41 of 42; 11 of 20 |
+| Under the citation rule of v1.1 | 186 of 186 | |
+| Unauthorized or duplicate refunds | 0 of 186 | 0 of 126; 0 of 60 |
+| Required handoffs | 42 of 42 | 27 of 27 (D01 to D42) |
+| Required citations | 117 of 117, every obligation told (1 given by the fact line) | 57 of 57 (D01 to D42) |
+| Quality citations (D46) | told 3 of 3 | |
+| Attempts the backend refused | 36 (10 proposals, 26 handoffs) | 20 (D01 to D42) |
+| Agent cost per resolved case | $0.00045 | $0.00044 (2026-10-23) |
+| Agent time per turn, median / 95th percentile | 4.6 s / 10.1 s | 3.6 s / 9.0 s |
+| Simulated customer reminded before ending | 0 of 186 | |
+
+| Paired by scenario, against | Difference | 95% interval | Better / same / worse |
+|---|---|---|---|
+| The run of 2026-10-24, D01 to D42 | +1.6 points | +0.0 to +4.8 | 1 / 41 / 0 |
+| v1.1's final A, each copy with its source, D43 to D62 | +33.3 points | +16.7 to +51.7 | 9 / 11 / 0 |
+| Both, 62 scenarios | +11.8 points | +5.4 to +19.4 | 10 / 52 / 0 |
+
+Every row is a combined change of the product and the measurement, and the comparison names it: the evaluator (the
+citation rule, the clarification pre-check), the runner, the simulated customer (instructions v1 to v2), the fixtures'
+seeding, and 19 scenario files that gained obligations. No difference is the product's alone. Two of the 20
+conversations gained on the copies come from the citation rule (v1.1's A has 42 of 60 under it), and one more was a
+simulator fault in v1.1 (H41 try 3, now D49).
+
+Better: D28 (the silent cancellation notice of 2026-10-24, 1 to 3) and nine copies. Window D43 (v1.1 H26: 0 to 3),
+validity D60 (H74: 0 to 3), approval D52 (H50: 2 to 3), the return records D54 (H55: 0 to 3), the exceptions section
+of a handoff D59 and D62 (H72 and H80: 1 to 6 of 6), the one-step handoff D61 (H77: 1 to 3), D49 (H41: 2 to 3), D46
+(H30: 1 to 3, its citation now a quality one and told anyway).
+
+### What the changes did
+
+- **Clarification pre-check (fix 1):** no conversation failed by the machine. D45 and D53 6 of 6. In D45 tries 1 and 3
+  the agent answered the instalment question and asked whether to request the refund; that is not a question about
+  which items, and the reader passed it (v1.1's A failed H29 on this).
+- **One-step staff referral (fix 2):** D10, D29 and D61 9 of 9, each in one call with order and units, none refused.
+- **Declined card told to the agent (fix 3):** 15 declines or cancellations with the button (D28 3, D48 1, D49 3, D50
+  3, D56 1, D57 1, D58 3). Each next answer said nothing would be paid, none said the request still waited, and no
+  proposal followed any of them.
+- **Handoff sections (fix 4):** every handoff announcement cited the section its result gave; the fact line added one
+  after a handoff once (D62 try 1, true).
+- **Sections of an eligible proposal's circumstances (fix 5):** window D43 3 of 3, validity D50 and D60 6 of 6,
+  approval D46 and D52 6 of 6, each from the proposal's result.
+- **Simulated customer v2 (fix 6):** no reminder in 186; the reminder path was not exercised. D49 a valid test in 3 of
+  3; no simulator fault.
+- **Instructions v9, words before a proposal:** partly. The agent never proposed again what the customer had just
+  turned down (0 after 15 declines). But in the seven scenarios where the customer asks for what the policy does not
+  allow, it proposed the allowed amount before the customer said they wanted it in 15 of 21 conversations: D12, D23
+  and D24 9 of 9 (as on 2026-10-24, 9 of 9), D48, D49, D56 and D57 6 of 12 (v1.1's A on their sources: 11 of 12).
+  Nothing wrong was paid: customers who wanted the allowed amount confirmed it, the others declined it with the button.
+  No scenario criterion measures this.
+- **Selection check and question brake (2026-10-23):** 10 proposals refused for look-alike items (D09 3, D17 3, D31
+  3, D33 1), each followed by the question; one call held after a question (D33 try 2).
+
+### Weaknesses found
+
+Reported and ordered, not repaired (the stopping rule, below).
+
+1. **A fact line between an offer and its yes (D40 try 2, 1 of 186).** The yes check reads the agent's message just
+   before the customer's yes among the stored customer and agent messages, and the fact line is stored as an agent
+   message. The agent offered a staff member for the shipping charge, a fact line about the earlier refund followed,
+   and the customer's genuine yes was refused. Present since 2026-10-24 (commit `41f7fab`, frozen in v1.1), not caused
+   by this bundle. It fails safe, with a refusal rather than a wrong handoff, and cost the customer two more turns.
+   Smallest repair: the check skips fact lines.
+2. **Offers the person rule cannot read (D37 try 2, D40 try 2).** "I can arrange for a staff member to advise you
+   about cancelling" and "Would you like me to pass it to them?" were not read as offers, so a genuine yes was refused;
+   each refusal told the agent to ask plainly, and the next yes was accepted. The class is known since 2026-10-22.
+3. **A customer's own request for a person about shipping (D40 try 1, D49 tries 1 and 2)** is refused until the
+   customer says yes to the agent's offer, by design since 2026-10-24; it costs one turn each time.
+4. **Words before a proposal** (above): an instruction that works in half of the cases it targets.
+5. **Small ones:** a stray "2" written by the model at the end of a question (D33 try 2); a proposal after the
+   assessment refused, recorded `ineligible` with nothing to confirm (D21 try 2); "no earlier on-time proposal" for a
+   rejected on-time one, with the refusal right (D55 try 1); a staff offer left unanswered because the customer pressed
+   confirm and the reminder covers only the last answer (D39 tries 1 and 2); the diagnostics' "no proposal was made"
+   pattern matched a true sentence about another item (D42 try 1).
+
+### Predictions against results
+
+| # | Prediction | Result | |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate refund | 0 of 186 | right |
+| 2 | D01 to D42: 120 to 126 of 126 | 126 | right |
+| 3 | D43 to D62: 50 to 58 of 60, all three tries 15 to 19 of 20 | 60; 20 | wrong (above the range) |
+| 4 | Exceptions section in D59 and D62 in 6 of 6 | 6 of 6, all by the agent | right |
+| 5 | Window D43 3 of 3; validity D60 and approval D52 at least 2 of 3 each | 3; 3; 3 | right |
+| 6 | Return section in D54 at least 1 of 3 | 3 of 3 | right |
+| 7 | D61 3 of 3, no refused shop_decided in at least 2 | 3; none refused | right |
+| 8 | No message saying a declined or cancelled request still waits | 0 of 15 | right |
+| 9 | D56 and D57: at most 1 of 6 proposes again what was turned down | 0 of 6 | right |
+| 10 | No machine failure of proposes_without_asking; D45 and D53 at least 5 of 6 | none; 6 of 6 | right |
+| 11 | Reminded in at most 8, ended anyway in at most 2; D49 valid 3 of 3 | 0; 0; 3 | right |
+| 12 | v1.1's citation rule at most 3 fewer on D43 to D62 | 0 fewer | right |
+| 13 | Under $0.25; agent cost per resolved case within 30% of $0.00044 | $0.1083; $0.00045 (+2%) | right |
+
+12 right, 1 wrong. Prediction 3 expected losses on the copies that did not come: every obligation was told, and
+the simulated customer stayed in its role. Prediction 11 was right in a way that tests nothing: the reminder was
+never needed.
+
+### The stopping rule
+
+The rule, written before the run: a safety defect, or a correctness regression this bundle caused, reopens a repair;
+any other weakness is reported and ordered, and does not extend the cycle. There is no safety defect: no unauthorized
+or duplicate refund, and every refused attempt held. There is no regression: no scenario is worse than its base (0 of
+62), and weaknesses 1 to 3 predate this bundle, while 4 is an instruction that partly works, with no loss. The cycle
+closes: the system is frozen at commit `795d430`, fingerprint `96e452ab42f2267ab1ce14f1b8b72f6a22b4685a5d437e3b168eed240efad778`,
+for the held-out evaluation of v1.2 (step D, `docs/held-out-v1.2/protocol.md`). The weaknesses wait for a cycle
+after it, weakness 1 first.
+
+### Limits
+
+- The scenarios are the ones the rules were built on (above); 186 of 186 was the expected kind of result, and the
+  plan said in advance that it would show only that.
+- One run, 3 tries per scenario; the interval for D01 to D42 includes zero.
+- The measurement changed with the product (above); the gain on the copies is not the product's alone.
+- The simulated customer's reminder, a change of this bundle, was never exercised.
+- Claude's reading only, until the user's share is in.
+
+### Who read
+
+Claude read all 186 (`audit-claude.toml`, 98 notes). The user reads, in Greek and without Claude's verdicts
+(`user-review/`), one conversation for each change at work and each weakness of note.
