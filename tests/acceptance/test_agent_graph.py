@@ -438,3 +438,39 @@ def test_no_fact_line_cuts_in_between_an_answer_and_its_tool_calls(shop):
     tools = [m.get("name") for m in agent.messages(s.conversation) if m["role"] == "tool"]
     assert tools == ["list_my_orders", "get_my_order"]
     assert not any(m.get("fact_line") for m in agent.messages(s.conversation))
+
+
+SHIPPING_OFFER = (  # D40 try 2 of runs/pilot-20261027T144002Z-gpt-6-luna-none, shortened
+    "The kettle refund was paid with receipt R-D40-0001. Shipping charges are not refunded automatically "
+    "(refund-policy/v2/shipping). Would you like a staff member to review the R$18 shipping charge?"
+)
+
+
+def test_a_yes_to_the_offer_counts_although_the_fact_line_came_between(shop):
+    # D40 try 2 of 2026-10-27: the answer told the earlier refund's receipt without its section, so the fact line
+    # followed the offer, and the yes check read the line as the agent's message before the yes: a genuine yes refused,
+    # twice more asked. The line is stored marked, and the check skips it (review of 2026-10-28).
+    s = shop("D40")
+    handoff = Call(
+        "request_handoff",
+        {
+            "reason": "The customer said yes to a staff member reviewing the shipping charge.",
+            "reason_code": "shipping_refund",
+            "customer_words": "Yes, please.",
+            "customer_goal": "The shipping charge refunded.",
+            "confirmed_facts": "",
+            "decision_needed": "Whether to refund the shipping charge.",
+        },
+    )
+    agent, _ = s.agent(
+        [Call("list_my_orders"), Say(SHIPPING_OFFER), handoff, Say("A staff member will review the shipping charge.")]
+    )
+    first = agent.receive(s.conversation, s.scenario.customer.opening_message)
+    assert first[-2]["text"] == SHIPPING_OFFER and first[-1].get("fact_line") is True  # the line came between
+    agent.receive(s.conversation, "Yes, please.")
+    assert rows(s.app, f"SELECT origin FROM handoffs WHERE conversation_id = '{s.conversation}'") == [("agent",)]
+    assert rows(s.app, f"SELECT control FROM conversations WHERE id = '{s.conversation}'") == [("human_controlled",)]
+    # The customer sees the line as the agent's, as before; only the mark is new.
+    mine = f"WHERE conversation_id = '{s.conversation}'"
+    stored = rows(s.app, f"SELECT author, fact_line FROM messages {mine} ORDER BY seq")
+    assert stored == [("customer", False), ("agent", False), ("agent", True), ("customer", False), ("agent", False)]

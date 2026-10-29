@@ -27,25 +27,36 @@ def agent_for(db, scenario_id, configuration="A"):
     return ToolContext(app, POLICY, lambda: scenario.now, customer, conversation, configuration)
 
 
-def said(ctx, words, author="customer"):
-    """A message of the conversation, stored as the conversation graph stores it before the turn's tools run."""
+def said(ctx, words, author="customer", fact_line=False):
+    """A message of the conversation, stored as the conversation graph stores it before the turn's tools run; a fact
+    line is the agent's, marked as said from the records (refund_agent/agent/facts.py)."""
     with ctx.engine.begin() as conn:
         count = conn.execute(
             text("SELECT count(*) FROM messages WHERE conversation_id = :c"), {"c": ctx.conversation_id}
         ).scalar_one()
-        conn.execute(
-            text(
-                "INSERT INTO messages (id, conversation_id, author, content_untrusted, created_at) "
-                "VALUES (:id, :c, :author, :words, :at)"
-            ),
-            {
-                "id": f"{ctx.conversation_id}/m{count:04d}",
-                "c": ctx.conversation_id,
-                "author": author,
-                "words": words,
-                "at": ctx.clock(),
-            },
-        )
+        row = {
+            "id": f"{ctx.conversation_id}/m{count:04d}",
+            "c": ctx.conversation_id,
+            "author": author,
+            "words": words,
+            "at": ctx.clock(),
+        }
+        if fact_line:
+            conn.execute(
+                text(
+                    "INSERT INTO messages (id, conversation_id, author, content_untrusted, created_at, fact_line) "
+                    "VALUES (:id, :c, :author, :words, :at, true)"
+                ),
+                row,
+            )
+        else:
+            conn.execute(
+                text(
+                    "INSERT INTO messages (id, conversation_id, author, content_untrusted, created_at) "
+                    "VALUES (:id, :c, :author, :words, :at)"
+                ),
+                row,
+            )
 
 
 def call(ctx, name, call_id="call-1", arguments=None, **args):
@@ -905,6 +916,38 @@ def test_a_proposal_among_look_alikes_waits_for_the_customers_words(db, configur
     said(ctx, "The olive one, please.")
     made = call(ctx, "propose_refund", "p-olive", order_id="d31-o1", unit_ids=["d31-o1-u1"])
     assert made["status"] == "awaiting_customer_confirmation"
+
+
+# A fact line between the agent's offer or question and the customer's answer (review of 2026-10-28, verified on
+# 795d430: D40 try 2 of 2026-10-27, a genuine yes refused). The line is said by the graph from the records after the
+# agent's answer; it is not what the customer answers, and the checks that pair an answer with the message before it
+# skip it.
+
+DELIVERED_ONLY = (
+    "Only orders recorded as delivered can be refunded through this process, and order d37-o1 is shipped "
+    "(refund-policy/v2/eligible-orders)."
+)
+
+
+def test_a_yes_to_the_offer_of_a_person_counts_although_a_fact_line_came_between(db):
+    ctx = agent_for(db, "D37")
+    said(ctx, "Hello, my rice cooker order is still on its way, but I don't need it any more. Can I cancel it?")
+    said(ctx, "Cancelling is outside this process. Would you like me to connect you with a staff member?", "agent")
+    said(ctx, DELIVERED_ONLY, "agent", fact_line=True)
+    said(ctx, "Yes, please.")
+    accepted = asked(ctx, "Yes, please.")
+    assert accepted["ok"] is True, accepted
+    assert control(ctx) == [("human_controlled",)]
+
+
+def test_a_yes_to_the_question_that_named_the_item_counts_although_a_fact_line_came_between(db):
+    ctx = agent_for(db, "D31")
+    said(ctx, SCARF)
+    said(ctx, "Do you mean the olive scarf?", author="agent")
+    said(ctx, "Each unit is refunded only once (refund-policy/v2/remaining).", "agent", fact_line=True)
+    said(ctx, "Yes, that one.")
+    made = call(ctx, "propose_refund", order_id="d31-o1", unit_ids=["d31-o1-u1"])
+    assert made.get("status") == "awaiting_customer_confirmation", made
 
 
 def test_items_the_customer_named_as_both_are_proposed_at_once(db):

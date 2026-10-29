@@ -88,8 +88,8 @@ def replay_try(saved: dict, scenario: Scenario, where: str, into: Replayed, poli
                 line = fact_line(history[:-1], message["text"], policy)
                 if line:
                     into.fact_lines.append(f"{where}: {line}")
-            if message.get("text"):  # stored before the answer's own calls run
-                said.append(("agent", message["text"]))
+            if message.get("text") and not message.get("fact_line"):  # stored before the answer's own calls run;
+                said.append(("agent", message["text"]))  # fact lines are stored marked, and the checks skip them
             for call in calls:
                 arguments = json.loads(call["arguments"] or "{}")
                 if call["name"] == "propose_refund":

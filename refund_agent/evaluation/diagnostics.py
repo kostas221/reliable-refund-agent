@@ -72,6 +72,28 @@ def proposal_denials(messages: list[dict]) -> int:
     return count
 
 
+# Signals of the process that need no reading (review of 2026-10-28). A yes the backend refused, for a person or for
+# the shipping charge: every such refusal begins with these words (refunds.py), and the customer is asked again. A card
+# the customer declined or cancelled with its button (the backend's notice IDs): the card was not wanted. Neither is a
+# fault by itself, since a refused yes may answer no offer and a decline may be the customer's choice; the reader marks
+# the faults (audit.PROCESS).
+YES_REFUSED = "that message is a yes"
+PROCESS_SIGNALS = ("a customer's yes refused", "cards declined or cancelled with the button")
+_BUTTON_NOTICES = ("notice-decline-", "notice-cancel-")
+
+
+def process_signals(messages: list[dict]) -> Counter:
+    counted = Counter()
+    for message in messages:
+        if message["role"] == "tool":
+            result = json.loads(message["content"])
+            if result.get("refused") == "handoff_reason" and result.get("explanation", "").startswith(YES_REFUSED):
+                counted[PROCESS_SIGNALS[0]] += 1
+        elif message["role"] == "event" and (message.get("notice_id") or "").startswith(_BUTTON_NOTICES):
+            counted[PROCESS_SIGNALS[1]] += 1
+    return counted
+
+
 CHECKS_ACTED = (
     "calls held after a question",
     "proposals refused, the customer's words do not say which",
@@ -131,6 +153,7 @@ def of_try(
         "proposals_after_receipt": proposals_after_receipt(saved.get("messages", [])),
         "proposal_denials": proposal_denials(saved.get("messages", [])),
         "checks_acted": checks_acted(saved.get("messages", [])),
+        "process": process_signals(saved.get("messages", [])),
         # The simulated customer reminded to answer before ending (review of 2026-10-27): answered or ended anyway.
         "simulator_reminders": Counter(saved.get("simulator_reminders", [])),
         # A quality citation under the rule of v1.2 never fails a conversation; it is counted here.
@@ -146,7 +169,11 @@ def summarize(per_try: list[dict]) -> dict:
     acted = Counter({name: 0 for name in (*CHECKS_ACTED, REPEATED_SELECTION)})
     reminders = Counter({"answered": 0, "ended": 0})
     quality = Counter({"shown": 0, "not shown": 0})
+    process = {signal: {"times": 0, "conversations": 0} for signal in PROCESS_SIGNALS}
     for d in per_try:
+        for signal, times in d.get("process", {}).items():
+            process[signal]["times"] += times
+            process[signal]["conversations"] += times > 0
         acted.update(d.get("checks_acted", {}))
         acted[REPEATED_SELECTION] += d.get("checks_acted", {}).get(CHECKS_ACTED[1], 0) >= 2
         total["citations"].update(d["citations"])
@@ -164,4 +191,5 @@ def summarize(per_try: list[dict]) -> dict:
         "checks_acted": dict(acted),
         "simulator_reminders": dict(reminders),
         "quality_citations": dict(quality),
+        "process": process,
     }

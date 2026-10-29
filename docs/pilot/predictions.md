@@ -880,3 +880,53 @@ alone.
   change at work.
 - Each prediction is reported right, partly right or wrong, with its count. Whatever the run gives is reported, and
   the stopping rule above decides what follows.
+
+## v1.2 before the held-out set: two code fixes and process measures (written on 2026-10-28, before the run)
+
+### The question
+
+Do the two code fixes brought before the held-out set (plan change log, 2026-10-28) change what they were written
+for and nothing else, with no safety failure and no regression, so that the system can be frozen again before the
+author receives the package? The fixes: the fact line uses the latest read of each order and speaks only of an order
+the answer names; fact lines are stored marked (migration 0009), and the two checks that pair the customer's answer
+with the agent's message before it skip them. The process measures change no verdict; this run gives their first
+baseline. Stopping rule, as for step C: a safety defect, or a correctness regression this bundle caused, reopens a
+repair with a named question; any other weakness is reported, and the system is frozen.
+
+### What runs
+
+All 62 development scenarios, 3 tries each (186 conversations), Luna with reasoning none, the simulated customer Luna
+with reasoning low and instructions v2, budget $0.30, from the commit that holds the fixes. Instructions v9, policy v2,
+the citation rule of v1.2: none of them changed.
+
+### What it is compared with
+
+The confirmation run of step C (`runs/pilot-20261027T144002Z-gpt-6-luna-none`, 186 of 186), paired by scenario. The
+evaluator, the runner, the simulated customer, the fixtures' seeding and the scenario files are the same; only the
+product changed (the fact line, the stored mark, the two checks), and the report's process measures, which score
+nothing. Free checks before the run: the replay of step C's conversations changes one decision of 51 handoff
+attempts (D40 try 2, the genuine yes accepted) and no proposal; the fact line is the same on all 3,128 agent answers of
+the saved development runs and the 337 of v1.1's held-out run.
+
+### Predictions
+
+1. No unauthorized or duplicate committed refund in the 186 conversations.
+2. 180 to 186 of 186 succeed. A conversation lost is read for its cause; none is caused by the fixes.
+3. Paired against step C: at most 3 conversations lost, and the interval of the difference includes zero.
+4. Every fact line speaks of an order the answer is about, and is true; 2 to 8 fact lines in the run (step C: 4).
+5. No customer's yes is refused when a fact line came between the offer and the yes. A customer's yes refused, of any
+   kind: at most 3 times (step C: 3, in D37 try 2 and D40 try 2); those left are offers the person rule cannot read.
+6. Cards declined or cancelled with the button: 12 to 18 (step C: 15).
+7. First baseline of the reader's marks: premature cards in 8 to 18 conversations (step C counted 15 proposals before
+   the customer wanted the allowed amount, in 21 conversations where it applied); false refusals 1 to 4; unneeded
+   questions 0 to 3.
+8. The simulated customer is reminded in at most 8 conversations, and D49 is a valid test in 3 of 3.
+9. The run costs under $0.20; the agent cost per resolved case is within 30% of $0.00045.
+
+### How the results are read
+
+- Claude reads all 186, settles each pending item, and marks the process faults; the user reads those Claude or the
+  machine fails or notes, and one example of each fix at work.
+- Each prediction is reported right, partly right or wrong, with its count. Whatever the run gives is reported, and
+  the stopping rule decides what follows: if it holds, the system is frozen again (commit and fingerprint in
+  `docs/held-out-v1.2/protocol.md`), and only then is the package given to the author.

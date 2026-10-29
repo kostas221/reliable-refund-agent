@@ -220,9 +220,21 @@ an agent message hides an offer from the yes check (D40 try 2, since 2026-10-24,
 offers the person rule cannot read, the customer's own shipping request refused until a yes, v9's words-first partly
 followed (15 of 21 proposals before the customer wanted the allowed amount; nothing wrong paid). Stopping rule: no
 safety defect, no regression this bundle caused, so **the system is frozen** at 795d430, fingerprint 96e452ab...
-(`docs/held-out-v1.2/protocol.md`); the weaknesses wait for a cycle after step D. Next: D 40 new held-out scenarios
-from a new author, groups fixed before authoring, `novel` and the Olist exclusion in the converter, one A/B/C run,
-published whatever it shows. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
+(`docs/held-out-v1.2/protocol.md`); step C committed as 353ebff. The outside review of 2026-10-28
+(`docs/research-generalization-2026-10-28.md`) was verified on 795d430 with free probes; the 2026-10-23 trigger for
+the recorded offer had fired on 2026-10-24 and 2026-10-27 unrecorded. The owner reopened the freeze before the
+author got the package (plan change log, 2026-10-28) for two code fixes and process measures, no change to the
+agent's tools, instructions, policy or the author package: the fact line uses each order's latest read and speaks only
+of an order the answer names (`agent/facts.py`); fact lines are stored marked (migration 0009) and the two checks that
+pair an answer with the agent's message before it skip them (`refunds._written`, `_look_alikes_unnamed`); the report
+counts process faults apart from success (reader-marked `process = [...]` in the audit: premature_card,
+unneeded_question, false_refusal; automatic: a customer's yes refused, cards declined or cancelled). Failing-first
+tests; replay on step C: 1 of 51 handoff decisions changes (D40 try 2), the fact line is the same on 3,128 + 337 saved
+answers; 18 planted bugs (scratchpad `planted_bugs_pre_d.py`). The recorded offer and selection by candidate IDs wait
+for after step D. Next: the owner's commit, the confirmation run on development (predictions written, budget $0.30),
+Claude's reading with the process marks, the stopping rule, a new freeze in the protocol, then D: 40 new held-out
+scenarios from a new author, groups fixed before authoring, `novel` and the Olist exclusion in the converter, one
+A/B/C run, published whatever it shows. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
 `runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run
 (`user-review/`), 7 of the comparison

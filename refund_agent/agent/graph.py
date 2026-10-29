@@ -258,8 +258,10 @@ class Agent:
         return dict(found)
 
     def _mirror(self, conversation_id: str, messages: list[dict] | None = None) -> None:
-        """Write what the customer and the agent said to the messages table, once per place in the conversation.
-        `messages` is the conversation's state as the run has it; by default the last saved checkpoint."""
+        """Write what the customer and the agent said to the messages table, once per place in the conversation, with
+        each fact line marked: the backend's checks skip it when they pair the customer's answer with the agent's
+        message before it (migration 0009). `messages` is the conversation's state as the run has it; by default the
+        last saved checkpoint."""
         said = self.messages(conversation_id) if messages is None else messages
         rows = [
             {
@@ -268,6 +270,7 @@ class Agent:
                 "author": message["role"],
                 "content": message["text"],
                 "at": self.clock(),
+                "fact_line": bool(message.get("fact_line")),
             }
             for index, message in enumerate(said)
             if message["role"] in ("customer", "agent") and message.get("text")
@@ -276,8 +279,8 @@ class Agent:
             with self.engine.begin() as conn:
                 conn.execute(
                     text(
-                        "INSERT INTO messages (id, conversation_id, author, content_untrusted, created_at) "
-                        "VALUES (:id, :conversation, :author, :content, :at) ON CONFLICT (id) DO NOTHING"
+                        "INSERT INTO messages (id, conversation_id, author, content_untrusted, created_at, fact_line) "
+                        "VALUES (:id, :conversation, :author, :content, :at, :fact_line) ON CONFLICT (id) DO NOTHING"
                     ),
                     rows,
                 )

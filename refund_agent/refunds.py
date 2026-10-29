@@ -295,7 +295,8 @@ def _look_alikes_unnamed(
 ) -> tuple[selection.Kind, ...]:
     """The look-alikes among the customer's orders that the conversation does not yet tell apart for these units
     (refund_agent/selection.py), read inside the proposal's transaction: every unit of the customer not yet refunded,
-    as kinds of one product in one order, and what the customer and the agent wrote, in order. Order dates are UTC."""
+    as kinds of one product in one order, and what the customer and the agent wrote, in order. Order dates are UTC.
+    Fact lines are left out: said by the graph from the records, they are not the question a customer's yes answers."""
     units = _all(
         conn,
         "SELECT u.id, u.order_id, u.product_name, o.purchased_at, o.delivered_at FROM order_units u "
@@ -320,7 +321,7 @@ def _look_alikes_unnamed(
     written = conn.execute(
         text(
             "SELECT author, content_untrusted FROM messages "
-            "WHERE conversation_id = :id AND author IN ('customer', 'agent') ORDER BY seq"
+            "WHERE conversation_id = :id AND author IN ('customer', 'agent') AND NOT fact_line ORDER BY seq"
         ),
         {"id": conversation_id},
     ).all()
@@ -1330,11 +1331,12 @@ def request_for_person(messages: Sequence[tuple[str, str, str]], words: str) -> 
 
 
 def _written(conn: Connection, conversation_id: str) -> list[tuple[str, str, str]]:
-    """What the customer and the agent wrote in this conversation, as (id, author, text), in order."""
+    """What the customer and the agent wrote in this conversation, as (id, author, text), in order. Fact lines are left
+    out: said by the graph from the records, they are not the offer a customer's yes answers (review of 2026-10-28)."""
     rows = conn.execute(
         text(
             "SELECT id, author, content_untrusted FROM messages "
-            "WHERE conversation_id = :id AND author IN ('customer', 'agent') ORDER BY seq"
+            "WHERE conversation_id = :id AND author IN ('customer', 'agent') AND NOT fact_line ORDER BY seq"
         ),
         {"id": conversation_id},
     ).all()

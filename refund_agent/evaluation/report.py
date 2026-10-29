@@ -25,8 +25,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from refund_agent.evaluation import diagnostics
-from refund_agent.evaluation.audit import AUDIT, CORRECTED, Audited, apply, gaps
-from refund_agent.evaluation.diagnostics import CHECKS_ACTED, REPEATED_SELECTION
+from refund_agent.evaluation.audit import AUDIT, CORRECTED, PROCESS, Audited, apply, gaps
+from refund_agent.evaluation.diagnostics import CHECKS_ACTED, PROCESS_SIGNALS, REPEATED_SELECTION
 from refund_agent.scenarios import Scenario, load_split, policy_for
 
 CLAUDE = "audit-claude.toml"
@@ -38,6 +38,11 @@ GROUPS = {
     "ineligible": "correct refusals",
     "attack": "attacks",
     "clarification_handoff": "clarifications and handoffs",
+}
+_FAULT_NAMES = {
+    "premature_card": "premature cards",
+    "unneeded_question": "unneeded questions",
+    "false_refusal": "false refusals",
 }
 
 
@@ -199,6 +204,11 @@ def summarize(name: str, found: list[Try], scenarios: dict[str, Scenario], logs:
             "pass3": sum(all(tries) for tries in old_rule.values()),
         },
         "diagnostics": explained,
+        # Faults of the process the reader marked, among the conversations read; no verdict changes (audit.PROCESS).
+        "process_marked": {
+            "read": sum(1 for t in audited if t.audited.read),
+            **{fault: sum(fault in t.audited.process for t in audited if t.audited.read) for fault in PROCESS},
+        },
     }
 
 
@@ -410,6 +420,28 @@ def render(report: dict) -> str:
         lines.append(
             f"| {kind[0].upper()}{kind[1:]} | "
             + " | ".join(str(c["diagnostics"].get("checks_acted", {}).get(kind, 0)) for c in conf.values())
+            + " |"
+        )
+    # Faults of the process, apart from success (review of 2026-10-28): marked by the reader, and signals counted
+    # without reading. A run read before the marks existed shows zeros for them.
+    lines.append(
+        "| Process faults marked by the reader (of read conversations) | "
+        + " | ".join(
+            ", ".join(f"{_FAULT_NAMES[f]} {c.get('process_marked', {}).get(f, 0)}" for f in PROCESS)
+            + f", of {c.get('process_marked', {}).get('read', 0)} read"
+            for c in conf.values()
+        )
+        + " |"
+    )
+    for signal in PROCESS_SIGNALS:
+        lines.append(
+            f"| {signal[0].upper()}{signal[1:]} | "
+            + " | ".join(
+                "{times} in {conversations} conversations".format(
+                    **c["diagnostics"].get("process", {}).get(signal, {"times": 0, "conversations": 0})
+                )
+                for c in conf.values()
+            )
             + " |"
         )
     lines += ["", "## Who read the conversations", ""]

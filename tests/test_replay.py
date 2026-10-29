@@ -49,6 +49,21 @@ def test_the_checks_of_the_review_after_the_selection_check_on_the_run_it_read()
     assert (found.changed, found.handoffs) == ([], 28)
 
 
+STEP_C = REPO_ROOT / "runs" / "pilot-20261027T144002Z-gpt-6-luna-none"
+
+
+def test_fact_lines_left_out_of_the_yes_check_change_one_decision_of_the_v1_2_confirmation():
+    # Review of 2026-10-28: in D40 try 2 the fact line followed the offer, and the customer's genuine yes was refused.
+    # With fact lines left out, that yes is accepted; nothing else changes, and the run's four fact lines stay.
+    found = replay([STEP_C])
+    assert found.shipping_changed == [
+        f"{STEP_C.name} D40 try2: accepted 'Yes, please have a staff member review the R$18 shipping charge.'"
+    ]
+    assert (found.changed, found.handoffs, found.shipping) == ([], 35, 16)
+    assert (len(found.refused), found.proposals) == (10, 137)
+    assert sorted(line.split(":")[0].split()[1] for line in found.fact_lines) == ["D20", "D40", "D40", "D62"]
+
+
 COMPARISON = [
     REPO_ROOT / "runs" / name
     for name in ("pilot-20261023T185612Z-gpt-6-luna-none", "pilot-20261023T201842Z-gpt-6.1-sol-low")

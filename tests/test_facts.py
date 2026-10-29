@@ -25,8 +25,9 @@ def orders(*entries):
     }
 
 
-def order(order_id, status, requests=()):
-    return {"order_id": order_id, "status": status, "units": [], "requests": list(requests)}
+def order(order_id, status, requests=(), products=()):
+    units = [{"unit_id": f"{order_id}-u{n}", "product": product} for n, product in enumerate(products, 1)]
+    return {"order_id": order_id, "status": status, "units": units, "requests": list(requests)}
 
 
 PAID_BEFORE = orders(
@@ -98,6 +99,67 @@ def test_both_facts_go_in_one_line_and_each_cites_its_section():
     )
     line = fact_line([both], "Receipt R-H10-0001 is paid; your lamp is shipped.", POLICY)
     assert REMAINING in line and ELIGIBLE in line
+
+
+# The latest read of each order, and only an order the answer names (review of 2026-10-28, verified on 795d430: the line
+# kept a status a later read had replaced, and named an order the answer was not about).
+
+SCANNER = order("h80-o1", "delivered", products=["Portable document scanner"])
+SLEEVE = order("h80-o2", "shipped", products=["Laptop carrying sleeve"])
+
+
+def test_a_later_read_of_the_same_order_replaces_the_earlier_one():
+    history = [orders(order("o1", "shipped")), orders(order("o1", "delivered"))]
+    answer = "The previous record said shipped, but the latest record now says delivered."
+    assert fact_line(history, answer, POLICY) == ""
+
+
+def test_a_failed_read_does_not_erase_what_an_earlier_read_showed():
+    failed = {"role": "tool", "call_id": "c3", "name": "get_my_order", "content": json.dumps({"ok": False})}
+    line = fact_line([ON_ITS_WAY, failed], "Your reading lamp order is still shipped.", POLICY)
+    assert "d35-o1 is shipped" in line
+
+
+def test_an_answer_about_another_order_gets_nothing():
+    # "shipped" in another sense, about the delivered order, while the other order is on its way: named by a word of
+    # its product and its ID, or by its ID alone.
+    for answer in (
+        "Your scanner from order h80-o1 was shipped back to us and received.",
+        "Order h80-o1 was shipped back to us and received.",
+    ):
+        assert fact_line([orders(SCANNER, SLEEVE)], answer, POLICY) == ""
+
+
+def test_a_read_without_its_units_keeps_the_words_of_the_earlier_one():
+    bare = {key: value for key, value in SLEEVE.items() if key != "units"}
+    answer = "Your scanner was received, and your laptop sleeve is still shipped."  # both named, each by its words
+    line = fact_line([orders(SCANNER, SLEEVE), orders(bare)], answer, POLICY)
+    assert "order h80-o2 is shipped" in line
+    answer = "Your scanner was shipped back to us."  # the scanner is named, so nothing is said of the sleeve
+    assert fact_line([orders(SCANNER, SLEEVE), orders(bare)], answer, POLICY) == ""
+
+
+def test_an_order_named_by_its_product_or_its_id_gets_the_line():
+    # D62 try 1: the sleeve order named by words of its product; and by its ID.
+    for answer in (
+        "A person will help with your laptop sleeve order, which is still being shipped.",
+        "h80-o2 is shipped.",
+    ):
+        line = fact_line([orders(SCANNER, SLEEVE)], answer, POLICY)
+        assert "order h80-o2 is shipped" in line and "h80-o1" not in line
+
+
+def test_a_word_two_orders_share_names_neither():
+    # "electric" is in both products: it tells neither order apart, so only "kettle" names one, the delivered one.
+    kettle = order("o1", "delivered", products=["Electric kettle"])
+    cooker = order("o2", "shipped", products=["Electric rice cooker"])
+    answer = "Your electric kettle was shipped back to us and received."
+    assert fact_line([orders(kettle, cooker)], answer, POLICY) == ""
+
+
+def test_an_answer_that_names_no_order_counts_for_the_one_on_its_way():
+    line = fact_line([orders(SCANNER, SLEEVE)], "Your order is shipped, not delivered yet.", POLICY)
+    assert "order h80-o2 is shipped" in line
 
 
 # A handoff's section (final evaluation of v1.1, 2026-10-26). Every refusal's tool result gave its sections, and all 98

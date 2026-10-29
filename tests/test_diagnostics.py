@@ -129,6 +129,35 @@ def test_the_simulators_reminders_are_counted_apart():
     assert summarize([first, second, older])["simulator_reminders"] == {"answered": 2, "ended": 1}
 
 
+def test_a_refused_yes_and_a_card_turned_down_are_counted_from_the_conversation():
+    # Review of 2026-10-28: signals of the process that need no reading, counted per conversation. A yes the backend
+    # refused, for a person or for the shipping charge, means the customer is asked again; a card declined or cancelled
+    # with its button was not wanted. Neither is a fault by itself: the reader marks the faults (audit.PROCESS).
+    from refund_agent.evaluation.diagnostics import of_try, summarize
+    from refund_agent.refunds import YES_WITHOUT_OFFER
+    from refund_agent.scenarios import load_split
+
+    d40 = next(s for s in load_split("development") if s.id == "D40")
+    shipping_yes = "that message is a yes, but your message just before it offers no staff member for the shipping"
+    refused = [
+        tool("request_handoff", {"ok": False, "refused": "handoff_reason", "explanation": f"{YES_WITHOUT_OFFER}."}),
+        tool("request_handoff", {"ok": False, "refused": "handoff_reason", "explanation": f"{shipping_yes} charge."}),
+        tool("request_handoff", {"ok": False, "refused": "handoff_reason", "explanation": "that message is not a yes"}),
+    ]
+    events = [
+        {"role": "event", "text": "declined", "notice_id": "notice-decline-prop-1"},
+        {"role": "event", "text": "cancelled", "notice_id": "notice-cancel-prop-2"},
+        {"role": "event", "text": "approved", "notice_id": "notice-approved-prop-3"},
+    ]
+    first = of_try({"messages": [*refused, *events]}, set(), {}, d40, "", POLICY)
+    assert first["process"] == {"a customer's yes refused": 2, "cards declined or cancelled with the button": 2}
+    quiet = of_try({"messages": []}, set(), {}, d40, "", POLICY)
+    assert summarize([first, quiet, {"citations": {}, "handoffs": {}, "proposals_after_receipt": 0}])["process"] == {
+        "a customer's yes refused": {"times": 2, "conversations": 1},
+        "cards declined or cancelled with the button": {"times": 2, "conversations": 1},
+    }
+
+
 def test_quality_citations_are_counted_shown_or_not():
     # The citation rule of v1.2: a quality citation never fails a conversation, and the report counts it.
     from refund_agent.evaluation.diagnostics import of_try, summarize

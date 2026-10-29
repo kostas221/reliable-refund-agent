@@ -176,6 +176,27 @@ def test_a_development_run_is_one_configuration_and_never_judged_by_the_targets(
     assert report.render(built).startswith("# Run report: pilot-run")
 
 
+def test_faults_of_the_process_are_reported_apart_and_change_no_score(tmp_path):
+    # Review of 2026-10-28: success counted as before, and beside it the faults the reader marked and the signals the
+    # conversation gives without reading, each with its denominator.
+    folder = configuration(tmp_path, "pilot-run", ["D01"])
+    recorded = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    recorded["identity"]["configuration"] = "A"  # as a pilot's manifest says
+    (folder / "manifest.json").write_text(json.dumps(recorded), encoding="utf-8")
+    declined = {"role": "event", "text": "declined", "notice_id": "notice-decline-prop-1"}
+    for attempt in (1, 2, 3):
+        save(folder, "D01", attempt, messages=[declined] if attempt == 1 else ())
+    audit(folder, report.CLAUDE, {"D01.try1": 'read = true\nprocess = ["premature_card"]'})
+    built = report.build(folder)
+    a = built["configurations"]["A"]
+    assert a["passed"] == 3  # the marks change no verdict
+    assert a["process_marked"] == {"read": 3, "premature_card": 1, "unneeded_question": 0, "false_refusal": 0}
+    shown = report.render(built)
+    marked = "premature cards 1, unneeded questions 0, false refusals 0, of 3 read"
+    assert f"| Process faults marked by the reader (of read conversations) | {marked} |" in shown
+    assert "| Cards declined or cancelled with the button | 1 in 1 conversations |" in shown
+
+
 # How each run was measured (review of 2026-10-27): a difference between two runs is the product's alone only when the
 # evaluator, the runner that plays the people, the simulated customer, the fixtures' seeding and the paired scenarios'
 # files were the same. Otherwise the comparison says it is a combined change.

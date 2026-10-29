@@ -82,7 +82,7 @@ def test_a_new_audit_lists_every_conversation_with_its_pending_items(run):
         "D09.try1",
         "D09.try2",
     }
-    assert parsed["D01"]["try1"] == {"read": False, "failed": [], "simulator_fault": False, "note": ""}
+    assert parsed["D01"]["try1"] == {"read": False, "failed": [], "simulator_fault": False, "process": [], "note": ""}
     assert "#   communication:states_correct_amount" in text
     assert "# failed by the machine: forbidden:proposal_with_other_units" in text
 
@@ -167,6 +167,35 @@ def test_errors_of_the_run_decide_before_the_reader(run):
     ],
 )
 def test_a_malformed_section_is_refused(run, section, problem):
+    audit(run, **{"D01.try1": section})
+    with pytest.raises(AuditError, match=problem):
+        apply(run)
+
+
+# Faults of the process, apart from the verdict (review of 2026-10-28): a conversation can succeed with a card the
+# customer did not want yet, a question the customer had already answered, or a refusal of what the customer truly
+# asked for. Code cannot tell these from the right moves; the reader marks them, and no verdict changes.
+
+
+def test_the_reader_marks_faults_of_the_process_apart_from_the_verdict(run):
+    marked = 'read = true\nprocess = ["premature_card", "false_refusal"]\nnote = "a card before the yes"'
+    audit(run, **{"D01.try1": marked})
+    found = {a.conversation.key: a for a in apply(run)}
+    assert found["D01.try1"].process == ("premature_card", "false_refusal")
+    assert found["D01.try1"].outcome == "passed"
+    assert found["D01.try2"].process == ()  # a section without the field, as in every audit written before
+    assert "Process faults marked by the reader: premature_card 1, false_refusal 1" in report(apply(run))
+
+
+@pytest.mark.parametrize(
+    ("section", "problem"),
+    [
+        ('read = true\nprocess = ["rude"]', r"unknown process faults \['rude'\]"),
+        ('process = ["premature_card"]', "process faults are listed, but read is not true"),
+        ('read = true\nprocess = "premature_card"', "wrong form"),
+    ],
+)
+def test_a_process_mark_is_one_of_the_named_faults_of_a_read_conversation(run, section, problem):
     audit(run, **{"D01.try1": section})
     with pytest.raises(AuditError, match=problem):
         apply(run)
