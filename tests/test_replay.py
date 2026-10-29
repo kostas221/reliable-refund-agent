@@ -52,12 +52,20 @@ def test_the_checks_of_the_review_after_the_selection_check_on_the_run_it_read()
 STEP_C = REPO_ROOT / "runs" / "pilot-20261027T144002Z-gpt-6-luna-none"
 
 
-def test_fact_lines_left_out_of_the_yes_check_change_one_decision_of_the_v1_2_confirmation():
-    # Review of 2026-10-28: in D40 try 2 the fact line followed the offer, and the customer's genuine yes was refused.
-    # With fact lines left out, that yes is accepted; nothing else changes, and the run's four fact lines stay.
+def test_the_v1_2_confirmation_replayed_changes_only_shipping_requests_that_ask_for_a_person():
+    # Review of 2026-10-28: in D40 try 2 the fact line followed the offer, and the customer's genuine yes was refused;
+    # with fact lines left out, that yes is accepted (tested on its own, with a bare "Yes, please.", in
+    # tests/acceptance/test_agent_graph.py). Plan change log, 2026-10-29: a customer's own request for a person for the
+    # shipping charge is a request too, so D40 try 2 is now accepted on its words as well, and so are D40 try 1 and
+    # D49 tries 1 and 2: every changed decision is a message that asks for a person for the shipping charge. Nothing
+    # else changes, and the run's four fact lines stay.
     found = replay([STEP_C])
     assert found.shipping_changed == [
-        f"{STEP_C.name} D40 try2: accepted 'Yes, please have a staff member review the R$18 shipping charge.'"
+        f"{STEP_C.name} D40 try1: accepted 'Could a staff member still review the BRL 18 shipping charge?'",
+        f"{STEP_C.name} D40 try2: accepted 'Yes, please have a staff member review the R$18 shipping charge.'",
+        f"{STEP_C.name} D49 try1: accepted 'Could a person review the shipping charge refund?'",
+        f"{STEP_C.name} D49 try2: accepted 'Please have a staff member review the shipping refund.'",
+        f"{STEP_C.name} D49 try2: accepted 'Please have a staff member review the shipping refund.'",
     ]
     assert (found.changed, found.handoffs, found.shipping) == ([], 35, 16)
     assert (len(found.refused), found.proposals) == (10, 137)

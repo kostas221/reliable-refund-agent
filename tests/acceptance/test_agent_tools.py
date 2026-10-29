@@ -693,11 +693,13 @@ def test_a_question_about_shipping_is_answered_and_the_refund_goes_on(db):
     refused = shipping(ctx, question)
     assert refused["refused"] == "handoff_reason"
     explanation = refused["explanation"]
-    assert (
-        explanation.split(".")[0] == "that message is not a yes to your offer of a staff member for the shipping charge"
+    assert explanation.split(".")[0] == (
+        "that message neither asks for a person for the shipping charge nor says yes to your offer of a staff member "
+        "for it"
     )
     assert "Answer a question about shipping from (refund-policy/v2/shipping)" in explanation
     assert "Would you like a staff member to review the shipping charge?" in explanation
+    assert "or when they ask in their own words for a person for the shipping charge" in explanation
     assert "go on with the refund of any item the customer asked for" in explanation
     assert "customer_asked" not in explanation  # the tail for a request for a person does not apply
     # A refused attempt changes nothing: no handoff, the conversation stays the agent's, the kettle's proposal open.
@@ -716,7 +718,7 @@ def test_a_request_to_refund_shipping_is_handed_off_on_the_yes_to_the_offer(db):
         "arrived broken. I want the shipping refunded.",
     )
     refused = shipping(ctx, "I want the shipping refunded.")
-    assert refused["explanation"].startswith("that message is not a yes to your offer of a staff member")
+    assert refused["explanation"].startswith("that message neither asks for a person for the shipping charge")
     said(
         ctx,
         "Shipping is never refunded automatically. Would you like a staff member to review the shipping charge?",
@@ -732,6 +734,40 @@ def test_a_request_to_refund_shipping_is_handed_off_on_the_yes_to_the_offer(db):
             f"(message {request}, a yes to the agent's offer of a staff member for the shipping charge).",
         )
     ]
+
+
+def test_a_request_for_a_person_for_the_shipping_charge_is_handed_off_at_once(db):
+    # D49 tries 1 and 2 of 2026-10-29: the customer asked in words for a person for the shipping charge; the check
+    # wanted a yes to an offer, so the customer was asked again (try 1) or handed off as customer_asked (try 2). The
+    # staff member reads what the request rests on, and the origin stays the agent's, as for every case the policy
+    # names.
+    ctx = agent_for(db, "D40")
+    said(
+        ctx,
+        "I paid 18 reais shipping for a kettle that arrived broken. Please have a person handle the shipping refund.",
+    )
+    assert shipping(ctx, "Please have a person handle the shipping refund.")["ok"] is True
+    request = f"{ctx.conversation_id}/m0000"
+    assert rows(ctx.engine, "SELECT origin, reason FROM handoffs") == [
+        (
+            "agent",
+            "shipping_refund: A test of the handoff check. The customer wrote: "
+            '"Please have a person handle the shipping refund." '
+            f"(message {request}, which asks for a person for the shipping charge).",
+        )
+    ]
+
+
+def test_staff_declined_for_the_shipping_charge_is_no_request(db):
+    # D49's opening: the shipping charge is asked for, and staff declined in the same message.
+    ctx = agent_for(db, "D40")
+    opening = (
+        "I want the delivery charge back too, but don't bother involving staff. Just add shipping to the kettle refund."
+    )
+    said(ctx, opening)
+    refused = shipping(ctx, "I want the delivery charge back too, but don't bother involving staff.")
+    assert refused["refused"] == "handoff_reason"
+    assert rows(ctx.engine, "SELECT count(*) FROM handoffs") == [(0,)]
 
 
 # What a handoff closed (review of the model comparison, 2026-10-24): in D28 the request was already cancelled by the
@@ -1052,6 +1088,21 @@ def test_an_eligible_assessment_gives_the_amount_and_reserves_nothing(db):
     assert eligible["policy_citations"] == ["refund-policy/v2/amount"]
     # Scoped to its own effect: an assessment cannot tell whether a proposal already exists (D17 of step 2).
     assert eligible["next_step"].startswith("This assessment does not create or change a proposal.")
+
+
+def test_an_eligible_assessment_says_the_allowed_amount_in_words_first_when_more_was_asked(db):
+    # Plan change log, 2026-10-29: 13 of the 14 early proposal cards of runs/pilot-20261029T113311Z-gpt-6-luna-none came
+    # right after an eligible assessment whose next step said to propose, while the customer had asked for more than
+    # the policy allows (D12: 69 reais for a box that cost 49), against the instructions' rule for such requests. This
+    # checks the text only: whether the model follows it is measured by a run.
+    step = call(agent_for(db, "D01"), "assess_refund", order_id="d01-o1", unit_ids=["d01-o1-u1"])["next_step"]
+    words_first = (
+        "If the customer asked for more than this amount, or for something the policy does not allow, tell them in "
+        "words what the policy allows, citing the sections given, and call propose_refund only when they say they "
+        "want it."
+    )
+    assert words_first in step
+    assert step.index(words_first) < step.index("call propose_refund with them")  # the usual case comes after
 
 
 def test_an_assessment_of_another_customers_order_or_a_wrong_unit_is_refused_and_writes_nothing(db):

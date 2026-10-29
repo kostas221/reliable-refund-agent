@@ -251,7 +251,9 @@ The final state is read from the database:
 - **handoff**: `required` (a person must take over), `forbidden` (no handoff may happen), or `allowed` (it may happen,
   and every other requirement still holds). For `required` and `allowed`, list in `handoff_origins` who may start it:
   `customer` (the customer asked for a person, or said yes to the agent's offer of one), `agent` (a case the policy
-  names), `staff`.
+  names), `staff`. In a case the policy names that the customer also asked for, in words or with a yes to the agent's
+  offer of a person (a request to refund shipping, for example), the handoff is recorded as `agent` or as `customer`,
+  depending on the reason the agent gives: list both.
 
 **Citations.** A citation is required (`cites`) only where the conversation must tell the customer a policy decision
 or explanation that the customer needs, in one of four cases:

@@ -209,10 +209,14 @@ def assess_refund(ctx: ToolContext, args: AssessArgs, call_id: str) -> dict:
         ctx.policy,
     )
     next_step = {
-        # Scoped to the assessment's own effect: it cannot tell whether the conversation already has a proposal.
-        "eligible": "This assessment does not create or change a proposal. If these are exactly the units the "
-        "customer asked for, call propose_refund with them; if the customer's words could mean other units too, ask "
-        "which first.",
+        # Scoped to the assessment's own effect: it cannot tell whether the conversation already has a proposal. A
+        # request for more than the policy allows is answered in words first, as the instructions say (plan change log,
+        # 2026-10-29: 13 of 14 early proposal cards came right after this text, when it said only to propose).
+        "eligible": "This assessment does not create or change a proposal. If the customer asked for more than this "
+        "amount, or for something the policy does not allow, tell them in words what the policy allows, citing the "
+        "sections given, and call propose_refund only when they say they want it. Otherwise, if these are exactly "
+        "the units the customer asked for, call propose_refund with them; if the customer's words could mean other "
+        "units too, ask which first.",
         "refused": "Tell the customer why, citing the sections given. Propose nothing for these units.",
         "needs_person": "A staff member takes the case: hand off with request_handoff, reason_code shop_decided, this "
         "order and these units; the backend records the request for the staff member. Tell the customer.",
@@ -395,18 +399,23 @@ def request_handoff(ctx: ToolContext, args: HandoffArgs, call_id: str) -> dict:
         args.unit_ids,
         args.customer_words,
     )
-    # The staff member sees the words the request rests on, and whether they ask for a person or accept an offer of one.
-    basis = {"names_person": "which names a person", "accepts_offer": "a yes to the agent's offer of a person"}
+    # The staff member sees the words the request rests on, and whether they ask for a person or accept an offer of one;
+    # for the shipping charge either can be the request (plan change log, 2026-10-29).
+    basis = {
+        "customer_asked": {
+            "names_person": "which names a person",
+            "accepts_offer": "a yes to the agent's offer of a person",
+        },
+        "shipping_refund": {
+            "names_person": "which asks for a person for the shipping charge",
+            "accepts_offer": "a yes to the agent's offer of a staff member for the shipping charge",
+        },
+    }
     quoted = ""
-    if args.reason_code == "customer_asked":
+    if args.reason_code in basis:
         quoted = (
             f' The customer wrote: "{args.customer_words}" (message {found["customer_message"]}, '
-            f"{basis[found['basis']]})."
-        )
-    elif args.reason_code == "shipping_refund":
-        quoted = (
-            f' The customer wrote: "{args.customer_words}" (message {found["customer_message"]}, a yes to the '
-            "agent's offer of a staff member for the shipping charge)."
+            f"{basis[args.reason_code][found['basis']]})."
         )
     handoff_id = hand_off(
         ctx.engine,

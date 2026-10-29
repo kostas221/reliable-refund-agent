@@ -199,6 +199,8 @@ def parse(response: Any) -> ModelTurn:
     is left out of what is shown. What the model said stays whole: every text item with its label, in order, goes to
     the log (message_items) and, when the model labels its text, back to the model with the reasoning items in the
     order it produced them (continuation), as the provider asks. Unlabelled text is shown and sent back as it is.
+    Labelled text the model repeats word for word right after itself is shown once; the log and the continuation keep
+    both (plan change log, 2026-10-29).
     """
     if getattr(response, "status", "completed") not in (None, "completed"):
         reason = getattr(getattr(response, "incomplete_details", None), "reason", None)
@@ -222,6 +224,11 @@ def parse(response: Any) -> ModelTurn:
                     continuation.append({**said, "phase": phase} if phase else said)
     final = [entry["text"] for entry in labelled if entry["phase"] == "final_answer"]
     texts = final or [entry["text"] for entry in labelled]
+    if labels:
+        # D09 try 2 of runs/pilot-20261029T113311Z-gpt-6-luna-none: the same final answer twice in one response (the
+        # only one of 2,242 labelled answers of the development runs since 2026-10-22), so the customer saw the question
+        # twice. What goes back to the model is the continuation, so only what is shown changes.
+        texts = [said for n, said in enumerate(texts) if n == 0 or said != texts[n - 1]]
     if refusals and not texts and not calls:
         raise ModelError("refusal", retryable=False, detail=" ".join(refusals))
     if not texts and not calls:

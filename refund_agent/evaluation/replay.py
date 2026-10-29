@@ -9,8 +9,8 @@ decides, never what the model would have said after a different tool result; onl
 - Request for a person (refunds.request_for_person): every recorded customer_asked attempt, against what the backend
   answered at the time.
 - Request to refund shipping (refunds.request_for_shipping_refund, review after the selection check; a yes to the
-  agent's offer since the review of the model comparison): every recorded shipping_refund attempt, against what the
-  backend answered at the time.
+  agent's offer since the review of the model comparison, or the customer's own request for a person for the shipping
+  charge since 2026-10-29): every recorded shipping_refund attempt, against what the backend answered at the time.
 - Fact line (refund_agent/agent/facts.py, review of the model comparison): every agent answer with text and no calls,
   and the line the graph would now say after it.
 
@@ -114,7 +114,7 @@ def replay_try(saved: dict, scenario: Scenario, where: str, into: Replayed, poli
                     into.shipping += 1
                     numbered = [(f"m{n}", author, text) for n, (author, text) in enumerate(said)]
                     words = arguments.get("customer_words", "")
-                    now = request_for_shipping_refund(numbered, words)[0] is not None
+                    now = request_for_shipping_refund(numbered, words).message_id is not None
                     recorded = _recorded_answer(saved, call["call_id"])
                     if recorded is not None and now != recorded:
                         into.shipping_changed.append(f"{where}: {'accepted' if now else 'refused'} {words!r}")

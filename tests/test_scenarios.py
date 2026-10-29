@@ -129,6 +129,11 @@ def test_a_customer_offered_a_person_beside_the_goal_knows_what_to_say():
     assert "If you are offered a staff member to review the shipping charge, say yes." in roles["D40"]
 
 
+# Copies whose handoff origins were widened after copying, in the plan's change log (2026-10-29): a handoff the customer
+# also asked for, in a case the policy names, is recorded agent or customer as the agent gives the reason.
+WIDENED_ORIGINS = {"D49"}
+
+
 def test_a_development_copy_is_its_source_but_for_id_split_and_origin():
     sources = {s.id: s for s in (*HELD_OUT, *HELD_OUT_V1_1)}
     rule = {"cites", "obligations", "quality_cites"}  # the citation rule of v1.2, which development follows
@@ -138,7 +143,10 @@ def test_a_development_copy_is_its_source_but_for_id_split_and_origin():
             continue  # rewritten for a later policy, which the plan's change log records
         different = {"id", "split", "derived_from", "expected"}
         assert copy.model_dump(exclude=different) == source.model_dump(exclude=different), copy.id
-        assert copy.expected.model_dump(exclude=rule) == source.expected.model_dump(exclude=rule), copy.id
+        revised = rule | ({"handoff_origins"} if copy.id in WIDENED_ORIGINS else set())
+        assert copy.expected.model_dump(exclude=revised) == source.expected.model_dump(exclude=revised), copy.id
+        if copy.id in WIDENED_ORIGINS:  # only widened: every origin the source allows is still allowed
+            assert set(copy.expected.handoff_origins) > set(source.expected.handoff_origins), copy.id
         # A section only moves between required and quality, and every required one states its obligation.
         listed = {*copy.expected.cites, *copy.expected.quality_cites}
         assert listed == {*source.expected.cites, *source.expected.quality_cites}, copy.id

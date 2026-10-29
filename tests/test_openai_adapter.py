@@ -155,6 +155,24 @@ def test_labelled_text_goes_back_in_the_order_the_model_gave_it():
     assert [item.get("id") or item["content"] for item in back] == ["rs_1", "Let me check.", "rs_2", "Done."]
 
 
+def test_a_final_answer_repeated_word_for_word_right_after_itself_is_shown_once():
+    # Plan change log, 2026-10-29: in D09 try 2 of runs/pilot-20261029T113311Z-gpt-6-luna-none the model gave the same
+    # final answer twice in one response (1 of 2,572 answers since 2026-10-22), and the customer saw the question twice.
+    question = "I found two returned navy T-shirts in that order: size M and size L. Which one would you like refunded?"
+    turn = parse(FakeResponse([labelled(question, "final_answer"), labelled(question, "final_answer", "msg_2")]))
+    assert turn.text == question
+    assert turn.message_items == ({"phase": "final_answer", "text": question},) * 2  # the log keeps both
+    back = to_input([turn.as_message()])
+    assert back == [{"role": "assistant", "content": question, "phase": "final_answer"}] * 2  # and the model gets both
+    # Only the same text right after itself goes: the same text later, or a text that differs at all, stays.
+    later = [labelled("A.", "final_answer"), labelled("B.", "final_answer", "m2"), labelled("A.", "final_answer", "m3")]
+    assert parse(FakeResponse(later)).text == "A.\nB.\nA."
+    near = [labelled("Which one?", "final_answer"), labelled("Which one? ", "final_answer", "msg_2")]
+    assert parse(FakeResponse(near)).text == "Which one?\nWhich one? "
+    # Unlabelled text goes back to the model as it is shown, so it is shown as it came.
+    assert parse(FakeResponse([message("One."), message("One.")])).text == "One.\nOne."
+
+
 def test_commentary_before_a_tool_call_is_still_shown_and_unlabelled_text_is_unchanged():
     turn = parse(FakeResponse([labelled("Let me look up your orders.", "commentary"), CALL]))
     assert (turn.text, len(turn.tool_calls)) == ("Let me look up your orders.", 1)

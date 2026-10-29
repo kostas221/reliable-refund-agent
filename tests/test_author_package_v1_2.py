@@ -47,3 +47,11 @@ def test_nothing_of_the_projects_history_is_named():
     assert not re.search(r"\bD[0-9]{2}\b", PACKAGE)  # a development scenario
     assert not re.search(r"\bH[0-9]{2}\b", PACKAGE)  # a scenario of an earlier held-out set
     assert "runs/" not in PACKAGE and "v1.1" not in PACKAGE
+
+
+def test_the_package_says_a_handoff_the_customer_also_asked_for_may_carry_either_origin():
+    # Plan change log, 2026-10-29: in a case the policy names, a handoff the customer also asked for passes both the
+    # check of that case (recorded agent) and customer_asked (recorded customer), so an author who lists one origin
+    # writes a scenario a correct agent can fail on the label alone.
+    either = "the handoff is recorded as `agent` or as `customer`, depending on the reason the agent gives: list both"
+    assert either in flat(PACKAGE)

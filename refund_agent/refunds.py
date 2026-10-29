@@ -1273,36 +1273,61 @@ def _offers_person_for_shipping(text_: str) -> bool:
     return any(_offers_person(part) and _SHIPPING.search(part) for part in re.split(r"[.!?;]|\bbut\b", _plain(text_)))
 
 
-def request_for_shipping_refund(messages: Sequence[tuple[str, str, str]], words: str) -> tuple[str | None, str]:
-    """The customer message a request to refund shipping rests on, or None and why not.
-
-    The customer's latest message must accept, with a yes (_accepts), the agent's offer of a staff member for the
-    shipping charge in the message just before it (review of the model comparison, 2026-10-24). Until 2026-10-24 any
-    words of that message naming the charge were enough, so a question ("Will the shipping I paid be refunded too, or
-    just the kettle?", D39), a negation, a hypothetical or a past event handed the conversation off. Code does not tell
-    a question from a request here: a question is answered from the policy, and a request is answered with the offer,
-    whose yes is the request. A customer who asks for a person outright is handed off with customer_asked."""
-    latest, unmet = _latest_customer_words(
-        messages, words, "accept, with a yes, your offer of a staff member for the shipping charge"
+def _asks_for_person_for_shipping(text_: str) -> bool:
+    """The message asks for a person, as _asks_for_person reads it, in a clause that also names the shipping charge:
+    "Please have a person handle the shipping refund" asks; "I want the delivery charge back too, but don't bother
+    involving staff" and "I'd like someone to look at the lamp; the shipping was fine" do not."""
+    clauses = re.split(r"[.,;:!?]|\bbut\b", _plain(text_))
+    return _asks_for_person(text_) and any(
+        _names_person(clause) and not _NEGATION.search(clause) and _SHIPPING.search(clause) for clause in clauses
     )
-    if latest is None:
-        return None, unmet
-    said = messages[latest][2]
-    if not _accepts(said):
-        return None, "that message is not a yes to your offer of a staff member for the shipping charge"
-    before = messages[latest - 1] if latest > 0 else None
-    if before is None or before[1] != "agent" or not _offers_person_for_shipping(before[2]):
-        return None, (
-            "that message is a yes, but your message just before it offers no staff member for the shipping charge in "
-            "words this check can read"
-        )
-    return messages[latest][0], ""
 
 
 class PersonRequest(NamedTuple):
     message_id: str | None  # the customer message the request rests on, or None
     basis: str  # "names_person" or "accepts_offer" when there is a request; empty otherwise
     unmet: str  # why there is no request; empty when there is one
+
+
+def request_for_shipping_refund(messages: Sequence[tuple[str, str, str]], words: str) -> PersonRequest:
+    """The customer message a request to refund shipping rests on and what it rests on, or why there is none.
+
+    The customer's latest message must ask, in its own words, for a person for the shipping charge
+    (_asks_for_person_for_shipping), or accept, with a yes (_accepts), the agent's offer of a staff member for the
+    shipping charge in the message just before it (review of the model comparison, 2026-10-24). Until 2026-10-24 any
+    words of that message naming the charge were enough, so a question ("Will the shipping I paid be refunded too, or
+    just the kettle?", D39), a negation, a hypothetical or a past event handed the conversation off. Code does not tell
+    a question from a request here: a question is answered from the policy, and a request that names no person is
+    answered with the offer, whose yes is the request. A request for a person for the shipping charge, which until
+    2026-10-29 was refused and asked again (D49 try 1) or handed off as customer_asked (try 2), is taken as the person
+    rule reads it (plan change log, 2026-10-29): no message the person rule refuses, so no handoff customer_asked did
+    not already allow."""
+    latest, unmet = _latest_customer_words(
+        messages,
+        words,
+        "ask for a person for the shipping charge, or accept, with a yes, your offer of a staff member for it",
+    )
+    if latest is None:
+        return PersonRequest(None, "", unmet)
+    message_id, _, said = messages[latest]
+    if _asks_for_person_for_shipping(said):
+        return PersonRequest(message_id, "names_person", "")
+    if not _accepts(said):
+        return PersonRequest(
+            None,
+            "",
+            "that message neither asks for a person for the shipping charge nor says yes to your offer of a staff "
+            "member for it",
+        )
+    before = messages[latest - 1] if latest > 0 else None
+    if before is None or before[1] != "agent" or not _offers_person_for_shipping(before[2]):
+        return PersonRequest(
+            None,
+            "",
+            "that message is a yes, but your message just before it offers no staff member for the shipping charge in "
+            "words this check can read",
+        )
+    return PersonRequest(message_id, "accepts_offer", "")
 
 
 def request_for_person(messages: Sequence[tuple[str, str, str]], words: str) -> PersonRequest:
@@ -1362,11 +1387,12 @@ def check_handoff_reason(
     and that message asks for one (request_for_person). Code cannot read consent, so a request that passes may still
     be misread: that reading stays the agent's, and the words are kept with the handoff for whoever reads it. A request
     worded otherwise still has a path: the agent offers a person, and the customer's yes is the request. A request to
-    refund shipping rests on the customer's yes to the agent's offer of a staff member for the shipping charge, in
-    the message just before (request_for_shipping_refund). A refusal says what
-    to do instead and is recorded like any other; the customer's button and a staff member's takeover never come
-    here. Returns what the check found, for the record: for customer_asked and shipping_refund, the ID of the customer
-    message the request rests on; for shop_decided, the policy sections of the decision."""
+    refund shipping rests on the customer's latest message when it asks for a person for the shipping charge, or says
+    yes to the agent's offer of a staff member for it in the message just before (request_for_shipping_refund). A
+    refusal says what to do instead and is recorded like any other; the customer's button and a staff member's takeover
+    never come here. Returns what the check found, for the record: for customer_asked and shipping_refund, the ID of
+    the customer message the request rests on and what it rests on (basis); for shop_decided, the policy sections of
+    the decision."""
     try:
         with engine.connect() as conn:
             conversation = _one(conn, "SELECT customer_id FROM conversations WHERE id = :id", id=conversation_id)
@@ -1431,15 +1457,16 @@ def check_handoff_reason(
                         f"receipt ({policy.citation('remaining')})."
                     )
             elif reason == "shipping_refund":
-                found, unmet = request_for_shipping_refund(_written(conn, conversation_id), customer_words)
-                holds = found is not None
-                evidence["customer_message"] = found
+                request = request_for_shipping_refund(_written(conn, conversation_id), customer_words)
+                holds, unmet = request.message_id is not None, request.unmet
+                evidence["customer_message"], evidence["basis"] = request.message_id, request.basis
                 then = (
                     f"Answer a question about shipping from ({policy.citation('shipping')}): shipping is never "
                     "refunded automatically, and a staff member takes a request to refund it. If the customer wants "
-                    f"the shipping charge refunded, ask them: {SHIPPING_OFFER} Hand off with shipping_refund only "
-                    "after their yes to that question, copying the yes. Meanwhile go on with the refund of any item "
-                    "the customer asked for."
+                    f"the shipping charge refunded, ask them: {SHIPPING_OFFER} Hand off with shipping_refund after "
+                    "their yes to that question, copying the yes, or when they ask in their own words for a person "
+                    "for the shipping charge, copying those words. Meanwhile go on with the refund of any item the "
+                    "customer asked for."
                 )
                 tail = ""
             elif reason == "customer_asked":

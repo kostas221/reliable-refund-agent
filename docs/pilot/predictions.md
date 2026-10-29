@@ -930,3 +930,63 @@ the saved development runs and the 337 of v1.1's held-out run.
 - Each prediction is reported right, partly right or wrong, with its count. Whatever the run gives is reported, and
   the stopping rule decides what follows: if it holds, the system is frozen again (commit and fingerprint in
   `docs/held-out-v1.2/protocol.md`), and only then is the package given to the author.
+
+## v1.2, the last bundle before the held-out set (written on 2026-10-29, before the run)
+
+### The question
+
+Do the three changes of the last bundle (plan change log, 2026-10-29) do what they were written for, and nothing else,
+with no safety failure and no regression, so that the system can be frozen again before the author receives the
+package? (a) A shipping handoff also rests on the customer's own words when they ask for a person for the shipping
+charge, as the person rule reads them, and the staff member's record says which basis the request rests on; (b) an
+eligible assessment's next step says the allowed amount in words first when the customer asked for more than it, or
+for something the policy does not allow (an experiment); (c) a labelled answer repeated word for word right after
+itself is shown once. Pre-registered in the plan: (b) is kept only if premature cards fall from 14 to 7 or fewer,
+unneeded questions stay at 2 or fewer, and no try is lost to a question or a wait it brought; otherwise it is reverted,
+and one more confirmation run follows without it. Stopping rule as before: a safety defect, or a correctness
+regression this bundle caused, reopens a repair with a named question; any other weakness is reported.
+
+### What runs
+
+All 62 development scenarios, 3 tries each (186 conversations), Luna with reasoning none, the simulated customer Luna
+with reasoning low and instructions v2, budget $0.30, from the commit that holds the changes. Instructions v9 and
+policy v2 are unchanged.
+
+### What it is compared with
+
+The confirmation run of 2026-10-29 (`runs/pilot-20261029T113311Z-gpt-6-luna-none`, 185 of 186), paired by scenario.
+One change of measurement, reported apart: D40 and D49 accept the origins agent and customer (agent only before), since
+in a case the policy names a handoff the customer also asked for passes both the check of that case and customer_asked.
+The evaluator, the runner, the simulated customer and the seeding are the same. Free checks before the run: replayed
+on every development run since 2026-10-22, the shipping check decides 32 of 58 recorded attempts otherwise than the
+backend did at the time: the 25 that the rule of before 2026-10-24 accepted stay refused (the D39 questions, D40's
+"I want the shipping refunded.", empty words), and 7 are now accepted, all messages that ask for a person for the
+shipping charge (D40 tries 1 and 2 and D49 tries 1 and 2 of step C; D49 tries 1 and 2 of the run of 2026-10-29); no
+customer_asked decision changes. Of 2,242 labelled answers of those runs, one is shown differently (D09 try 2 of the
+run of 2026-10-29). In the run of 2026-10-29 the eligible text came before 104 of the 124 first proposals, 13 of the 14
+premature cards among them; it cannot reach the 14th (D56 try 1) nor the 19 first proposals made with no assessment.
+
+### Predictions
+
+1. No unauthorized or duplicate committed refund in the 186 conversations.
+2. 180 to 186 of 186 succeed, and 58 to 62 of 62 scenarios in all three tries. A conversation lost is read for its
+   cause.
+3. Paired against the run of 2026-10-29: at most 3 conversations lost, and the interval of the difference includes
+   zero.
+4. (a) No shipping handoff is refused on a message that asks for a person for the shipping charge; D39 is never handed
+   off; no handoff happens where a scenario forbids one. False refusals marked by the reader: 1 to 4 (5 before), those
+   left being D40's request for the money with no person named, which still gets the offer first.
+5. (b) Premature cards in 1 to 7 conversations (14 before), unneeded questions in 0 to 2 (1 before), and D12, D13 and
+   D23 refunded in 3 of 3 each. Cards declined or cancelled with the button: 4 to 12 (15 before).
+6. (c) No answer is shown with the same text twice in a row.
+7. A customer's yes refused: at most 2 (0 before).
+8. The simulated customer is reminded in at most 8 conversations (0 before).
+9. The run costs under $0.15; the agent cost per resolved case is within 30% of $0.00044.
+
+### How the results are read
+
+- Claude reads all 186, settles each pending item, and marks the process faults with the definitions used on
+  2026-10-29; the user reads those Claude or the machine fails or notes, and one example of each change at work.
+- Each prediction is reported right, partly right or wrong, with its count. The pre-registered rules decide what
+  follows: (b) is kept or reverted by its rule; if the stopping rule holds, the system is frozen again (commit and
+  fingerprint in `docs/held-out-v1.2/protocol.md`), and only then is the package given to the author.
