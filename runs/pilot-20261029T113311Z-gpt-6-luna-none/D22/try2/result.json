@@ -1,0 +1,187 @@
+{
+  "scenario": "D22",
+  "try": 2,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['ineligible', 'none']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "handoffs with origin ['agent']; required, origins ['agent', 'customer']"
+    },
+    {
+      "name": "cites:refund-policy/v2/return",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: The shop has no record of the duvet set arriving; a staff member checks."
+    },
+    {
+      "name": "communication:explains_refusal_reason",
+      "status": "pending",
+      "evidence": "pre-check passed: 1 agent messages"
+    },
+    {
+      "name": "communication:announces_handoff",
+      "status": "pending",
+      "evidence": "pre-check passed: an agent message follows the handoff"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 5,
+  "refusals": [],
+  "handoff_origins": [
+    "agent"
+  ],
+  "agent_seconds": [
+    10.087,
+    0.035
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.000448129999999998,
+    "simulator": 0.00017089999999999987
+  },
+  "attempts_sent": 7,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hi, I sent the duvet set back over a week ago. Why haven't I got my refund yet?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_s5VX0G2jX4kzW6D5QFs2dYx7",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_s5VX0G2jX4kzW6D5QFs2dYx7",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h12-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-09-29T15:41:51+00:00\", \"delivered_at\": \"2026-10-12T19:23:31+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h12-o1-u1\", \"product\": \"Duvet set, king size\", \"paid_minor\": 22600, \"received_back\": false, \"refunded\": false}], \"requests\": []}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_FAo5Z3Q1JQ6h6Z1tcPWQSyix",
+          "name": "get_my_order",
+          "arguments": "{\"order_id\":\"h12-o1\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_FAo5Z3Q1JQ6h6Z1tcPWQSyix",
+      "name": "get_my_order",
+      "content": "{\"ok\": true, \"order\": {\"order_id\": \"h12-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-09-29T15:41:51+00:00\", \"delivered_at\": \"2026-10-12T19:23:31+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h12-o1-u1\", \"product\": \"Duvet set, king size\", \"paid_minor\": 22600, \"received_back\": false, \"refunded\": false}], \"requests\": []}}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_HXi0HfbF56dIbyXaByk6d9Gl",
+          "name": "assess_refund",
+          "arguments": "{\"order_id\":\"h12-o1\",\"unit_ids\":[\"h12-o1-u1\"]}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_HXi0HfbF56dIbyXaByk6d9Gl",
+      "name": "assess_refund",
+      "content": "{\"ok\": true, \"outcome\": \"refused\", \"policy_citations\": [\"refund-policy/v2/return\"], \"amount_minor\": null, \"currency\": \"BRL\", \"order\": {\"order_id\": \"h12-o1\", \"status\": \"delivered\", \"delivered_at\": \"2026-10-12T19:23:31+00:00\", \"refund_deadline\": \"2026-11-11T19:23:31+00:00\", \"payment_records\": 1, \"one_valid_payment\": true}, \"units\": [{\"unit_id\": \"h12-o1-u1\", \"product\": \"Duvet set, king size\", \"paid_minor\": 22600, \"received_back\": false, \"refunded\": false, \"receipt_number\": null, \"earlier_on_time_proposal\": false}], \"next_step\": \"Tell the customer why, citing the sections given. Propose nothing for these units. If the customer says these units were already sent, the policy names that case for a person: hand off with reason_code return_disputed, the order and those units. If they will send them later, explain that they must arrive first.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_wjv1GST4OW1WR0FQXrD3KkGj",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\":\"return_disputed\",\"order_id\":\"h12-o1\",\"unit_ids\":[\"h12-o1-u1\"],\"customer_words\":\"I sent the duvet set back over a week ago.\",\"reason\":\"The customer says the returned duvet set was sent, but the shop's return records do not show it received.\",\"customer_goal\":\"Find out why the refund has not been issued and have the return checked so the refund can proceed if eligible.\",\"confirmed_facts\":\"Order h12-o1 is delivered. Its Duvet set, king size unit h12-o1-u1 is not marked as received back in the shop's records, is not refunded, and has no refund request. The assessment says the return records do not show receipt.\",\"decision_needed\":\"Check whether the duvet set was sent/received and determine the next step for the refund.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_wjv1GST4OW1WR0FQXrD3KkGj",
+      "name": "request_handoff",
+      "content": "{\"ok\": true, \"handoff_id\": \"hand-19c0b6a4e57d4807\", \"closed_request\": null, \"reason_code\": \"return_disputed\", \"policy_citations\": [\"refund-policy/v2/return\"], \"next_step\": \"This handoff closed no request: say nothing of closing one. Tell the customer a person will take over, and why, citing (refund-policy/v2/return). A refund already paid stays paid. Make no more changes.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Our records don’t show the duvet set as received back, so a refund can’t proceed yet. Since you say you sent it, I’ve asked a staff member to check the return; they’ll take over from here. (refund-policy/v2/return)",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "Our records don’t show the duvet set as received back, so a refund can’t proceed yet. Since you say you sent it, I’ve asked a staff member to check the return; they’ll take over from here. (refund-policy/v2/return)",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "customer",
+      "text": "I did send it back. Thanks for asking a staff member to check."
+    }
+  ]
+}

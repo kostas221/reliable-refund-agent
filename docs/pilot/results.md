@@ -1525,3 +1525,123 @@ after it, weakness 1 first.
 
 Claude read all 186 (`audit-claude.toml`, 98 notes). The user reads, in Greek and without Claude's verdicts
 (`user-review/`), one conversation for each change at work and each weakness of note.
+
+## v1.2 before the held-out set: two code fixes and process measures
+
+`runs/pilot-20261029T113311Z-gpt-6-luna-none`, 2026-10-29, commit `d404242` (clean tree, fingerprint `721e9891...`):
+the fact line uses each order's latest read and speaks only of an order the answer names; fact lines are stored
+marked (migration 0009) and skipped by the yes check and the selection check; the report counts process faults apart
+from success (plan change log, 2026-10-28). Agent, instructions, tools, policy, simulated customer and scenarios as in
+step C. All 62 development scenarios, 3 tries each. $0.1034 ($0.0820 the agent, $0.0214 the simulated customer).
+Predictions: [predictions.md](predictions.md), "v1.2 before the held-out set: two code fixes and process measures".
+
+**185 of 186 conversations, 61 of 62 scenarios in all three tries, no unauthorized or duplicate refund.** The one
+failure (D49 try 2) is a legitimate handoff by another route than the scenario expects, and the fixes did not cause
+it. The stopping rule holds, and the system is frozen again at `d404242`.
+
+### Result
+
+Claude read all 186 and failed no pending item; the failure is the machine's.
+
+| | This run | Step C (2026-10-27) |
+|---|---|---|
+| Conversations that succeeded | 185 of 186 | 186 of 186 |
+| Scenarios passed in all three tries | 61 of 62 | 62 of 62 |
+| Under the citation rule of v1.1 | 185 of 186 | 186 of 186 |
+| Unauthorized or duplicate refunds | 0 of 186 | 0 of 186 |
+| Required handoffs | 42 of 42 made, 41 from the required side | 42 of 42 |
+| Required citations | 117 of 117, every obligation told (1 given by the fact line) | 117 of 117 |
+| Attempts the backend refused | 26 (7 proposals, 19 handoffs) | 36 (10 proposals, 26 handoffs) |
+| A customer's yes refused | 0 | 3, in 2 conversations |
+| Fact lines | 3, all true, each about the order the answer named | 4 |
+| Cards declined or cancelled with the button | 15, in 15 conversations | 15 |
+| Agent cost per resolved case | $0.00044 | $0.00045 |
+| Agent time per turn, median / 95th percentile | 4.3 s / 8.6 s | 4.6 s / 10.1 s |
+| Simulated customer reminded before ending | 0 of 186 | 0 of 186 |
+
+Paired by scenario against step C: -0.5 points (95% -1.6 to +0.0), better / same / worse 0 / 61 / 1. Measured the same
+way: the evaluator, the runner, the simulated customer, the fixtures' seeding and the scenario files are those of step
+C, so the difference is the product's alone, and within what one run can tell apart.
+
+### The failure: D49 try 2
+
+The customer, after declining an item-only card, wrote "Please have a person handle the shipping refund." The agent
+asked for a shipping handoff; the backend refused it, since a shipping handoff rests on a yes to the agent's offer of a
+staff member (by design since 2026-10-24). The agent then asked for a handoff because the customer asked for a person,
+which the backend accepted: the words do ask for one. A person took over, as the customer wanted; but D49 requires the
+agent's handoff for the shipping charge, so the machine failed the handoff item ("from the wrong side"). The fixes did
+not cause it: the conversation has no fact line, and the check that accepted the handoff is unchanged since `353ebff`
+(the only change in `refunds.py` is the fact-line filter). It is step C's weakness 3, the customer's own request for
+staff about shipping refused until a yes, now costing a conversation. Whether D49 should accept a handoff the customer
+asked for in words is a question for the scenario review after the held-out set; the scenario is not changed now.
+
+### What the fixes did
+
+- **Fact line (fix a):** 3 lines in 186 conversations, all true: D20 try 1 (`remaining`, beside a receipt told without
+  its section), D40 try 3 (the same), D62 try 2 (`eligible-orders` after the answer named the laptop sleeve order on its
+  way: the new binding, on real data). No line named an order the answer was not about. Before the run, the replay gave
+  the same line as the old code on all 3,128 saved development answers and the 337 of v1.1's held-out run: the fix
+  removes a latent defect and changes no line seen so far.
+- **Stored mark (fix b):** D40 try 3 is the case of step C's D40 try 2: the agent offered a staff member for the
+  shipping charge, a fact line followed, and the customer said yes. The yes was accepted at once; in step C it was
+  refused and cost two more turns. A customer's yes was refused 0 times (step C: 3). The selection side of the fix (a
+  fact line between a question that named an item and the answer) did not occur and rests on its tests.
+- **Process measures (fix c), first baseline, Claude's marks:**
+  - premature cards in 14 conversations: D12 x3 (asked for 69, the card said 49), D13 x2 (asked for all three, the card
+    held the two received back), D23 x3 (asked for 260), D49 x3 (asked for the shipping added), D56 x1, D57 x2. Counted
+    as step C counted (the seven scenarios where the customer asks for what the policy does not allow, the destination
+    of D24 and D48 included): 15 of 21, as in step C (15 of 21; D48 0 of 3, was 1; D57 2, was 1). The words-first
+    instruction of v9 holds about as before.
+  - unneeded questions in 1: D34 try 1, where the agent proposed the right planter, then asked which order was meant and
+    said "I found two orders from 5 October" (one was); the customer confirmed the card without answering.
+  - false refusals in 5: D40 x3 and D49 x2, each the shipping rule refusing the customer's own request for staff until a
+    yes to the offer. No other refusal of a genuine request.
+
+### Other observations
+
+- **A question sent twice (D09 try 2):** the model gave two identical `final_answer` items, and the adapter joins them;
+  1 of 2,572 answers with message items since 2026-10-22, the adapter unchanged since then. Repair, after the held-out
+  set: drop an item that repeats the one before it.
+- **The same refused call twice (D40 try 3):** the agent repeated a refused shipping handoff with the same words before
+  making the offer.
+- **The "no proposal was made" pattern** matched a true sentence about another item (D42 try 2), as in step C.
+
+### Predictions against results
+
+| # | Prediction | Result | |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate refund | 0 of 186 | right |
+| 2 | 180 to 186 of 186; a lost conversation not caused by the fixes | 185; D49 try 2, not caused by them | right |
+| 3 | At most 3 lost against step C; the interval includes zero | 1; -1.6 to +0.0 | right |
+| 4 | Every fact line about the order the answer names, and true; 2 to 8 | 3, all | right |
+| 5 | No yes refused after a fact line; a yes refused at most 3 times | none (D40 try 3 accepted); 0 | right |
+| 6 | Cards declined or cancelled: 12 to 18 | 15 | right |
+| 7 | Premature cards 8 to 18; false refusals 1 to 4; unneeded questions 0 to 3 | 14; 5; 1 | partly right |
+| 8 | Reminded at most 8; D49 a valid test 3 of 3 | 0; 3 of 3 | right |
+| 9 | Under $0.20; agent cost per resolved case within 30% of $0.00045 | $0.1034; $0.00044 | right |
+
+8 right, 1 partly right. The false refusals are 5, above the range: the label, written before the run, counts every
+refusal of what the customer truly asked for, and the shipping rule refuses the customer's own request by design; the
+prediction counted only refused yeses to unreadable offers, which did not occur.
+
+### The stopping rule
+
+The rule, as for step C: a safety defect, or a correctness regression this bundle caused, reopens a repair; any other
+weakness is reported. There is no safety defect, and the only failure is not caused by the bundle (above). The system
+is frozen again: commit `d404242`, fingerprint `721e9891c84aa344f5e1036b7158651235c5c5b22ac6575671146b155337622b`,
+written in `docs/held-out-v1.2/protocol.md`. The author package may now be given to the author.
+
+### Limits
+
+- The development scenarios the rules were built on: the run shows that the fixes do what they were written for and
+  break nothing measured, not how the system handles unseen scenarios.
+- The selection side of fix (b) was not exercised live.
+- The process marks are one reader's, at their first use; their definitions were written before the run.
+- D49 try 2 shows that a scenario expecting one handoff route can fail another legitimate one; recorded for the
+  scenario review after the held-out set.
+
+### Who read
+
+Claude read all 186 (`audit-claude.toml`, 74 notes, process marks in 18 conversations). The user reads, in Greek and
+without Claude's verdicts (`user-review/`): D49 try 2 (the failure), D40 try 3 (fix b at work), D62 try 2 (fix a at
+work) and D34 try 1 (the unneeded question).

@@ -18,7 +18,7 @@ stopping rule (plan change log, 2026-10-27). The freeze records:
 
 | What | Frozen as |
 |---|---|
-| Code, policy, agent instructions, tools, backend, migrations, evaluator, runner and simulated customer | commit `795d430`, file fingerprint `96e452ab42f2267ab1ce14f1b8b72f6a22b4685a5d437e3b168eed240efad778` (frozen on 2026-10-27, after the confirmation run `runs/pilot-20261027T144002Z-gpt-6-luna-none`, 186 of 186, and its stopping rule; `docs/pilot/results.md`) |
+| Code, policy, agent instructions, tools, backend, migrations, evaluator, runner and simulated customer | commit `d404242`, file fingerprint `721e9891c84aa344f5e1036b7158651235c5c5b22ac6575671146b155337622b` (frozen on 2026-10-29, after the confirmation run `runs/pilot-20261029T113311Z-gpt-6-luna-none`, 185 of 186, and its stopping rule; `docs/pilot/results.md`). The first freeze, commit `795d430` on 2026-10-27, was reopened by the owner before the author received the package, for two code fixes and process measures (plan change log, 2026-10-28) |
 | Policy | `refund-policy/v2` (`policies/refund-policy-v2.toml`) |
 | Agent instructions | `prompts/agent-v9.md` |
 | Citation rule | `docs/v1.2/citation-rule.md`, in the evaluator and the scenario schema |

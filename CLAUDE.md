@@ -230,11 +230,26 @@ pair an answer with the agent's message before it skip them (`refunds._written`,
 counts process faults apart from success (reader-marked `process = [...]` in the audit: premature_card,
 unneeded_question, false_refusal; automatic: a customer's yes refused, cards declined or cancelled). Failing-first
 tests; replay on step C: 1 of 51 handoff decisions changes (D40 try 2), the fact line is the same on 3,128 + 337 saved
-answers; 18 planted bugs (scratchpad `planted_bugs_pre_d.py`). The recorded offer and selection by candidate IDs wait
-for after step D. Next: the owner's commit, the confirmation run on development (predictions written, budget $0.30),
-Claude's reading with the process marks, the stopping rule, a new freeze in the protocol, then D: 40 new held-out
-scenarios from a new author, groups fixed before authoring, `novel` and the Olist exclusion in the converter, one
-A/B/C run, published whatever it shows. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
+answers; 18 planted bugs (scratchpad `planted_bugs_pre_d.py`); committed as d404242. The recorded offer and selection
+by candidate IDs wait for after step D. Their confirmation run (`runs/pilot-20261029T113311Z-gpt-6-luna-none`,
+$0.103, results in `docs/pilot/results.md`): 185/186, 61/62 in all three tries, 0 unsafe; against step C -0.5 points
+(95% -1.6 to +0.0), 0/61/1, measured the same way. The one failure, D49 try 2: the customer asked in words for a person
+about shipping, the shipping handoff was refused (yes-to-offer rule) and the customer_asked one accepted, while the
+scenario requires the agent's; not caused by the fixes (no fact line, check unchanged); D49's expectation is for the
+scenario review after D, unchanged now. D40 try 3: a yes after a fact line accepted at once; 0 yes refused (step C 3);
+3 fact lines, all true and bound. First process baseline: premature cards 14 (15 of 21 as step C counted), unneeded
+questions 1 (D34 try 1), false refusals 5 (all the shipping rule); a doubled final answer once (D09 try 2, 1 of 2,572).
+8 of 9 predictions right, 1 partly. Stopping rule held: **the system is frozen again** at d404242, fingerprint
+721e9891... (`docs/held-out-v1.2/protocol.md`). Reopened by the owner on 2026-10-29, before the author got the package,
+for a last bundle pre-registered in the plan change log, after an outside critique checked with free probes: the
+shipping handoff also on the customer's own request for a person for the shipping charge (the record says which basis);
+an eligible assessment's next step says the allowed amount in words first when the customer asked for more (an
+experiment, reverted with one more confirmation run if premature cards do not fall to 7 or fewer of 186, or unneeded
+questions pass 2); identical consecutive answer items shown once; in measurement, the package's handoff origins (both
+where the customer asked for or accepted a person in a case the policy names) and both origins for D40 and D49. Then a
+confirmation run and a new freeze. Next: D: the owner gives `docs/held-out-v1.2/author-package.md` to a
+new author (40 kept of 60, groups fixed), `novel` and the Olist exclusion in the converter, one A/B/C run, published
+whatever it shows. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
 `runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run
 (`user-review/`), 7 of the comparison
