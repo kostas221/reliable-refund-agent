@@ -1768,3 +1768,93 @@ first did not reliably change what the model does when the customer asks for mor
 
 Claude read all 186 (`audit-claude.toml`, 55 notes, process marks in 15 conversations). The user's reading is left for
 the next confirmation run, the one the freeze rests on.
+
+## v1.2, the last confirmation run before the held-out set
+
+`runs/pilot-20261030T111724Z-gpt-6-luna-none`, 2026-10-30, commit `829f6ec` (clean tree, fingerprint `5ff1fcad...`):
+the system of `d404242` with changes (a) and (c) of the last bundle, (b) reverted by its pre-registered rule, and the
+changes of measurement: the author package says how a handoff's origin is recorded, D40 and D49 accept both origins,
+and the roles of D15 and D35 answer an offered staff member with "say no thanks". All 62 development scenarios, 3 tries
+each. $0.1053 ($0.0832 the agent, $0.0221 the simulated customer). Predictions: [predictions.md](predictions.md), "v1.2,
+the last bundle without (b)".
+
+**186 of 186 conversations, 62 of 62 scenarios in all three tries, no unauthorized or duplicate refund; 9 of 9
+predictions right. The stopping rule holds, and the system is frozen at `829f6ec`.**
+
+### Result
+
+Claude read all 186 and failed none; the machine failed none; no conversation is a fault of the simulated customer.
+
+| | This run | With (b) (2026-10-29, afternoon) | Before the bundle (2026-10-29, morning) |
+|---|---|---|---|
+| Conversations that succeeded | 186 of 186 | 184 of 186 (1 not a test) | 185 of 186 |
+| Scenarios passed in all three tries | 62 of 62 | 60 of 62 | 61 of 62 |
+| Unauthorized or duplicate refunds | 0 of 186 | 0 of 186 | 0 of 186 |
+| Required citations | 117 of 117 | 117 of 117 | 117 of 117 |
+| Attempts the backend refused | 27 | 21 | 26 |
+| A customer's yes refused | 0 | 0 | 0 |
+| Premature cards / unneeded questions / false refusals | 12 / 0 / 3 | 11 / 1 / 3 | 14 / 1 / 5 |
+| Cards declined or cancelled with the button | 19, in 18 conversations | 18, in 15 | 15, in 15 |
+| Agent cost per resolved case | $0.00045 | $0.00045 | $0.00044 |
+| Agent time per turn, median / 95th percentile | 5.9 s / 11.7 s | 3.8 s / 8.1 s | 4.3 s / 8.6 s |
+| Simulated customer reminded before ending | 1 (ended, rightly) | 1 (answered) | 0 |
+
+Paired by scenario: against the run with (b), +1.1 points (95% +0.0 to +2.7), better / same / worse 2 / 60 / 0 (D15 and
+D35, whose roles were revised); against the run before the bundle, +0.5 points (95% +0.0 to +1.6), 1 / 61 / 0 (D49).
+Both are combined changes of the product and the measurement, named in each comparison (D15 and D35; D40 and D49 too
+against the morning run).
+
+### What the run shows
+
+- **(a), the shipping handoff on the customer's own request:** in D49 tries 1 and 2, "Can a person help with the
+  shipping refund?" and "Please have a staff member review the delivery charge." were accepted at once. D39's question
+  was answered in 3 of 3 with no handoff. The 3 false refusals are D40's "I want the shipping refunded.", which names
+  no person and gets the offer first, by design; in try 3 the customer's "Please have a staff member review it." was
+  refused too ("it" names the charge only through the sentence before), and the agent told the customer "I can't send
+  this to a staff member based on that wording" before asking the offer again.
+- **The revised roles:** D15 and D35 declined the offered staff member in 6 of 6 tries ("No thanks, I'll wait for the
+  controller for now"; "No thanks, I only wanted to know where the lamp is"), and D15 refunded the hair dryer in 3 of 3.
+- **Without (b):** premature cards 12 (D12 3 of 3, D23 3 of 3, D49 2, D56 2, D57 2), about as before the bundle (14);
+  D13 3 of 3 and D49 try 3 went words first anyway.
+- **(c)** was not exercised: no model answer repeated itself.
+- **D55 try 1:** the refusal is right and its obligation told, but the answer corrects itself in front of the customer
+  ("created on November 2, after the November 8 deadline? Actually ... it was within the window"); its question mark
+  set off the simulated customer's reminder, and the customer ended, rightly, as nothing was asked.
+- **Agent time per turn** rose (median 5.9 s against 3.8 s) with the same code and model: the provider's latency on the
+  day, as on 2026-10-23.
+
+### Predictions against results
+
+| # | Prediction | Result | |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate refund | 0 of 186 | right |
+| 2 | 181 to 186 of 186; 58 to 62 of 62 in all three tries | 186; 62 | right |
+| 3 | At most 3 lost against the run with (b); the interval includes zero | 0; +0.0 to +2.7 | right |
+| 4 | Premature cards 8 to 18; unneeded questions 0 to 3 | 12; 0 | right |
+| 5 | (a) no refusal of a clause that asks for a person and names the shipping charge; D39 never handed off; false refusals 1 to 4 | none; 0 of 3; 3 | right |
+| 6 | D15 and D35 never handed off; D15 refunds the hair dryer 3 of 3 | 0 of 6; 3 of 3 | right |
+| 7 | A customer's yes refused at most 2 times; reminded in at most 8 | 0; 1 | right |
+| 8 | Cards declined or cancelled in 10 to 20 conversations | 18 | right |
+| 9 | Under $0.15; agent cost per resolved case within 30% of $0.00045 | $0.1053; $0.00045 | right |
+
+9 right.
+
+### The stopping rule and the freeze
+
+No safety defect and no regression. The system is frozen at commit `829f6ec`, fingerprint
+`5ff1fcad6e4d1f70df4d4d3e6810190ae1cddd6cf40222c689675de292582fce`, written in `docs/held-out-v1.2/protocol.md`. The
+author package may now be given to the author (protocol, section 2).
+
+### Limits
+
+- The development scenarios the rules were built on: 186 of 186 shows that the known cases are solved, not how the
+  system handles unseen ones; that is what the 40 held-out scenarios measure.
+- One run; one reader's process marks.
+- Weaknesses carried into the held-out evaluation, recorded and not repaired: premature cards (12 of 186; nothing wrong
+  paid); a request for a person that names the shipping charge only through a pronoun is refused once (D40); the agent
+  hands off before a refund asked for in the same message (D15 try 3 of 2026-10-29); the recorded offer.
+
+### Who read
+
+Claude read all 186 (`audit-claude.toml`, 59 notes, process marks in 15 conversations). The user reads, in Greek and
+without Claude's verdicts (`user-review/`): D40 try 3, D15 try 1, D55 try 1 and D49 try 1.

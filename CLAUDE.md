@@ -253,8 +253,12 @@ handed off before the refund asked for in the same message: the order of work is
 D35 try 3 a fault of the simulated customer; (a) worked (D49's own requests for a person accepted at once, false
 refusals 5 to 3), (c) not exercised, (b) missed its bar (premature cards 11, bar 7) and was reverted by its rule; the
 roles of D15 and D35 now say no to an offered staff member, with a stronger guard test; 7 of 9 predictions right, 1
-partly, 1 wrong. One more confirmation run without (b) (predictions written), then the freeze. The protocol stays at
-40 held-out scenarios. Next: D: the owner gives `docs/held-out-v1.2/author-package.md` to a
+partly, 1 wrong. The last confirmation run without (b) (`runs/pilot-20261030T111724Z-gpt-6-luna-none`, commit 829f6ec,
+$0.105, results in `docs/pilot/results.md`): 186/186, 62/62 in all three tries, 0 unsafe, 9 of 9 predictions right; the
+revised roles declined the offer 6 of 6; premature cards 12, false refusals 3 (D40, by design). **The system is frozen**
+at 829f6ec, fingerprint 5ff1fcad... (`docs/held-out-v1.2/protocol.md`); the user reads 4 of its conversations
+(`user-review/`). The protocol stays at 40 held-out scenarios. Next: D: the owner gives
+`docs/held-out-v1.2/author-package.md` to a
 new author (40 kept of 60, groups fixed), `novel` and the Olist exclusion in the converter, one A/B/C run, published
 whatever it shows. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in

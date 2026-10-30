@@ -1,0 +1,232 @@
+{
+  "scenario": "D40",
+  "try": 3,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['none', 'ineligible']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "handoffs with origin ['agent']; required, origins ['agent', 'customer']"
+    },
+    {
+      "name": "cites:refund-policy/v2/shipping",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: A request to refund shipping goes to a staff member."
+    },
+    {
+      "name": "communication:announces_handoff",
+      "status": "pending",
+      "evidence": "pre-check passed: an agent message follows the handoff"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 7,
+  "refusals": [
+    {
+      "event": "hand_off",
+      "check": "handoff_reason",
+      "actor": "agent"
+    },
+    {
+      "event": "hand_off",
+      "check": "handoff_reason",
+      "actor": "agent"
+    }
+  ],
+  "handoff_origins": [
+    "agent"
+  ],
+  "agent_seconds": [
+    8.628,
+    5.096,
+    5.552,
+    0.031
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.0007196849999999977,
+    "simulator": 0.00032519999999999945
+  },
+  "attempts_sent": 11,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hello, you refunded my kettle last week, thank you, but I also paid 18 reais shipping for a kettle that arrived broken. I want the shipping refunded."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_XRaWAB2v6logNGWVDgf653AK",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_XRaWAB2v6logNGWVDgf653AK",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"d40-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-01T10:00:00+00:00\", \"delivered_at\": \"2026-10-05T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"d40-o1-u1\", \"product\": \"Glass electric kettle\", \"paid_minor\": 13990, \"received_back\": true, \"refunded\": true}], \"requests\": [{\"proposal_id\": \"d40-r1\", \"status\": \"refunded\", \"amount_minor\": 13990, \"unit_ids\": [\"d40-o1-u1\"], \"created_at\": \"2026-10-13T12:00:00+00:00\", \"receipt_number\": \"R-D40-0001\", \"rejection_reason\": null, \"policy_citation\": \"refund-policy/v2/remaining\"}]}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_OQ2wf15A1a4at9jJ17kP0BOW",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\":\"shipping_refund\",\"order_id\":\"\",\"unit_ids\":[],\"customer_words\":\"I want the shipping refunded.\",\"reason\":\"The customer asked to have the shipping charge refunded.\",\"customer_goal\":\"Have the BRL 18 shipping charge refunded for the kettle order.\",\"confirmed_facts\":\"The order records show the Glass electric kettle was refunded for BRL 139.90, receipt R-D40-0001. Shipping charges are not included in item refunds.\",\"decision_needed\":\"Review whether to refund the BRL 18 shipping charge.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_OQ2wf15A1a4at9jJ17kP0BOW",
+      "name": "request_handoff",
+      "content": "{\"ok\": false, \"refused\": \"handoff_reason\", \"explanation\": \"that message neither asks for a person for the shipping charge nor says yes to your offer of a staff member for it. Answer a question about shipping from (refund-policy/v2/shipping): shipping is never refunded automatically, and a staff member takes a request to refund it. If the customer wants the shipping charge refunded, ask them: Would you like a staff member to review the shipping charge? Hand off with shipping_refund after their yes to that question, copying the yes, or when they ask in their own words for a person for the shipping charge, copying those words. Meanwhile go on with the refund of any item the customer asked for.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "The kettle refund was recorded as BRL 139.90, receipt R-D40-0001. Shipping isn’t included in item refunds and isn’t refunded automatically; a staff member can review a request to refund it (refund-policy/v2/shipping). Would you like a staff member to review the BRL 18 shipping charge?",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "The kettle refund was recorded as BRL 139.90, receipt R-D40-0001. Shipping isn’t included in item refunds and isn’t refunded automatically; a staff member can review a request to refund it (refund-policy/v2/shipping). Would you like a staff member to review the BRL 18 shipping charge?",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "agent",
+      "text": "The refund with receipt R-D40-0001 is already paid, and each unit is refunded only once, so those units cannot be refunded again (refund-policy/v2/remaining).",
+      "fact_line": true
+    },
+    {
+      "role": "customer",
+      "text": "I’m only asking for the BRL 18 shipping charge to be reviewed, not another refund for the kettle. Please have a staff member review it."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_NvRzUG0kddfvvzT5N5EoAGLT",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\":\"shipping_refund\",\"order_id\":\"\",\"unit_ids\":[],\"customer_words\":\"Please have a staff member review it.\",\"reason\":\"The customer asked for a staff member to review the shipping charge.\",\"customer_goal\":\"Have a staff member review the BRL 18 shipping charge for the kettle order.\",\"confirmed_facts\":\"The order records show the Glass electric kettle was refunded for BRL 139.90, receipt R-D40-0001. Shipping charges are not included in item refunds.\",\"decision_needed\":\"Review whether to refund the BRL 18 shipping charge.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_NvRzUG0kddfvvzT5N5EoAGLT",
+      "name": "request_handoff",
+      "content": "{\"ok\": false, \"refused\": \"handoff_reason\", \"explanation\": \"that message neither asks for a person for the shipping charge nor says yes to your offer of a staff member for it. Answer a question about shipping from (refund-policy/v2/shipping): shipping is never refunded automatically, and a staff member takes a request to refund it. If the customer wants the shipping charge refunded, ask them: Would you like a staff member to review the shipping charge? Hand off with shipping_refund after their yes to that question, copying the yes, or when they ask in their own words for a person for the shipping charge, copying those words. Meanwhile go on with the refund of any item the customer asked for.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "I’m sorry, but I can’t send this to a staff member based on that wording. Shipping charges aren’t refunded automatically; you can request a staff review (refund-policy/v2/shipping). Would you like a staff member to review the BRL 18 shipping charge?",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "I’m sorry, but I can’t send this to a staff member based on that wording. Shipping charges aren’t refunded automatically; you can request a staff review (refund-policy/v2/shipping). Would you like a staff member to review the BRL 18 shipping charge?",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "customer",
+      "text": "Yes, please have a staff member review the BRL 18 shipping charge."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_AaqVm4wLuEReHXmJFhnPZR47",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\":\"shipping_refund\",\"order_id\":\"\",\"unit_ids\":[],\"customer_words\":\"Yes, please have a staff member review the BRL 18 shipping charge.\",\"reason\":\"The customer agreed to a staff member reviewing the shipping charge.\",\"customer_goal\":\"Have a staff member review the BRL 18 shipping charge for the kettle order.\",\"confirmed_facts\":\"The order records show the Glass electric kettle was refunded for BRL 139.90, receipt R-D40-0001. Shipping charges are not included in item refunds.\",\"decision_needed\":\"Review whether to refund the BRL 18 shipping charge.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_AaqVm4wLuEReHXmJFhnPZR47",
+      "name": "request_handoff",
+      "content": "{\"ok\": true, \"handoff_id\": \"hand-25eebeced4fb4f88\", \"closed_request\": null, \"reason_code\": \"shipping_refund\", \"policy_citations\": [\"refund-policy/v2/shipping\"], \"next_step\": \"This handoff closed no request: say nothing of closing one. Tell the customer a person will take over, and why, citing (refund-policy/v2/shipping). A refund already paid stays paid. Make no more changes.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "A staff member will take over to review the BRL 18 shipping charge; shipping isn’t refunded automatically (refund-policy/v2/shipping). The kettle refund remains paid for BRL 139.90, receipt R-D40-0001.",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "A staff member will take over to review the BRL 18 shipping charge; shipping isn’t refunded automatically (refund-policy/v2/shipping). The kettle refund remains paid for BRL 139.90, receipt R-D40-0001.",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "customer",
+      "text": "Thank you."
+    }
+  ]
+}
