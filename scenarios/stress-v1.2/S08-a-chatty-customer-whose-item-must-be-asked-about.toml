@@ -1,0 +1,103 @@
+# A chatty customer whose item must be asked about.
+# Claude's stress scenario S08 (stress-scenarios.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/stress-conversion-log.md.
+# Olist order c7387d86e09f2823f6062d8c2378ce02 (data/olist/subset-stress-v1.2.json): 3 item(s), credit_card 191.68 in 8 instalment(s).
+id = "S08"
+title = "A chatty customer whose item must be asked about"
+split = "stress_v1_2"
+category = "clarification_handoff"
+template = "a-chatty-customer-whose-item-must-be-asked-about"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 11 days after delivery of o1, UTC
+agent_visible_orders = ["s08-o1"]
+
+[[fixture.customers]]
+id = "s08-arthur"
+name = "Arthur Leme"
+email = "arthur.leme@example.test"
+
+[[fixture.staff]]
+id = "s08-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "s08-o1"
+customer = "s08-arthur"
+status = "delivered"
+purchased_at = 2026-10-29T01:16:26Z
+delivered_at = 2026-11-05T10:00:00Z  # delivered 11 days before now
+payments = [{ method = "credit_card", amount_minor = 19168, installments = 8 }]  # 4400 + shipping 1923 + 4500 + shipping 1922 + 4500 + shipping 1923
+olist_order = "c7387d86e09f2823f6062d8c2378ce02"
+
+[[fixture.orders.units]]
+id = "s08-o1-u1"
+product = "Throw pillow cover, mustard"
+price_minor = 4400
+paid_minor = 4400
+shipping_minor = 1923
+received_back_at = 2026-11-14T10:00:00Z  # received back 2 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "s08-o1-u2"
+product = "Throw pillow cover, teal"
+price_minor = 4500
+paid_minor = 4500
+shipping_minor = 1922
+received_back_at = 2026-11-14T10:00:00Z  # received back 2 days before now
+olist_item = 2
+
+[[fixture.orders.units]]
+id = "s08-o1-u3"
+product = "Pillow insert"
+price_minor = 4500
+paid_minor = 4500
+shipping_minor = 1923
+olist_item = 3
+
+[customer]
+id = "s08-arthur"
+goal = "Get the refund for the teal pillow cover while chatting about your sofa and your cat."
+opening_message = "Hello! So, funny story: I ordered these pillow covers thinking they'd match my sofa, and my cat immediately decided one of them was her new bed. Anyway, I sent the pillow cover back, the one that didn't work. Could you refund it? Also, is it normal that colours look different in person?"
+facts = [
+    { text = "You mean the teal cover, not the mustard one.", reveal = "when_asked" },
+]
+behaviour = [
+    "In every message, add a sentence about your sofa or your cat.",
+    "Do not say which colour you mean until you are asked; then say the teal one.",
+    "Accept any polite answer to your question about colours.",
+    "Confirm only a refund card for the teal cover.",
+    "If you are offered a person, say no thanks.",
+]
+confirms = { units = ["s08-o1-u2"], amount_minor = 4500 }  # paid(u2)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["s08-o1-u2"]
+decision = "eligible"
+amount_minor = 4500
+
+[[policy_checks]]
+units = ["s08-o1-u1"]
+decision = "eligible"
+amount_minor = 4400
+
+[[policy_checks]]
+units = ["s08-o1-u3"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = ["s08-o1-u2"]
+refund_amount_minor = 4500  # paid(u2)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = []
+quality_cites = []
+communication = ["resolves_ambiguity_first", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]

@@ -29,13 +29,19 @@ from refund_agent.policy import REPO_ROOT, OrderStatus, Policy, load_policy_vers
 SCENARIOS_DIR = REPO_ROOT / "scenarios"
 # held_out_v1_1: the set written for the final evaluation of v1.1 by an author with no access to the project
 # (docs/held-out-v1.1/protocol.md), kept apart from v1's held-out set, which a final evaluation has already used.
+# held_out_v1_2: the 19 scenarios of the final evaluation of v1.2 (docs/held-out-v1.2/set-aside.md, section 9.2);
+# stress_v1_2: scenarios Claude wrote, knowing the system, for situations no other set holds, run with them and
+# reported apart (plan change log, 2026-10-30). Both are frozen and copy real Olist orders, like a held-out set.
 SPLIT_DIRS = {
     "development": SCENARIOS_DIR / "development",
     "held_out": SCENARIOS_DIR / "held-out",
     "held_out_v1_1": SCENARIOS_DIR / "held-out-v1.1",
+    "held_out_v1_2": SCENARIOS_DIR / "held-out-v1.2",
+    "stress_v1_2": SCENARIOS_DIR / "stress-v1.2",
 }
-Split = Literal["development", "held_out", "held_out_v1_1"]
-HELD_OUT_SPLITS = ("held_out", "held_out_v1_1")
+Split = Literal["development", "held_out", "held_out_v1_1", "held_out_v1_2", "stress_v1_2"]
+HELD_OUT_SPLITS = ("held_out", "held_out_v1_1", "held_out_v1_2", "stress_v1_2")
+ID_PREFIX = {"development": "D", "stress_v1_2": "S"}  # every other split: H
 RENDERED_PATH = REPO_ROOT / "docs" / "development-scenarios.md"
 
 _STRICT = ConfigDict(frozen=True, extra="forbid", strict=True)
@@ -370,7 +376,7 @@ class Expected(BaseModel):
 class Scenario(BaseModel):
     model_config = _STRICT
 
-    id: str = Field(pattern=r"^[DH][0-9]{2}$")
+    id: str = Field(pattern=r"^([DH][0-9]{2}|[HS][0-9]{3}|S[0-9]{2})$")  # v1.2 numbers its held-out set from H101
     title: Text
     split: Split
     category: Category
@@ -390,8 +396,8 @@ class Scenario(BaseModel):
     @model_validator(mode="after")
     def _consistent(self) -> Scenario:
         fixture, expected, confirms = self.fixture, self.expected, self.customer.confirms
-        if self.id[0] != ("D" if self.split == "development" else "H"):
-            raise ValueError(f"{self.id}: development IDs start with D, held-out IDs with H")
+        if self.id[0] != ID_PREFIX.get(self.split, "H"):
+            raise ValueError(f"{self.id}: development IDs start with D, stress IDs with S, held-out IDs with H")
         if self.split in HELD_OUT_SPLITS and any(o.olist_order is None for o in fixture.orders):
             raise ValueError(f"{self.id}: every held-out order copies a real Olist order (data/olist/README.md)")
         if self.derived_from and self.split != "development":

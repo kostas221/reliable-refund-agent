@@ -1,0 +1,91 @@
+# Previously rejected returned cup, new request before deadline.
+# The author's candidate H235 (author-output-3.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/conversion-log.md.
+# Olist order 1aeb7327979c2a19b8f80b9df367d99f (data/olist/subset-v1.2.json): 2 item(s), credit_card 90.18 in 3 instalment(s).
+id = "H235"
+title = "Previously rejected returned cup, new request before deadline"
+split = "held_out_v1_2"
+category = "eligible"
+template = "previously-rejected-returned-cup-new-request-before-deadline"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # Shop time UTC; o1 delivered 25 days before now
+agent_visible_orders = ["h235-o1"]
+
+[[fixture.customers]]
+id = "h235-diego"
+name = "Diego Sampaio"
+email = "diego.sampaio@example.test"
+
+[[fixture.staff]]
+id = "h235-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h235-o1"
+customer = "h235-diego"
+status = "delivered"
+purchased_at = 2026-09-25T08:58:33Z
+delivered_at = 2026-10-22T10:00:00Z  # delivered 25 days before now
+payments = [{ method = "credit_card", amount_minor = 9018, installments = 3 }]  # 2999 + shipping 1510 + 2999 + shipping 1510
+olist_order = "1aeb7327979c2a19b8f80b9df367d99f"
+
+[[fixture.orders.units]]
+id = "h235-o1-u1"
+product = "Stoneware espresso cup"
+price_minor = 2999
+paid_minor = 2999
+shipping_minor = 1510
+received_back_at = 2026-10-29T10:00:00Z  # received back 18 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h235-o1-u2"
+product = "Wooden coaster"
+price_minor = 2999
+paid_minor = 2999
+shipping_minor = 1510
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 2
+
+[[fixture.past_proposals]]
+id = "h235-p1"
+units = ["h235-o1-u1"]
+created_at = 2026-11-07T10:00:00Z  # 9 days before now
+status = "rejected"
+
+[customer]
+id = "h235-diego"
+goal = "Create a new proposal for both returned units after a previous rejection, still in time."
+opening_message = "An old request for the cup was rejected, but I am asking again for the cup and the coaster together. Am I still within thirty days?"
+facts = []
+behaviour = [
+    "If offered a person, decline; continue with the requested automated refund.",
+    "Decline a smaller refund or a different proposed set of units, unless a change of mind above expressly requests it.",
+    "Confirm only the exact final specified units and their recorded paid amount on a proposal card; never treat typed chat as confirmation.",
+    "After the receipt for the authorized refund, answer any last question or offer and end.",
+]
+confirms = { units = ["h235-o1-u1", "h235-o1-u2"], amount_minor = 5998 }  # paid(u1)+paid(u2)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h235-o1-u1", "h235-o1-u2"]
+decision = "eligible"
+amount_minor = 5998
+
+[expected]
+refunded_units = ["h235-o1-u1", "h235-o1-u2"]
+refund_amount_minor = 5998  # paid(u1)+paid(u2)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/window"]
+quality_cites = []
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/window" = "The new request for both units is still inside thirty days; the earlier rejection does not itself extend the deadline."

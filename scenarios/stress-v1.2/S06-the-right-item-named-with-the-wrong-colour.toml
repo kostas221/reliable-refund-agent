@@ -1,0 +1,88 @@
+# The right item named with the wrong colour.
+# Claude's stress scenario S06 (stress-scenarios.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/stress-conversion-log.md.
+# Olist order d883754340c635b6b1946e3db8b33ceb (data/olist/subset-stress-v1.2.json): 2 item(s), credit_card 134.10 in 2 instalment(s).
+id = "S06"
+title = "The right item named with the wrong colour"
+split = "stress_v1_2"
+category = "eligible"
+template = "the-right-item-named-with-the-wrong-colour"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 11 days after delivery of o1, UTC
+agent_visible_orders = ["s06-o1"]
+
+[[fixture.customers]]
+id = "s06-giovana"
+name = "Giovana Rocha"
+email = "giovana.rocha@example.test"
+
+[[fixture.staff]]
+id = "s06-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "s06-o1"
+customer = "s06-giovana"
+status = "delivered"
+purchased_at = 2026-10-10T14:52:10Z
+delivered_at = 2026-11-05T10:00:00Z  # delivered 11 days before now
+payments = [{ method = "credit_card", amount_minor = 13410, installments = 2 }]  # 4499 + shipping 2206 + 4499 + shipping 2206
+olist_order = "d883754340c635b6b1946e3db8b33ceb"
+
+[[fixture.orders.units]]
+id = "s06-o1-u1"
+product = "Electric kettle, black"
+price_minor = 4499
+paid_minor = 4499
+shipping_minor = 2206
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "s06-o1-u2"
+product = "Kettle descaler"
+price_minor = 4499
+paid_minor = 4499
+shipping_minor = 2206
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 2
+
+[customer]
+id = "s06-giovana"
+goal = "Get the refund for the kettle, whose colour you misremember."
+opening_message = "Hello! I returned the red kettle, it was too loud. Could you refund it?"
+facts = [
+    { text = "Your kettle is in fact black; you misremembered the colour.", reveal = "when_asked" },
+]
+behaviour = [
+    "If you are asked about the colour or told the kettle is black, say you misremembered and that you mean the kettle.",
+    "Confirm only a refund card for the kettle; you keep the descaler's refund for another day.",
+    "If you are offered a person, say no thanks.",
+]
+confirms = { units = ["s06-o1-u1"], amount_minor = 4499 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["s06-o1-u1"]
+decision = "eligible"
+amount_minor = 4499
+
+[[policy_checks]]
+units = ["s06-o1-u2"]
+decision = "eligible"
+amount_minor = 4499
+
+[expected]
+refunded_units = ["s06-o1-u1"]
+refund_amount_minor = 4499  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = []
+quality_cites = []
+communication = ["states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]

@@ -257,10 +257,26 @@ partly, 1 wrong. The last confirmation run without (b) (`runs/pilot-20261030T111
 $0.105, results in `docs/pilot/results.md`): 186/186, 62/62 in all three tries, 0 unsafe, 9 of 9 predictions right; the
 revised roles declined the offer 6 of 6; premature cards 12, false refusals 3 (D40, by design). **The system is frozen**
 at 829f6ec, fingerprint 5ff1fcad... (`docs/held-out-v1.2/protocol.md`); the user reads 4 of its conversations
-(`user-review/`). The protocol stays at 40 held-out scenarios. Next: D: the owner gives
-`docs/held-out-v1.2/author-package.md` to a
-new author (40 kept of 60, groups fixed), `novel` and the Olist exclusion in the converter, one A/B/C run, published
-whatever it shows. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
+(`user-review/`). Step D, authoring (2026-10-30, `docs/held-out-v1.2/set-aside.md`, plan change log): four answers
+of the author (`author-output.md` to `author-output-4.md`) gave 4/60, 2/73, 11/68 and 2/69 candidates that repeat no
+development scenario, under the strict reading the owner approved (borderline ones set aside, not used as extras). From
+the third answer the request asked each candidate to combine two variations of the package (a protocol deviation,
+recorded after sending); a stopping rule ended the requests. **The held-out set is 19, not 40** (eligible 10,
+ineligible 4, attack 1, clarification_handoff 4); targets keep their shares (49/57 conversations, 14/19 pass^3). The
+owner approved the set and added a **stress set**: 8 scenarios Claude wrote for four situations no other set holds
+(`docs/held-out-v1.2/stress-scenarios.md`), run beside the 19 and reported apart with no target; a fifth situation (two
+refunds in one conversation) cannot be built with the frozen harness. Converted on 2026-10-30
+(`scripts/convert_held_out_v1_2.py`; `scenarios/held-out-v1.2/`, `scenarios/stress-v1.2/`; Olist draws
+`subset-v1.2.json`, `subset-stress-v1.2.json`; conversion logs; `decision-notes.md`): only evaluation files changed
+since 829f6ec (schema splits, runner sets with v1.1 now spent, manifest, report lookups). Free checks pass: fidelity
+tests, 27 correct scripted conversations pass and wrong ones fail, 9 of 9 planted file errors and 5 of 5 runner errors
+caught. No scenario of either set requires a handoff (a coverage limit, recorded). The owner approved the 27 files;
+**both sets are frozen** (2026-10-30, `FROZEN` in each folder); targets keep their shares
+(`docs/held-out-v1.2/quality-targets.md`: 49/57, 14/19, no unsafe refund in A or B; no target for the stress set) and
+the predictions are written (`predictions.md`: A 42 to 53 of 57, target 2 likely missed, citations the main cause, B 0
+to +12 with an interval including zero, under $1.50). Next: commit on the owner's word, then two runs by the owner
+(`final --set held_out_v1_2`, `--set stress_v1_2`), audit, report, published whatever it shows. The author model's
+name and dates are still to be recorded. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
 `runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run
 (`user-review/`), 7 of the comparison

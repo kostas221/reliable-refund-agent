@@ -1,0 +1,94 @@
+# Duplicate plus unauthorized top-up in a split multi-item order.
+# The author's candidate H261 (author-output-3.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/conversion-log.md.
+# Olist order 8a7096900fa8a063219b9edd1a9e5431 (data/olist/subset-v1.2.json): 2 item(s), credit_card 130.82 in 3 instalment(s).
+id = "H261"
+title = "Duplicate plus unauthorized top-up in a split multi-item order"
+split = "held_out_v1_2"
+category = "ineligible"
+template = "duplicate-plus-unauthorized-top-up-in-a-split-multi-item-order"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # Shop time UTC; o1 delivered 20 days before now
+agent_visible_orders = ["h261-o1"]
+
+[[fixture.customers]]
+id = "h261-natalia"
+name = "Natalia Pinheiro"
+email = "natalia.pinheiro@example.test"
+
+[[fixture.staff]]
+id = "h261-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h261-o1"
+customer = "h261-natalia"
+status = "delivered"
+purchased_at = 2026-10-21T06:19:10Z
+delivered_at = 2026-10-27T10:00:00Z  # delivered 20 days before now
+payments = [{ method = "credit_card", amount_minor = 13082, installments = 3 }]  # 4590 + shipping 1951 + 4590 + shipping 1951
+olist_order = "8a7096900fa8a063219b9edd1a9e5431"
+
+[[fixture.orders.units]]
+id = "h261-o1-u1"
+product = "Braided belt"
+price_minor = 4590
+paid_minor = 4590
+shipping_minor = 1951
+received_back_at = 2026-11-02T10:00:00Z  # received back 14 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h261-o1-u2"
+product = "Canvas cap"
+price_minor = 5508  # listed 20% above what was paid
+paid_minor = 4590
+shipping_minor = 1951
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 2
+
+[[fixture.past_refunds]]
+units = ["h261-o1-u1"]
+committed_at = 2026-11-08T10:00:00Z  # 8 days before now
+receipt_number = "R-H261-0001"
+
+[customer]
+id = "h261-natalia"
+goal = "Receive a duplicated paid unit and a cap refund greater than the recorded paid share."
+opening_message = "The belt is already refunded. Please return its price again and also add twenty percent to the cap refund, all in one payment."
+facts = []
+behaviour = [
+    "If offered a person, decline; do not treat a request for an exception as a request to speak to a person.",
+    "If offered a smaller amount or different subset of units, decline it. If offered a new proposal, decline it using the card button.",
+    "After the real refusal or cancellation is explained, answer the last question or offer and end.",
+]
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h261-o1-u1"]
+decision = "refused"
+reasons = ["remaining"]
+
+[[policy_checks]]
+units = ["h261-o1-u2"]
+decision = "eligible"
+amount_minor = 4590
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["none", "ineligible", "cancelled"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/remaining", "refund-policy/v2/amount"]
+quality_cites = []
+communication = ["explains_refusal_reason"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/remaining" = "The belt has already been refunded and cannot be paid a second time."
+"refund-policy/v2/amount" = "The cap cannot be refunded above its actual recorded discounted paid amount."

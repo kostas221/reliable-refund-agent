@@ -1,4 +1,6 @@
-"""The Olist subset behind the held-out scenarios: `uv run python -m refund_agent.olist [v1.1]` (plan section 6, data).
+"""The Olist subset behind the held-out scenarios (plan section 6, data).
+
+    uv run python -m refund_agent.olist [v1.1 | v1.2 | stress-v1.2]
 
 Reads the Kaggle files in data/raw/olist/ (never committed), refuses them unless each matches the SHA-256 recorded
 below, and draws, for each held-out situation, real orders of the shape it needs. The draw is fixed, not chosen:
@@ -229,6 +231,48 @@ SITUATIONS_V1_1: dict[str, tuple[Fits, ...]] = {
 SUBSET_V1_1 = REPO_ROOT / "data" / "olist" / "subset-v1.1.json"
 
 
+# The held-out set of v1.2 (docs/held-out-v1.2/protocol.md, section 4.1): the shapes of the 19 candidates kept from
+# the author's answers (docs/held-out-v1.2/set-aside.md, section 9.2), as each candidate states them. Drawn by the
+# same lot, never an order of v1's or v1.1's subset.
+
+CARD_ONE_ITEM = delivered()
+SITUATIONS_V1_2: dict[str, tuple[Fits, ...]] = {
+    "H102": (delivered(3, products=1, sellers=1),),
+    "H108": (delivered(3, products=1, sellers=1),),
+    "H113": (CARD_ONE_ITEM,),
+    "H116": (delivered(3, products=1, sellers=1),),
+    "H233": (CARD_ONE_ITEM, CARD_ONE_ITEM),  # two orders of the customer, not tied
+    "H235": (delivered(2, products=2, sellers=1),),
+    "H238": (delivered(3, products=1, sellers=1),),
+    "H240": (delivered(2, products=2, sellers=1),),
+    "H241": (delivered(3, products=3, sellers=1),),
+    "H245": (delivered(3, products=3, sellers=1), in_transit),
+    "H196": (CARD_ONE_ITEM, CARD_ONE_ITEM),
+    "H255": (delivered(2, products=2, sellers=1),),
+    "H261": (delivered(2, products=2, sellers=1),),
+    "H314": (delivered(3, products=3, sellers=1),),
+    "H143": (CARD_ONE_ITEM,),
+    "H281": (delivered(3, products=3, sellers=1),),
+    "H286": (delivered(2, products=2, sellers=1),),
+    "H300": (delivered(3, products=3, sellers=1),),
+    "H355": (delivered(2, products=2, sellers=1),),
+}
+# The stress scenarios of v1.2 (docs/held-out-v1.2/stress-scenarios.md), drawn the same way, never an order of v1's,
+# v1.1's or v1.2's held-out subset.
+SITUATIONS_STRESS_V1_2: dict[str, tuple[Fits, ...]] = {
+    "S01": (CARD_ONE_ITEM,),
+    "S02": (CARD_ONE_ITEM,),
+    "S03": (CARD_ONE_ITEM,),
+    "S04": (delivered(2, products=2, sellers=1),),
+    "S05": (CARD_ONE_ITEM, CARD_ONE_ITEM),  # two orders of the customer, not tied
+    "S06": (delivered(2, products=2, sellers=1),),
+    "S07": (delivered(2, products=2, sellers=1),),
+    "S08": (delivered(3, products=3, sellers=1),),
+}
+SUBSET_STRESS_V1_2 = REPO_ROOT / "data" / "olist" / "subset-stress-v1.2.json"
+SUBSET_V1_2 = REPO_ROOT / "data" / "olist" / "subset-v1.2.json"
+
+
 def draw(
     orders: dict[str, Order],
     situations: dict[str, tuple[Fits, ...]] = SITUATIONS,
@@ -328,5 +372,44 @@ def main_v1_1() -> None:
     print(f"Wrote {SUBSET_V1_1.relative_to(REPO_ROOT)}: {sum(len(p) for p in drawn.values())} orders")
 
 
+def draw_apart(situations: dict[str, tuple[Fits, ...]], target, earlier: tuple, name: str, excluded_note: str) -> None:
+    """A draw written to its own file, never an order of an earlier subset."""
+    excluded = {
+        o["order_id"]
+        for path in earlier
+        for picked in json.loads(path.read_text(encoding="utf-8"))["situations"].values()
+        for o in picked
+    }
+    drawn = draw(load(), situations, {}, used=excluded)
+    subset = {
+        "source": SOURCE,
+        "licence": LICENCE,
+        "attribution": "Brazilian E-Commerce Public Dataset by Olist, https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce",
+        "files_sha256": FILES,
+        "drawn_by": f"refund_agent/olist.py ({name})",
+        "excluded": f"the {len(excluded)} orders of {excluded_note}",
+        "situations": {
+            situation: [{**as_record(o), "estimated_delivery_at": o.estimated_at} for o in picked]
+            for situation, picked in drawn.items()
+        },
+    }
+    target.write_text(json.dumps(subset, indent=2, ensure_ascii=True) + "\n", encoding="utf-8", newline="\n")
+    print(f"Wrote {target.relative_to(REPO_ROOT)}: {sum(len(p) for p in drawn.values())} orders")
+
+
+def main_v1_2() -> None:
+    """The draw for the held-out set of v1.2; the orders of v1's and v1.1's sets are left out."""
+    note = "data/olist/subset.json and subset-v1.1.json, the held-out sets of v1 and v1.1"
+    draw_apart(SITUATIONS_V1_2, SUBSET_V1_2, (SUBSET, SUBSET_V1_1), "main_v1_2", note)
+
+
+def main_stress_v1_2() -> None:
+    """The draw for the stress scenarios of v1.2; the orders of every held-out set are left out."""
+    note = "data/olist/subset.json, subset-v1.1.json and subset-v1.2.json, the held-out sets of v1, v1.1 and v1.2"
+    earlier = (SUBSET, SUBSET_V1_1, SUBSET_V1_2)
+    draw_apart(SITUATIONS_STRESS_V1_2, SUBSET_STRESS_V1_2, earlier, "main_stress_v1_2", note)
+
+
 if __name__ == "__main__":
-    main_v1_1() if sys.argv[1:] == ["v1.1"] else main()
+    mains = {"v1.1": main_v1_1, "v1.2": main_v1_2, "stress-v1.2": main_stress_v1_2}
+    mains.get(" ".join(sys.argv[1:]), main)()

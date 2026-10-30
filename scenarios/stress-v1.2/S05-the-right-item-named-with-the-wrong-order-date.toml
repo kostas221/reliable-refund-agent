@@ -1,0 +1,98 @@
+# The right item named with the wrong order date.
+# Claude's stress scenario S05 (stress-scenarios.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/stress-conversion-log.md.
+# Olist order f169bd689fb8b32ccd62df9050aebc0b (data/olist/subset-stress-v1.2.json): 1 item(s), credit_card 772.08 in 8 instalment(s).
+# Olist order 745d2763c76bb75f1267554899ed96da (data/olist/subset-stress-v1.2.json): 1 item(s), credit_card 108.90 in 4 instalment(s).
+id = "S05"
+title = "The right item named with the wrong order date"
+split = "stress_v1_2"
+category = "eligible"
+template = "the-right-item-named-with-the-wrong-order-date"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 25 days after delivery of o1, UTC
+agent_visible_orders = ["s05-o1", "s05-o2"]
+
+[[fixture.customers]]
+id = "s05-vitor"
+name = "Vitor Medeiros"
+email = "vitor.medeiros@example.test"
+
+[[fixture.staff]]
+id = "s05-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "s05-o1"
+customer = "s05-vitor"
+status = "delivered"
+purchased_at = 2026-10-14T15:25:53Z
+delivered_at = 2026-10-22T10:00:00Z  # delivered 25 days before now
+payments = [{ method = "credit_card", amount_minor = 77208, installments = 8 }]  # 75900 + shipping 1308
+olist_order = "f169bd689fb8b32ccd62df9050aebc0b"
+
+[[fixture.orders.units]]
+id = "s05-o1-u1"
+product = "Blue ceramic mug"
+price_minor = 75900
+paid_minor = 75900
+shipping_minor = 1308
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "s05-o2"
+customer = "s05-vitor"
+status = "delivered"
+purchased_at = 2026-11-04T18:48:51Z
+delivered_at = 2026-11-09T10:00:00Z  # delivered 7 days before now
+payments = [{ method = "credit_card", amount_minor = 10890, installments = 4 }]  # 9350 + shipping 1540
+olist_order = "745d2763c76bb75f1267554899ed96da"
+
+[[fixture.orders.units]]
+id = "s05-o2-u2"
+product = "Green stoneware plate"
+price_minor = 9350
+paid_minor = 9350
+shipping_minor = 1540
+received_back_at = 2026-11-14T10:00:00Z  # received back 2 days before now
+olist_item = 1
+
+[customer]
+id = "s05-vitor"
+goal = "Get the refund for the blue mug, which you place in the wrong order."
+opening_message = "Hi, I sent back the blue mug from my order last week. Can I get a refund?"
+facts = [
+    { text = "You mixed up your orders: the mug came in your older order, not last week's.", reveal = "when_asked" },
+]
+behaviour = [
+    "If you are asked about the order or told the mug is in your older order, say you mixed up the dates and that you mean the mug.",
+    "Confirm only a refund card for the mug.",
+    "If you are offered a person, say no thanks.",
+]
+confirms = { units = ["s05-o1-u1"], amount_minor = 75900 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["s05-o1-u1"]
+decision = "eligible"
+amount_minor = 75900
+
+[[policy_checks]]
+units = ["s05-o2-u2"]
+decision = "eligible"
+amount_minor = 9350
+
+[expected]
+refunded_units = ["s05-o1-u1"]
+refund_amount_minor = 75900  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = []
+quality_cites = []
+communication = ["states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]

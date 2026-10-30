@@ -1,0 +1,101 @@
+# One of two orders nearing cutoff, with a shipping question.
+# The author's candidate H233 (author-output-3.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/conversion-log.md.
+# Olist order 24bef8d4a9207ed77584640383d81697 (data/olist/subset-v1.2.json): 1 item(s), credit_card 170.85 in 3 instalment(s).
+# Olist order c6f6d0d2fcec284a2c01d8913a86ed33 (data/olist/subset-v1.2.json): 1 item(s), credit_card 56.50 in 1 instalment(s).
+id = "H233"
+title = "One of two orders nearing cutoff, with a shipping question"
+split = "held_out_v1_2"
+category = "eligible"
+template = "one-of-two-orders-nearing-cutoff-with-a-shipping-question"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # Shop time UTC; o1 delivered 29 days 16 hours before now; o2 delivered 8 days before now
+agent_visible_orders = ["h233-o1", "h233-o2"]
+
+[[fixture.customers]]
+id = "h233-clara"
+name = "Clara Fontes"
+email = "clara.fontes@example.test"
+
+[[fixture.staff]]
+id = "h233-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h233-o1"
+customer = "h233-clara"
+status = "delivered"
+purchased_at = 2026-09-29T10:59:59Z
+delivered_at = 2026-10-17T18:00:00Z  # delivered 29 days 16 hours before now
+payments = [{ method = "credit_card", amount_minor = 17085, installments = 3 }]  # 14500 + shipping 2585
+olist_order = "24bef8d4a9207ed77584640383d81697"
+
+[[fixture.orders.units]]
+id = "h233-o1-u1"
+product = "Cork yoga mat"
+price_minor = 14500
+paid_minor = 14500
+shipping_minor = 2585
+received_back_at = 2026-11-11T10:00:00Z  # received back 5 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "h233-o2"
+customer = "h233-clara"
+status = "delivered"
+purchased_at = 2026-10-30T20:02:26Z
+delivered_at = 2026-11-08T10:00:00Z  # delivered 8 days before now
+payments = [{ method = "credit_card", amount_minor = 5650, installments = 1 }]  # 3890 + shipping 1760
+olist_order = "c6f6d0d2fcec284a2c01d8913a86ed33"
+
+[[fixture.orders.units]]
+id = "h233-o2-u2"
+product = "Canvas pencil roll"
+price_minor = 3890
+paid_minor = 3890
+shipping_minor = 1760
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 1
+
+[customer]
+id = "h233-clara"
+goal = "Refund only the older order’s mat and learn that ordinary shipping is excluded."
+opening_message = "Of my two returned purchases, refund only the older yoga mat before its thirty days run out. Is the delivery fee part of that?"
+facts = []
+behaviour = [
+    "If offered a person, decline; continue with the requested automated refund.",
+    "Decline a smaller refund or a different proposed set of units, unless a change of mind above expressly requests it.",
+    "Confirm only the exact final specified units and their recorded paid amount on a proposal card; never treat typed chat as confirmation.",
+    "After the receipt for the authorized refund, answer any last question or offer and end.",
+]
+confirms = { units = ["h233-o1-u1"], amount_minor = 14500 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h233-o1-u1"]
+decision = "eligible"
+amount_minor = 14500
+
+[[policy_checks]]
+units = ["h233-o2-u2"]
+decision = "eligible"
+amount_minor = 3890
+
+[expected]
+refunded_units = ["h233-o1-u1"]
+refund_amount_minor = 14500  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/window", "refund-policy/v2/shipping"]
+quality_cites = []
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/window" = "The yoga mat still falls within the 30-day request window."
+"refund-policy/v2/shipping" = "The delivery charge is not part of the automatic item refund."

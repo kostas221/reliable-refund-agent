@@ -1,0 +1,101 @@
+# Refund two remaining units after a prior partial payout.
+# The author's candidate H116 (author-output-2.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/conversion-log.md.
+# Olist order f790f7c7d494562bf4166768abbb9d94 (data/olist/subset-v1.2.json): 3 item(s), credit_card 148.47 in 8 instalment(s).
+id = "H116"
+title = "Refund two remaining units after a prior partial payout"
+split = "held_out_v1_2"
+category = "eligible"
+template = "refund-two-remaining-units-after-a-prior-partial-payout"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 12 days after delivery of o1, UTC
+agent_visible_orders = ["h116-o1"]
+
+[[fixture.customers]]
+id = "h116-mateus"
+name = "Mateus Carvalho"
+email = "mateus.carvalho@example.test"
+
+[[fixture.staff]]
+id = "h116-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h116-o1"
+customer = "h116-mateus"
+status = "delivered"
+purchased_at = 2026-10-13T10:55:14Z
+delivered_at = 2026-11-04T10:00:00Z  # delivered 12 days before now
+payments = [{ method = "credit_card", amount_minor = 14847, installments = 8 }]  # 3500 + shipping 1449 + 3500 + shipping 1449 + 3500 + shipping 1449
+olist_order = "f790f7c7d494562bf4166768abbb9d94"
+
+[[fixture.orders.units]]
+id = "h116-o1-u1"
+product = "Mini storage bin"
+price_minor = 3500
+paid_minor = 3500
+shipping_minor = 1449
+received_back_at = 2026-11-05T10:00:00Z  # received back 11 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h116-o1-u2"
+product = "Mini storage bin"
+price_minor = 3500
+paid_minor = 3500
+shipping_minor = 1449
+received_back_at = 2026-11-14T10:00:00Z  # received back 2 days before now
+olist_item = 2
+
+[[fixture.orders.units]]
+id = "h116-o1-u3"
+product = "Mini storage bin"
+price_minor = 3500
+paid_minor = 3500
+shipping_minor = 1449
+received_back_at = 2026-11-14T10:00:00Z  # received back 2 days before now
+olist_item = 3
+
+[[fixture.past_refunds]]
+units = ["h116-o1-u1"]
+committed_at = 2026-11-06T10:00:00Z  # 10 days before now
+receipt_number = "R-H116-0001"
+
+[customer]
+id = "h116-mateus"
+goal = "Get refunds for the two bins not included in your previous refund."
+opening_message = "I had three identical bins; the first was refunded already. Please refund the second and third, which have now been returned."
+facts = []
+behaviour = [
+    "Accept only a two-unit proposal for the second and third listed units.",
+    "If offered a person, decline unless a person is expressly part of your goal.",
+    "If offered a smaller refund or a different proposal from the one requested, decline it unless the behaviour above says otherwise.",
+    "Finish after the requested receipt, the stated refusal, cancellation, rejection, or the announced handoff, as appropriate; answer any final question or offer before ending.",
+]
+confirms = { units = ["h116-o1-u2", "h116-o1-u3"], amount_minor = 7000 }  # paid(u2)+paid(u3)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h116-o1-u2", "h116-o1-u3"]
+decision = "eligible"
+amount_minor = 7000
+
+[[policy_checks]]
+units = ["h116-o1-u1"]
+decision = "refused"
+reasons = ["remaining"]
+
+[expected]
+refunded_units = ["h116-o1-u2", "h116-o1-u3"]
+refund_amount_minor = 7000  # paid(u2)+paid(u3)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = []
+quality_cites = ["refund-policy/v2/remaining"]
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = ["proposal_with_other_units"]

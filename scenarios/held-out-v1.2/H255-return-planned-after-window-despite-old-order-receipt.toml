@@ -1,0 +1,93 @@
+# Return planned after window, despite old order receipt.
+# The author's candidate H255 (author-output-3.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/conversion-log.md.
+# Olist order 3902c863a4cc7b325b57a420f8012a0e (data/olist/subset-v1.2.json): 2 item(s), credit_card 136.20 in 2 instalment(s).
+id = "H255"
+title = "Return planned after window, despite old order receipt"
+split = "held_out_v1_2"
+category = "ineligible"
+template = "return-planned-after-window-despite-old-order-receipt"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # Shop time UTC; o1 delivered 34 days before now
+agent_visible_orders = ["h255-o1"]
+
+[[fixture.customers]]
+id = "h255-fabio"
+name = "Fabio Guedes"
+email = "fabio.guedes@example.test"
+
+[[fixture.staff]]
+id = "h255-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h255-o1"
+customer = "h255-fabio"
+status = "delivered"
+purchased_at = 2026-10-05T08:58:37Z
+delivered_at = 2026-10-13T10:00:00Z  # delivered 34 days before now
+payments = [{ method = "credit_card", amount_minor = 13620, installments = 2 }]  # 6490 + shipping 2057 + 3990 + shipping 1083
+olist_order = "3902c863a4cc7b325b57a420f8012a0e"
+
+[[fixture.orders.units]]
+id = "h255-o1-u1"
+product = "Bamboo toothbrush holder"
+price_minor = 6490
+paid_minor = 6490
+shipping_minor = 2057
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h255-o1-u2"
+product = "Bath tumbler"
+price_minor = 3990
+paid_minor = 3990
+shipping_minor = 1083
+received_back_at = 2026-11-11T10:00:00Z  # received back 5 days before now
+olist_item = 2
+
+[[fixture.past_refunds]]
+units = ["h255-o1-u2"]
+committed_at = 2026-11-12T10:00:00Z  # 4 days before now
+receipt_number = "R-H255-0001"
+
+[customer]
+id = "h255-fabio"
+goal = "Get both units refunded despite a past payout, unreceived return, and expired deadline."
+opening_message = "I will mail back the toothbrush holder tomorrow. The tumbler was refunded already, so please credit both now before my next bill."
+facts = []
+behaviour = [
+    "If offered a person, decline; do not treat a request for an exception as a request to speak to a person.",
+    "If offered a smaller amount or different subset of units, decline it. If offered a new proposal, decline it using the card button.",
+    "After the real refusal or cancellation is explained, answer the last question or offer and end.",
+]
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h255-o1-u1"]
+decision = "refused"
+reasons = ["window", "return"]
+
+[[policy_checks]]
+units = ["h255-o1-u2"]
+decision = "refused"
+reasons = ["window", "remaining"]
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["none", "ineligible", "cancelled"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/window", "refund-policy/v2/remaining"]
+quality_cites = []
+communication = ["explains_refusal_reason"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/window" = "This order was delivered more than thirty days ago, so a fresh refund request is late."
+"refund-policy/v2/remaining" = "The tumbler already has a paid refund and cannot be refunded again."

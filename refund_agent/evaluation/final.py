@@ -1,17 +1,18 @@
 """The final evaluation (plan sections 10 to 12): a frozen held-out set, three configurations, three tries each.
 
     uv run python -m refund_agent.evaluation.final --dry-run
-    uv run --env-file .env python -m refund_agent.evaluation.final --set held_out_v1_1 --budget-usd 5 \\
+    uv run --env-file .env python -m refund_agent.evaluation.final --set held_out_v1_2 --budget-usd 5 \\
         --prices-checked DATE
-    uv run --env-file .env python -m refund_agent.evaluation.final --set held_out_v1_1 \\
-        --resume runs/final-v1.1-... --budget-usd 5 --prices-checked DATE
+    uv run --env-file .env python -m refund_agent.evaluation.final --set held_out_v1_2 \\
+        --resume runs/final-v1.2-... --budget-usd 5 --prices-checked DATE
 
 What runs is fixed in this module, not chosen on the command line: configurations A, B and C (CONFIGURATIONS), the
-simulated customer, three tries of each of the twenty held-out scenarios, 180 conversations. For each scenario and
-try the three configurations run one after another, so the pairs that are compared ran under the same conditions.
-The one choice is the set, by name (SETS), recorded in the manifest with the SHA-256 of its freeze, so that a run of
-another set can never be reported as this one (docs/held-out-v1.1/protocol.md, section 5). v1's set is spent: its
-final evaluation ran on 2026-10-19, and the runner refuses it.
+simulated customer, three tries of each scenario of the named set. For each scenario and try the three configurations
+run one after another, so the pairs that are compared ran under the same conditions. The one choice is the set, by
+name (SETS), recorded in the manifest with the SHA-256 of its freeze, so that a run of another set can never be
+reported as this one (docs/held-out-v1.2/protocol.md, section 5). The sets of v1 and v1.1 are spent: their final
+evaluations ran on 2026-10-19 and 2026-10-26, and the runner refuses them. The stress set of v1.2 runs the same way,
+under its own name, and is reported apart.
 
 A run refuses to start unless its set matches its freeze, the set's quality targets and predictions are committed
 and unchanged, no tracked file has uncommitted changes (the evaluation runs one identified revision), an
@@ -99,6 +100,21 @@ SETS = {
         REPO_ROOT / "docs" / "held-out-v1.1" / "quality-targets.md",
         REPO_ROOT / "docs" / "held-out-v1.1" / "predictions.md",
         "final-v1.1",
+        spent="v1.1's held-out set is spent: its final evaluation ran on 2026-10-26 (runs/final-v1.1-20261026T125831Z)",
+    ),
+    # v1.2: the 19 held-out scenarios, and the stress scenarios run beside them and reported apart, with no target
+    # (plan change log, 2026-10-30). One file holds the targets and one the predictions of both.
+    "held_out_v1_2": HeldOutSet(
+        "held_out_v1_2",
+        REPO_ROOT / "docs" / "held-out-v1.2" / "quality-targets.md",
+        REPO_ROOT / "docs" / "held-out-v1.2" / "predictions.md",
+        "final-v1.2",
+    ),
+    "stress_v1_2": HeldOutSet(
+        "stress_v1_2",
+        REPO_ROOT / "docs" / "held-out-v1.2" / "quality-targets.md",
+        REPO_ROOT / "docs" / "held-out-v1.2" / "predictions.md",
+        "stress-v1.2",
     ),
 }
 RUNS = REPO_ROOT / "runs"
@@ -310,9 +326,10 @@ def paid_run(args: argparse.Namespace, scenarios: dict, commits: dict) -> int:
     return 0
 
 
-def dry_run() -> None:
+def dry_run(names: tuple[str, ...] = ("held_out_v1_2", "stress_v1_2")) -> None:
     """The first request of each configuration's agent and of the simulated customer, on D01 (a development
-    scenario: nothing of the held-out set is read), and an estimate of the whole run's cost."""
+    scenario: nothing of the held-out set is read but its files' names, to count them), and an estimate of the cost
+    of running the named sets."""
     out = RUNS / "final-dry-run"
     out.mkdir(parents=True, exist_ok=True)
     d01 = next(s for s in load_split("development") if s.id == "D01")
@@ -321,6 +338,8 @@ def dry_run() -> None:
     seen = [{"role": "agent", "text": d01.customer.opening_message, "tool_calls": [], "continuation": []}]
     simulator_request = simulator.request(simulator_instructions(d01), seen, [])
     write_json(out / "first-simulator-request.json", simulator_request)
+    scenarios = sum(len(list(SPLIT_DIRS[SETS[n].split].glob("*.toml"))) for n in names)
+    conversations = scenarios * REPEATS
     total = 0.0
     for name, setup in CONFIGURATIONS.items():
         agent = OpenAIResponses(setup.model, setup.reasoning, role="agent")
@@ -330,7 +349,6 @@ def dry_run() -> None:
             AGENT_REQUESTS * agent.worst_case_usd(request)
             + SIMULATOR_REQUESTS * simulator.worst_case_usd(simulator_request)
         )
-        conversations = 20 * REPEATS
         total += per * conversations
         print(
             f"{name}: {setup.model}, reasoning {setup.reasoning}, configuration {setup.configuration}; "
@@ -338,7 +356,8 @@ def dry_run() -> None:
         )
     print(
         f"Wrote {_shown(out)}/: the first agent request of each configuration and the simulator's; nothing sent. "
-        f"Estimate for all 180 conversations: about ${total:.2f}, if each made {AGENT_REQUESTS} agent and "
+        f"Estimate for {', '.join(names)}, {conversations * len(CONFIGURATIONS)} conversations: about ${total:.2f}, "
+        f"if each made {AGENT_REQUESTS} agent and "
         f"{SIMULATOR_REQUESTS} simulator requests at their maximum output. An estimate, not a limit; the budget, "
         "checked before every attempt against its upper bound, is what limits spending."
     )
@@ -347,7 +366,7 @@ def dry_run() -> None:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     if args.dry_run:
-        dry_run()
+        dry_run((args.set,) if args.set else ("held_out_v1_2", "stress_v1_2"))
         return 0
     try:
         commits = check_ready(args)

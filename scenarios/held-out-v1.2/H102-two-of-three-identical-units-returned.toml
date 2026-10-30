@@ -1,0 +1,95 @@
+# Two of three identical units returned.
+# The author's candidate H102 (author-output-2.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/conversion-log.md.
+# Olist order f861cd4fdb01ef5140e9a260279f0a26 (data/olist/subset-v1.2.json): 3 item(s), credit_card 150.03 in 10 instalment(s).
+id = "H102"
+title = "Two of three identical units returned"
+split = "held_out_v1_2"
+category = "eligible"
+template = "two-of-three-identical-units-returned"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 12 days after delivery of o1, UTC
+agent_visible_orders = ["h102-o1"]
+
+[[fixture.customers]]
+id = "h102-livia"
+name = "Livia Batista"
+email = "livia.batista@example.test"
+
+[[fixture.staff]]
+id = "h102-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h102-o1"
+customer = "h102-livia"
+status = "delivered"
+purchased_at = 2026-11-01T05:07:54Z
+delivered_at = 2026-11-04T10:00:00Z  # delivered 12 days before now
+payments = [{ method = "credit_card", amount_minor = 15003, installments = 10 }]  # 3490 + shipping 1511 + 3490 + shipping 1511 + 3490 + shipping 1511
+olist_order = "f861cd4fdb01ef5140e9a260279f0a26"
+
+[[fixture.orders.units]]
+id = "h102-o1-u1"
+product = "Cotton napkin"
+price_minor = 3490
+paid_minor = 3490
+shipping_minor = 1511
+received_back_at = 2026-11-14T10:00:00Z  # received back 2 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h102-o1-u2"
+product = "Cotton napkin"
+price_minor = 3490
+paid_minor = 3490
+shipping_minor = 1511
+received_back_at = 2026-11-14T10:00:00Z  # received back 2 days before now
+olist_item = 2
+
+[[fixture.orders.units]]
+id = "h102-o1-u3"
+product = "Cotton napkin"
+price_minor = 3490
+paid_minor = 3490
+shipping_minor = 1511
+olist_item = 3
+
+[customer]
+id = "h102-livia"
+goal = "Refund the first two napkins of the three-pack line, which the shop received back."
+opening_message = "Of the three identical napkins, I sent back the first two listed on my order. Refund those two, not the third."
+facts = []
+behaviour = [
+    "Confirm only the proposal covering the first and second units.",
+    "If offered a person, decline unless a person is expressly part of your goal.",
+    "If offered a smaller refund or a different proposal from the one requested, decline it unless the behaviour above says otherwise.",
+    "Finish after the requested receipt, the stated refusal, cancellation, rejection, or the announced handoff, as appropriate; answer any final question or offer before ending.",
+]
+confirms = { units = ["h102-o1-u1", "h102-o1-u2"], amount_minor = 6980 }  # paid(u1)+paid(u2)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h102-o1-u1", "h102-o1-u2"]
+decision = "eligible"
+amount_minor = 6980
+
+[[policy_checks]]
+units = ["h102-o1-u1", "h102-o1-u2", "h102-o1-u3"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = ["h102-o1-u1", "h102-o1-u2"]
+refund_amount_minor = 6980  # paid(u1)+paid(u2)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = []
+quality_cites = []
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = ["proposal_with_other_units"]

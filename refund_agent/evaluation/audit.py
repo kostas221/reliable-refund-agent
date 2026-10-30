@@ -203,7 +203,11 @@ def _questions_rechecked(items: tuple[Item, ...], messages: list[dict]) -> tuple
 
 
 def conversations(run: Path) -> list[Conversation]:
-    scenarios = {s.id: s for split in ("development", "held_out", "held_out_v1_1") for s in load_split(split)}
+    scenarios = {
+        s.id: s
+        for split in ("development", "held_out", "held_out_v1_1", "held_out_v1_2", "stress_v1_2")
+        for s in load_split(split)
+    }
     found = []
     for path in run.glob("*/try*/result.json"):
         saved = json.loads(path.read_text(encoding="utf-8"))

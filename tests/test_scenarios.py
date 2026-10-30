@@ -48,7 +48,9 @@ POLICY = load_policy()
 DEVELOPMENT = load_split("development")
 HELD_OUT = load_split("held_out")
 HELD_OUT_V1_1 = load_split("held_out_v1_1")  # tests/test_held_out_v1_1.py checks its own rules
-ALL = DEVELOPMENT + HELD_OUT + HELD_OUT_V1_1
+HELD_OUT_V1_2 = load_split("held_out_v1_2")  # tests/test_held_out_v1_2.py checks its own rules
+STRESS_V1_2 = load_split("stress_v1_2")
+ALL = DEVELOPMENT + HELD_OUT + HELD_OUT_V1_1 + HELD_OUT_V1_2 + STRESS_V1_2
 BY_ID = {s.id: s for s in DEVELOPMENT}
 ORIGINAL = [s for s in DEVELOPMENT if not s.derived_from and int(s.id[1:]) <= 10]  # written for development
 COPIES = [s for s in DEVELOPMENT if s.derived_from]  # copies of held-out scenarios a final evaluation used
@@ -207,6 +209,7 @@ def test_scenarios_use_the_current_policy_version():
     assert {s.policy_version for s in DEVELOPMENT} == {POLICY.version}
     assert {s.policy_version for s in HELD_OUT} == {"v1"}
     assert {s.policy_version for s in HELD_OUT_V1_1} == {"v2"}  # written for v1.1, under the policy in force
+    assert {s.policy_version for s in HELD_OUT_V1_2 + STRESS_V1_2} == {"v2"}
 
 
 @pytest.mark.parametrize("scenario", ALL, ids=lambda s: s.id)

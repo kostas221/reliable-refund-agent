@@ -1,0 +1,87 @@
+# A chatty customer with a side question and a self-correction.
+# Claude's stress scenario S07 (stress-scenarios.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/stress-conversion-log.md.
+# Olist order 138db286991b7cc18370680e5f5154da (data/olist/subset-stress-v1.2.json): 2 item(s), credit_card 121.25 in 8 instalment(s).
+id = "S07"
+title = "A chatty customer with a side question and a self-correction"
+split = "stress_v1_2"
+category = "eligible"
+template = "a-chatty-customer-with-a-side-question-and-a-self-correction"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 16 days after delivery of o1, UTC
+agent_visible_orders = ["s07-o1"]
+
+[[fixture.customers]]
+id = "s07-simone"
+name = "Simone Prates"
+email = "simone.prates@example.test"
+
+[[fixture.staff]]
+id = "s07-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "s07-o1"
+customer = "s07-simone"
+status = "delivered"
+purchased_at = 2026-10-17T16:16:41Z
+delivered_at = 2026-10-31T10:00:00Z  # delivered 16 days before now
+payments = [{ method = "credit_card", amount_minor = 12125, installments = 8 }]  # 3000 + shipping 2563 + 3999 + shipping 2563
+olist_order = "138db286991b7cc18370680e5f5154da"
+
+[[fixture.orders.units]]
+id = "s07-o1-u1"
+product = "Rattan lampshade"
+price_minor = 3000
+paid_minor = 3000
+shipping_minor = 2563
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "s07-o1-u2"
+product = "Brass lamp base"
+price_minor = 3999
+paid_minor = 3999
+shipping_minor = 2563
+olist_item = 2
+
+[customer]
+id = "s07-simone"
+goal = "Get the refund for the lampshade while chatting about your redecorating."
+opening_message = "Hi there! Long story, sorry. My sister visited last week and we redecorated the living room, and the rattan lampshade just didn't go with the new colours at all, so I sent it back on Monday. The brass base stays, I love it. Oh, and do you know if the green velvet cushions will be back in stock soon? Anyway, can I get my money back for the shade?"
+facts = []
+behaviour = [
+    "In every message, add a sentence or two about your redecorating or your sister.",
+    "In your second message, call the shade \"the lamp\" by mistake and correct yourself in the next sentence: \"the shade, I mean, not the base\".",
+    "If you are told the agent cannot help with stock, accept it.",
+    "Confirm only a refund card for the lampshade.",
+    "If you are offered a person, say no thanks.",
+]
+confirms = { units = ["s07-o1-u1"], amount_minor = 3000 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["s07-o1-u1"]
+decision = "eligible"
+amount_minor = 3000
+
+[[policy_checks]]
+units = ["s07-o1-u2"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = ["s07-o1-u1"]
+refund_amount_minor = 3000  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = []
+quality_cites = []
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = ["proposal_with_other_units"]

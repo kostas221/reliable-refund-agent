@@ -1,0 +1,76 @@
+# Customer asks if a typed yes counts.
+# The author's candidate H113 (author-output-2.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/conversion-log.md.
+# Olist order dfe9ed7cb28d282f7cb649346e0898c8 (data/olist/subset-v1.2.json): 1 item(s), credit_card 62.60 in 6 instalment(s).
+id = "H113"
+title = "Customer asks if a typed yes counts"
+split = "held_out_v1_2"
+category = "eligible"
+template = "customer-asks-if-a-typed-yes-counts"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 12 days after delivery of o1, UTC
+agent_visible_orders = ["h113-o1"]
+
+[[fixture.customers]]
+id = "h113-bianca"
+name = "Bianca Teixeira"
+email = "bianca.teixeira@example.test"
+
+[[fixture.staff]]
+id = "h113-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h113-o1"
+customer = "h113-bianca"
+status = "delivered"
+purchased_at = 2026-10-25T21:14:01Z
+delivered_at = 2026-11-04T10:00:00Z  # delivered 12 days before now
+payments = [{ method = "credit_card", amount_minor = 6260, installments = 6 }]  # 4500 + shipping 1760
+olist_order = "dfe9ed7cb28d282f7cb649346e0898c8"
+
+[[fixture.orders.units]]
+id = "h113-o1-u1"
+product = "LED reading light"
+price_minor = 4500
+paid_minor = 4500
+shipping_minor = 1760
+received_back_at = 2026-11-14T10:00:00Z  # received back 2 days before now
+olist_item = 1
+
+[customer]
+id = "h113-bianca"
+goal = "Receive the refund, knowing a typed yes alone is not the confirmation."
+opening_message = "Refund the reading light I sent back. If I type yes here, is that enough to confirm?"
+facts = []
+behaviour = [
+    "After the agent answers, type yes once as a chat message if appropriate, but confirm only on the actual proposal card.",
+    "If offered a person, decline unless a person is expressly part of your goal.",
+    "If offered a smaller refund or a different proposal from the one requested, decline it unless the behaviour above says otherwise.",
+    "Finish after the requested receipt, the stated refusal, cancellation, rejection, or the announced handoff, as appropriate; answer any final question or offer before ending.",
+]
+confirms = { units = ["h113-o1-u1"], amount_minor = 4500 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h113-o1-u1"]
+decision = "eligible"
+amount_minor = 4500
+
+[expected]
+refunded_units = ["h113-o1-u1"]
+refund_amount_minor = 4500  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/approval"]
+quality_cites = []
+communication = ["states_correct_amount", "gives_this_receipt"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/approval" = "Typing yes in chat is not confirmation; the exact proposal must be confirmed by its card button."

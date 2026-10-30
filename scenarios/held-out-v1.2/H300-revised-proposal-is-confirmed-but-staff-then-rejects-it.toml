@@ -1,0 +1,104 @@
+# Revised proposal is confirmed but staff then rejects it.
+# The author's candidate H300 (author-output-3.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/conversion-log.md.
+# Olist order af30636aaea85d40ad4f4025c7841236 (data/olist/subset-v1.2.json): 3 item(s), credit_card 192.00 in 10 instalment(s).
+id = "H300"
+title = "Revised proposal is confirmed but staff then rejects it"
+split = "held_out_v1_2"
+category = "clarification_handoff"
+template = "revised-proposal-is-confirmed-but-staff-then-rejects-it"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # Shop time UTC; o1 delivered 18 days before now
+agent_visible_orders = ["h300-o1"]
+
+[[fixture.customers]]
+id = "h300-igor"
+name = "Igor Valente"
+email = "igor.valente@example.test"
+
+[[fixture.staff]]
+id = "h300-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h300-o1"
+customer = "h300-igor"
+status = "delivered"
+purchased_at = 2026-10-20T13:10:43Z
+delivered_at = 2026-10-29T10:00:00Z  # delivered 18 days before now
+payments = [{ method = "credit_card", amount_minor = 19200, installments = 10 }]  # 4990 + shipping 1410 + 4990 + shipping 1410 + 4990 + shipping 1410
+olist_order = "af30636aaea85d40ad4f4025c7841236"
+
+[[fixture.orders.units]]
+id = "h300-o1-u1"
+product = "Desk cable tray"
+price_minor = 4990
+paid_minor = 4990
+shipping_minor = 1410
+received_back_at = 2026-11-11T10:00:00Z  # received back 5 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h300-o1-u2"
+product = "Binder organizer"
+price_minor = 4990
+paid_minor = 4990
+shipping_minor = 1410
+received_back_at = 2026-11-11T10:00:00Z  # received back 5 days before now
+olist_item = 2
+
+[[fixture.orders.units]]
+id = "h300-o1-u3"
+product = "Magnetic pen cup"
+price_minor = 4990
+paid_minor = 4990
+shipping_minor = 1410
+olist_item = 3
+
+[customer]
+id = "h300-igor"
+goal = "Change the initial proposal to the cable tray only, confirm the replacement card, then receive a genuine staff rejection and its note."
+opening_message = "I returned the cable tray and binder organizer; please set up a refund for both."
+facts = []
+behaviour = [
+    "When the first two-item card appears, ask for only the cable tray instead. Do not confirm the first card; confirm only the replacement one and accept the actual staff decision.",
+    "If offered a person, decline; the staff rejection ends this attempt.",
+    "Decline smaller or alternative proposals; only the exact specified proposal may be confirmed.",
+    "After hearing the actual staff rejection note and answering any final question or offer, end.",
+]
+confirms = { units = ["h300-o1-u1"], amount_minor = 4990 }  # paid(u1)
+cards = { other = "wait", after_confirming = "keep" }
+
+[staff]
+decision = "reject"
+note = "Staff found that the item-level return authorization for the cable tray was not sufficient and rejected this refund."
+
+[[policy_checks]]
+units = ["h300-o1-u1"]
+decision = "eligible"
+amount_minor = 4990
+
+[[policy_checks]]
+units = ["h300-o1-u1", "h300-o1-u2"]
+decision = "eligible"
+amount_minor = 9980
+
+[[policy_checks]]
+units = ["h300-o1-u3"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["rejected"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/approval"]
+quality_cites = []
+communication = ["states_correct_amount", "reports_rejection_truthfully"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/approval" = "Removing the binder organizer requires a new proposal with its own confirmation and staff decision, and a staff rejection prevents payment."

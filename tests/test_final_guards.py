@@ -23,9 +23,10 @@ def no_openai_client(monkeypatch, tmp_path):
     monkeypatch.setattr(openai, "OpenAI", refuse)
     monkeypatch.setattr(final, "RUNS", tmp_path)
     # The set's targets and predictions are written just before the run: any committed file stands in for them here.
-    protocol = REPO_ROOT / "docs" / "held-out-v1.1" / "protocol.md"
-    stand_in = replace(final.SETS["held_out_v1_1"], targets=protocol, predictions=protocol)
-    monkeypatch.setitem(final.SETS, "held_out_v1_1", stand_in)
+    protocol = REPO_ROOT / "docs" / "held-out-v1.2" / "protocol.md"
+    for name in ("held_out_v1_2", "stress_v1_2"):
+        stand_in = replace(final.SETS[name], targets=protocol, predictions=protocol)
+        monkeypatch.setitem(final.SETS, name, stand_in)
     monkeypatch.setattr(final, "paid_run", lambda *args: pytest.fail("a paid run started"))
 
 
@@ -40,7 +41,7 @@ def repository(monkeypatch, *, changed_file="", dirty_tree=""):
     monkeypatch.setattr(manifest, "git", git)
 
 
-READY = ["--set", "held_out_v1_1", "--budget-usd", "5", "--prices-checked", "2026-10-19"]
+READY = ["--set", "held_out_v1_2", "--budget-usd", "5", "--prices-checked", "2026-10-19"]
 
 
 class On19October(date):
@@ -85,21 +86,25 @@ def test_the_dry_run_writes_each_configurations_first_request_and_sends_nothing(
     assert same[0] == same[1] == same[2]  # one prompt and one set of tools for every configuration
     d01 = next(s for s in load_split("development") if s.id == "D01")
     assert requests["A"]["input"][0]["content"] == d01.customer.opening_message  # never a held-out scenario's
-    assert "nothing sent" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "nothing sent" in out
+    # The estimate counts the sets of the coming run: 19 held-out and 8 stress scenarios, three tries, three setups.
+    assert "held_out_v1_2, stress_v1_2, 243 conversations" in out
 
 
 def test_a_held_out_set_that_does_not_match_its_freeze_stops_the_run(ready, monkeypatch, capsys):
     def changed(directory):
-        raise FrozenError("changed ['H26-refund-close-to-the-thirty-day-deadline.toml']")
+        raise FrozenError("changed ['H102-two-of-three-identical-units-returned.toml']")
 
     monkeypatch.setattr(final, "check_frozen", changed)
     assert final.main(READY) == 1
-    assert "H26-refund-close-to-the-thirty-day-deadline.toml" in capsys.readouterr().out
+    assert "H102-two-of-three-identical-units-returned.toml" in capsys.readouterr().out
 
 
 def test_a_run_names_its_set(ready, capsys):
     assert final.main(READY[2:]) == 1
-    assert "give --set with the held-out set to run: held_out, held_out_v1_1" in capsys.readouterr().out
+    expected = "give --set with the held-out set to run: held_out, held_out_v1_1, held_out_v1_2, stress_v1_2"
+    assert expected in capsys.readouterr().out
 
 
 def test_v1s_set_is_spent(ready, capsys):
@@ -108,18 +113,31 @@ def test_v1s_set_is_spent(ready, capsys):
     assert ready == []  # refused before anything of that set was read
 
 
-def test_the_manifest_records_the_set_and_its_freeze(monkeypatch):
+def test_v1_1s_set_is_spent(ready, capsys):
+    assert final.main(["--set", "held_out_v1_1", *READY[2:]]) == 1
+    assert "v1.1's held-out set is spent" in capsys.readouterr().out
+    assert ready == []
+
+
+@pytest.mark.parametrize(
+    ("name", "folder", "count", "first"),
+    [
+        ("held_out_v1_2", "held-out-v1.2", 19, "H102"),
+        ("stress_v1_2", "stress-v1.2", 8, "S01"),
+    ],
+)
+def test_the_manifest_records_the_set_and_its_freeze(monkeypatch, name, folder, count, first):
     monkeypatch.setattr(final, "file_sha256", lambda path: f"sha256 of {path.parent.name}/{path.name}")
-    scenarios = {s.id: s for s in load_split("held_out_v1_1")}
-    record = final.identity(scenarios, {}, date(2026, 10, 19), "held_out_v1_1")
-    assert (record["set"], record["frozen_sha256"]) == ("held_out_v1_1", "sha256 of held-out-v1.1/FROZEN")
-    assert len(record["scenarios"]) == 20 and "H26" in record["scenarios"]
+    scenarios = {s.id: s for s in load_split(name)}
+    record = final.identity(scenarios, {}, date(2026, 10, 19), name)
+    assert (record["set"], record["frozen_sha256"]) == (name, f"sha256 of {folder}/FROZEN")
+    assert len(record["scenarios"]) == count and first in record["scenarios"]
 
 
 def test_the_targets_and_the_predictions_must_be_committed(ready, monkeypatch, capsys):
-    repository(monkeypatch, changed_file=" M docs/held-out-v1.1/protocol.md")
+    repository(monkeypatch, changed_file=" M docs/held-out-v1.2/protocol.md")
     assert final.main(READY) == 1
-    assert "commit docs/held-out-v1.1/protocol.md first" in capsys.readouterr().out
+    assert "commit docs/held-out-v1.2/protocol.md first" in capsys.readouterr().out
 
 
 def test_the_tree_must_be_clean(ready, monkeypatch, capsys):
@@ -145,7 +163,7 @@ def test_a_key_must_be_present(ready, monkeypatch, capsys):
     ],
 )
 def test_prices_must_be_checked_and_the_budget_within_the_plans_limit(ready, capsys, options, reason):
-    assert final.main(["--set", "held_out_v1_1", *options]) == 1
+    assert final.main(["--set", "held_out_v1_2", *options]) == 1
     assert reason in capsys.readouterr().out
 
 
@@ -155,5 +173,14 @@ def test_when_everything_is_ready_the_run_starts_with_the_commits_it_rests_on(re
         final, "paid_run", lambda args, scenarios, commits: started.append((len(scenarios), commits)) or 0
     )
     assert final.main(READY) == 0
-    assert started == [(20, {"targets_commit": "0123abcd", "predictions_commit": "0123abcd"})]
-    assert ready == [SPLIT_DIRS["held_out_v1_1"]]  # the freeze checked is the named set's
+    assert started == [(19, {"targets_commit": "0123abcd", "predictions_commit": "0123abcd"})]
+    assert ready == [SPLIT_DIRS["held_out_v1_2"]]  # the freeze checked is the named set's
+
+
+def test_the_stress_set_runs_under_its_own_name(ready, monkeypatch):
+    started = []
+    monkeypatch.setattr(final, "paid_run", lambda args, scenarios, commits: started.append(sorted(scenarios)) or 0)
+    assert final.main(["--set", "stress_v1_2", *READY[2:]]) == 0
+    assert started == [[f"S0{n}" for n in range(1, 9)]]
+    assert ready == [SPLIT_DIRS["stress_v1_2"]]
+    assert final.SETS["stress_v1_2"].prefix == "stress-v1.2"
