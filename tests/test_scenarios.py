@@ -109,12 +109,15 @@ def test_a_customer_who_may_be_offered_a_person_where_a_handoff_is_forbidden_kno
     # For an order on its way the policy has the agent offer a person (section eligible-orders). D15's role said
     # nothing of it, and its simulated customer accepted the offer in tries 2 and 3 of 2026-10-22 and try 2 of
     # 2026-10-23, against a scenario that forbids any handoff. Revised on 2026-10-23 (review after the selection
-    # check): its customer defers the offer; D37 is the case whose customer accepts it.
+    # check): its customer defers the offer; D37 is the case whose customer accepts it. Plan change log, 2026-10-29: a
+    # role that only names a person ("Do not ask for a person", D35) or defers in words that can read as a yes ("say you
+    # will wait for it for now", D15) let the simulated customer accept the offer in try 3 of
+    # runs/pilot-20261029T143336Z-gpt-6-luna-none; the role now answers the offer with a no, in so many words.
     for s in DEVELOPMENT:
         on_its_way = [o for o in s.fixture.orders if o.customer == s.customer.id and o.status != "delivered"]
         if on_its_way and s.expected.handoff == "forbidden":
             behaviour = " ".join(s.customer.behaviour).casefold()
-            assert "staff member" in behaviour or "person" in behaviour, s.id
+            assert "if you are offered a staff member" in behaviour and "say no thanks" in behaviour, s.id
 
 
 def test_a_customer_offered_a_person_beside_the_goal_knows_what_to_say():

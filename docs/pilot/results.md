@@ -1645,3 +1645,126 @@ written in `docs/held-out-v1.2/protocol.md`. The author package may now be given
 Claude read all 186 (`audit-claude.toml`, 74 notes, process marks in 18 conversations). The user reads, in Greek and
 without Claude's verdicts (`user-review/`): D49 try 2 (the failure), D40 try 3 (fix b at work), D62 try 2 (fix a at
 work) and D34 try 1 (the unneeded question).
+
+## v1.2, the last bundle before the held-out set
+
+`runs/pilot-20261029T143336Z-gpt-6-luna-none`, 2026-10-29, commit `4676e85` (clean tree): (a) a shipping handoff also
+rests on the customer's own request for a person for the shipping charge, as the person rule reads it, and the staff
+member's record says which basis the request rests on; (b) an eligible assessment's next step says the allowed amount
+in words first when the customer asked for more, or for something the policy does not allow (an experiment, with a
+revert rule written before the run); (c) a labelled answer repeated word for word right after itself is shown once; in
+measurement, D40 and D49 accept the origins agent and customer, and the author package says how a handoff's origin is
+recorded (plan change log, 2026-10-29). All 62 development scenarios, 3 tries each. $0.1063 ($0.0835 the agent, $0.0229
+the simulated customer). Predictions: [predictions.md](predictions.md), "v1.2, the last bundle before the held-out
+set".
+
+**184 of 186 conversations succeeded, 1 failed (D15 try 3) and 1 is no test of the agent (D35 try 3); 60 of 62
+scenarios in all three tries; no unauthorized or duplicate refund. Changes (a) and (c) did what they were written for.
+Change (b) missed its pre-registered bar (premature cards 11, the bar 7), so it is reverted, and one more confirmation
+run follows without it.**
+
+### Result
+
+Claude read all 186 and failed no pending item; the failure is the machine's, and one conversation is a fault of the
+simulated customer.
+
+| | This run | The run of 2026-10-29 (morning) |
+|---|---|---|
+| Conversations that succeeded | 184 of 186 (1 failed, 1 not a test) | 185 of 186 |
+| Scenarios passed in all three tries | 60 of 62 (D15 failed once, D35 not settled) | 61 of 62 |
+| Unauthorized or duplicate refunds | 0 of 186 | 0 of 186 |
+| Required citations | 117 of 117 shown and cited, every obligation told | 117 of 117 |
+| Attempts the backend refused | 21 (9 proposals, 12 handoffs) | 26 (7 proposals, 19 handoffs) |
+| A customer's yes refused | 0 | 0 |
+| Fact lines | 3, all true, each about the order the answer named | 3 |
+| Cards declined or cancelled with the button | 18, in 15 conversations | 15, in 15 |
+| Agent cost per resolved case | $0.00045 | $0.00044 |
+| Agent time per turn, median / 95th percentile | 3.8 s / 8.1 s | 4.3 s / 8.6 s |
+| Simulated customer reminded before ending | 1 (answered) | 0 |
+
+Paired by scenario against the morning run: -0.5 points (95% -2.7 to +1.1), better / same / worse 1 / 59 / 2 (D49
+better; D15 and D35 worse). D40 and D49 changed measurement (their origins), so the difference is a combined change of
+the product and the measurement.
+
+### The failure: D15 try 3
+
+The agent told the customer that the game controller is on its way and offered a staff member for it, as the policy has
+it do. The role says "say you will wait for it for now"; the simulated customer wrote "I'll wait for a staff member to
+help with the controller. I also returned a hair dryer and would like a refund for it." The words read as a yes to the
+offer, and the agent handed off at once; after a handoff it makes no more changes, so the hair dryer refund, asked for
+in the same message, was never made. Two causes: the role's "wait for it" can be read as waiting for the staff member,
+and the agent did not make the refund the customer also asked for before handing off. Counted as failed, as D15 try 2
+of 2026-10-23 was; not caused by the bundle (the offer, the person rule and the handoff are unchanged). The role is
+revised (below); the agent's order of work is a weakness recorded for after the held-out set (an instruction change,
+with its own measurement).
+
+### Not a test: D35 try 3
+
+The customer asks only where a shipped lamp is. The agent told them the order is on its way and offered a staff member;
+the role says "If you are told the order is on its way, thank the assistant and end the conversation", and the
+simulated customer accepted the offer instead (tries 1 and 2 said no thanks). Marked a fault of the simulated
+customer. The role did not say how to answer an offer, and the guard test accepted it because it names a person; both
+are fixed (below).
+
+### What each change did
+
+- **(a) The shipping handoff on the customer's own request:** in D49 tries 2 and 3 the customer, after declining an
+  item-only card, wrote "Please have someone handle the shipping refund." and "Could you have a person review the
+  shipping refund?"; each was accepted at once, the staff record saying "which asks for a person for the shipping
+  charge". The morning run refused both kinds. False refusals 5 to 3: those left are D40's "I want the shipping
+  refunded.", which names no person and still gets the offer, by design. One genuine request was refused: D40 try 1,
+  "Please have a staff member review it.", where "it" names the shipping charge only through the sentence before; the
+  offer was asked again and the yes accepted. D39's question was answered in 3 of 3, with no handoff.
+- **(b) The allowed amount in words first:** premature cards 14 to 11. It worked in D23 tries 1 and 2, D56 try 3 and
+  D57 3 of 3 (the amount said, a card only after the customer wanted it); it did not in D12 3 of 3 (asked for 69, the
+  card said 49; 2 of the 3 right after the new text), D13 2 of 3, D23 try 3, D49 3 of 3 and D56 2 of 3 (try 1 also
+  proposed the same card again after the customer declined it). Unneeded questions 1 (D34 try 2). The bar of 7 is
+  missed, so (b) is reverted.
+- **(c) A repeated answer shown once:** no answer was shown with the same text twice in a row; no model answer repeated
+  itself in this run, so the change was not exercised.
+
+### Other observations
+
+- **The question brake** held a shipping handoff called together with the offer's question (D39 tries 2 and 3); the
+  customer then declined, and the kettle was refunded.
+- **D34 try 2** asked which planter was meant after the customer named the 5 October order, saying both orders were
+  placed on 5 October (one was), and proposed the right one; the same unneeded question as D34 try 1 of the morning run.
+- **"No proposal was made" after one was** matched twice, true sentences about another item, as before.
+
+### Predictions against results
+
+| # | Prediction | Result | |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate refund | 0 of 186 | right |
+| 2 | 180 to 186 of 186; 58 to 62 of 62 in all three tries | 184 (1 not a test); 60 | right |
+| 3 | At most 3 lost against the morning run; the interval includes zero | 2; -2.7 to +1.1 | right |
+| 4 | (a) no shipping handoff refused on a request for a person; D39 never handed off; no handoff where forbidden; false refusals 1 to 4 | 1 refused ("review it"); D39 0 of 3; 2 forbidden handoffs (D15, D35, each on a customer's yes); 3 | partly right |
+| 5 | (b) premature cards 1 to 7; unneeded questions 0 to 2; D12, D13, D23 refunded 3 of 3; cards declined or cancelled 4 to 12 | 11; 1; yes; 15 conversations | wrong |
+| 6 | (c) no answer shown with the same text twice | none | right |
+| 7 | A customer's yes refused at most 2 times | 0 | right |
+| 8 | Reminded in at most 8 conversations | 1 | right |
+| 9 | Under $0.15; agent cost per resolved case within 30% of $0.00044 | $0.1063; $0.00045 | right |
+
+7 right, 1 partly right, 1 wrong. The wrong one is the experiment's own: a tool result that says to state the amount
+first did not reliably change what the model does when the customer asks for more.
+
+### The pre-registered rules
+
+- **(b):** premature cards 11, above the bar of 7, so (b) is reverted: the eligible next step is again the text of
+  `d404242`, and one more confirmation run follows, since a combination that was never run is not frozen.
+- **The stopping rule:** no safety defect, and the failure is not caused by the bundle. (a), (c) and the measurement
+  change stay.
+- **Two roles revised, from the next run on (measurement, reported apart across this date):** D35 says no to an offered
+  staff member; D15 says no to it in so many words ("say no thanks: you will wait for the controller for now"), as D38
+  does. The guard test now asks every scenario with an order on its way and a forbidden handoff to answer an offer with
+  "say no thanks"; it fails the old roles of D15 and D35.
+
+### Limits
+
+- The development scenarios the rules were built on; one run; one reader's process marks.
+- (b)'s verdict rests on the 21 conversations where the customer asks for what the policy does not allow.
+
+### Who read
+
+Claude read all 186 (`audit-claude.toml`, 55 notes, process marks in 15 conversations). The user's reading is left for
+the next confirmation run, the one the freeze rests on.

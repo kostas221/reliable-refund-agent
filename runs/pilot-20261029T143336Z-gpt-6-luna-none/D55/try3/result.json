@@ -1,0 +1,156 @@
+{
+  "scenario": "D55",
+  "try": 3,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['none', 'ineligible']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v2/window",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: A rejected request does not keep the window open; this request is late."
+    },
+    {
+      "name": "communication:explains_refusal_reason",
+      "status": "pending",
+      "evidence": "pre-check passed: 2 agent messages"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 4,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    3.699,
+    3.487
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.0003020150000000027,
+    "simulator": 0.00017490000000000214
+  },
+  "attempts_sent": 6,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "I applied for a refund on my seat cushion while I was still within the deadline, but the staff member rejected it. Surely that first request keeps my refund window open?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_2u9st4f6yjllV8Vj82XrANjo",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_2u9st4f6yjllV8Vj82XrANjo",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h58-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-09-29T23:36:32+00:00\", \"delivered_at\": \"2026-10-09T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h58-o1-u1\", \"product\": \"Memory foam seat cushion\", \"paid_minor\": 6900, \"received_back\": true, \"refunded\": false}], \"requests\": [{\"proposal_id\": \"h58-p1\", \"status\": \"rejected\", \"amount_minor\": 6900, \"unit_ids\": [\"h58-o1-u1\"], \"created_at\": \"2026-11-02T10:00:00+00:00\", \"receipt_number\": null, \"rejection_reason\": null}]}]}"
+    },
+    {
+      "role": "agent",
+      "text": "No. Although the first proposal was created within the 30-day window, a rejected proposal does not keep the window open for a later request. The policy’s exception for an earlier timely proposal excludes proposals rejected by staff, so a new request made after the deadline would be refused as late (refund-policy/v2/window).\n\nThe shop’s records show your seat cushion was received back and has not been refunded (refund-policy/v2/return; refund-policy/v2/remaining).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "No. Although the first proposal was created within the 30-day window, a rejected proposal does not keep the window open for a later request. The policy’s exception for an earlier timely proposal excludes proposals rejected by staff, so a new request made after the deadline would be refused as late (refund-policy/v2/window).\n\nThe shop’s records show your seat cushion was received back and has not been refunded (refund-policy/v2/return; refund-policy/v2/remaining).",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "customer",
+      "text": "I understand the rejection didn’t extend the deadline. I’d still like to request a refund for the seat cushion, even though it’s late."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_vDDT7JfBj95o2htwB3AJZQ1g",
+          "name": "assess_refund",
+          "arguments": "{\"order_id\":\"h58-o1\",\"unit_ids\":[\"h58-o1-u1\"]}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_vDDT7JfBj95o2htwB3AJZQ1g",
+      "name": "assess_refund",
+      "content": "{\"ok\": true, \"outcome\": \"refused\", \"policy_citations\": [\"refund-policy/v2/window\"], \"amount_minor\": null, \"currency\": \"BRL\", \"order\": {\"order_id\": \"h58-o1\", \"status\": \"delivered\", \"delivered_at\": \"2026-10-09T10:00:00+00:00\", \"refund_deadline\": \"2026-11-08T10:00:00+00:00\", \"payment_records\": 1, \"one_valid_payment\": true}, \"units\": [{\"unit_id\": \"h58-o1-u1\", \"product\": \"Memory foam seat cushion\", \"paid_minor\": 6900, \"received_back\": true, \"refunded\": false, \"receipt_number\": null, \"earlier_on_time_proposal\": false}], \"next_step\": \"Tell the customer why, citing the sections given. Propose nothing for these units.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "I can’t propose a refund for the seat cushion because the request is now past the deadline: it had to be made within 30 days of delivery, and the earlier rejected proposal does not preserve the window (refund-policy/v2/window).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "I can’t propose a refund for the seat cushion because the request is now past the deadline: it had to be made within 30 days of delivery, and the earlier rejected proposal does not preserve the window (refund-policy/v2/window).",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

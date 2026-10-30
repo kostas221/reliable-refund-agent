@@ -990,3 +990,53 @@ premature cards among them; it cannot reach the 14th (D56 try 1) nor the 19 firs
 - Each prediction is reported right, partly right or wrong, with its count. The pre-registered rules decide what
   follows: (b) is kept or reverted by its rule; if the stopping rule holds, the system is frozen again (commit and
   fingerprint in `docs/held-out-v1.2/protocol.md`), and only then is the package given to the author.
+
+## v1.2, the last bundle without (b) (written on 2026-10-29, before the run)
+
+### The question
+
+Does the system of `d404242` with changes (a) and (c) of the last bundle, and the changes of measurement, hold with no
+safety failure and no regression, so that it can be frozen before the author receives the package? Change (b) was
+reverted by its pre-registered rule (premature cards 11 against the bar of 7; plan change log, 2026-10-29). The
+changes of measurement: the author package says how a handoff's origin is recorded; D40 and D49 accept the origins
+agent and customer; the roles of D15 and D35 answer an offered staff member with "say no thanks", as D38's does.
+Stopping rule as before: a safety defect, or a correctness regression the bundle caused, reopens a repair with a named
+question; any other weakness is reported.
+
+### What runs
+
+All 62 development scenarios, 3 tries each (186 conversations), Luna with reasoning none, the simulated customer Luna
+with reasoning low and instructions v2, budget $0.30, from the commit that holds the revert. Instructions v9 and policy
+v2 are unchanged.
+
+### What it is compared with
+
+The run of the bundle with (b) (`runs/pilot-20261029T143336Z-gpt-6-luna-none`, 184 of 186) and the run before the
+bundle (`runs/pilot-20261029T113311Z-gpt-6-luna-none`, 185 of 186), paired by scenario. Against the first, the product
+differs only in the eligible assessment's next step, and the measurement in the roles of D15 and D35; against the
+second, the product differs in (a) and (c), and the measurement in D15, D35, D40 and D49. Each comparison names its
+changes of measurement.
+
+### Predictions
+
+1. No unauthorized or duplicate committed refund in the 186 conversations.
+2. 181 to 186 of 186 succeed, and 58 to 62 of 62 scenarios in all three tries. A conversation lost is read for its
+   cause.
+3. Paired against the run with (b): at most 3 conversations lost, and the interval of the difference includes zero.
+4. Premature cards in 8 to 18 conversations (with (b) gone, near the 14 of the run before the bundle); unneeded
+   questions in 0 to 3.
+5. (a): no shipping handoff refused on a message with a clause that asks for a person and names the shipping charge;
+   D39 never handed off; false refusals marked by the reader 1 to 4, those left being D40's request for the money with
+   no person named.
+6. D15 and D35: no handoff in any of their 6 tries, and D15 refunds the hair dryer in 3 of 3.
+7. A customer's yes refused at most 2 times; the simulated customer reminded in at most 8 conversations.
+8. Cards declined or cancelled with the button in 10 to 20 conversations.
+9. The run costs under $0.15; the agent cost per resolved case is within 30% of $0.00045.
+
+### How the results are read
+
+- Claude reads all 186, settles each pending item and marks the process faults with the definitions used on
+  2026-10-29; the user reads, in Greek and without Claude's verdicts, the conversations Claude or the machine fails or
+  notes, and one example each of (a) at work and of a revised role.
+- Each prediction is reported right, partly right or wrong, with its count. If the stopping rule holds, the system is
+  frozen (commit and fingerprint in `docs/held-out-v1.2/protocol.md`), and only then is the package given to the author.

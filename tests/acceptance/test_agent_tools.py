@@ -1090,21 +1090,6 @@ def test_an_eligible_assessment_gives_the_amount_and_reserves_nothing(db):
     assert eligible["next_step"].startswith("This assessment does not create or change a proposal.")
 
 
-def test_an_eligible_assessment_says_the_allowed_amount_in_words_first_when_more_was_asked(db):
-    # Plan change log, 2026-10-29: 13 of the 14 early proposal cards of runs/pilot-20261029T113311Z-gpt-6-luna-none came
-    # right after an eligible assessment whose next step said to propose, while the customer had asked for more than
-    # the policy allows (D12: 69 reais for a box that cost 49), against the instructions' rule for such requests. This
-    # checks the text only: whether the model follows it is measured by a run.
-    step = call(agent_for(db, "D01"), "assess_refund", order_id="d01-o1", unit_ids=["d01-o1-u1"])["next_step"]
-    words_first = (
-        "If the customer asked for more than this amount, or for something the policy does not allow, tell them in "
-        "words what the policy allows, citing the sections given, and call propose_refund only when they say they "
-        "want it."
-    )
-    assert words_first in step
-    assert step.index(words_first) < step.index("call propose_refund with them")  # the usual case comes after
-
-
 def test_an_assessment_of_another_customers_order_or_a_wrong_unit_is_refused_and_writes_nothing(db):
     ctx = agent_for(db, "D07")  # d07-o2 is Hugo's
     before = counts(ctx.engine)
