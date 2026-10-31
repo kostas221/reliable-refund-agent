@@ -19,7 +19,8 @@ from refund_agent.scenarios import SPLIT_DIRS, check_frozen, frozen_hashes, load
 
 HELD_OUT = load_split("held_out_v1_2")
 STRESS = load_split("stress_v1_2")
-DEVELOPMENT_TEMPLATES = {s.template for s in load_split("development")}
+# Written for development, not the copies of held-out scenarios, which keep their source's template (D63 to D89)
+DEVELOPMENT_TEMPLATES = {s.template for s in load_split("development") if not s.derived_from}
 OLIST = REPO_ROOT / "data" / "olist"
 SUBSETS = {
     "held_out_v1_2": json.loads((OLIST / "subset-v1.2.json").read_text(encoding="utf-8")),

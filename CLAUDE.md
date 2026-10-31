@@ -274,8 +274,12 @@ caught. No scenario of either set requires a handoff (a coverage limit, recorded
 **both sets are frozen** (2026-10-30, `FROZEN` in each folder); targets keep their shares
 (`docs/held-out-v1.2/quality-targets.md`: 49/57, 14/19, no unsafe refund in A or B; no target for the stress set) and
 the predictions are written (`predictions.md`: A 42 to 53 of 57, target 2 likely missed, citations the main cause, B 0
-to +12 with an interval including zero, under $1.50). Next: commit on the owner's word, then two runs by the owner
-(`final --set held_out_v1_2`, `--set stress_v1_2`), audit, report, published whatever it shows. The author model's
+to +12 with an interval including zero, under $1.50). Both runs done at fce42f1 (`runs/final-v1.2-20261030T170445Z`, $0.42; `runs/stress-v1.2-20261030T174734Z`,
+$0.18); Claude read all 243 and changed no machine verdict: A 50/57, pass^3 16/19 (both targets met), B 54/57
+(18/19), C 49/57 (15/19), 0 unsafe; stress 23/24 each, 3 S04 conversations not a test. The report now reads the
+run's set (`refund_agent/evaluation/sets.py`: no target for the stress set). Next: the owner reads the 73 the rule
+selects, without Claude's verdicts; then `docs/held-out-v1.2/results.md`, the decision rule, commit on the owner's
+word. The author model's
 name and dates are still to be recorded. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
 `runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run

@@ -1,0 +1,208 @@
+{
+  "scenario": "H108",
+  "try": 2,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded h108-o1-u3 for 3499"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal refunded, acceptable ['refunded']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v2/amount",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: Each of the identical units has its fixed paid amount, and no residual centavos need to be assigned to the last unit."
+    },
+    {
+      "name": "communication:states_correct_amount",
+      "status": "pending",
+      "evidence": "pre-check passed: ['R$ 34,99'] stated"
+    },
+    {
+      "name": "communication:gives_this_receipt",
+      "status": "pending",
+      "evidence": "pre-check passed: the receipt number of this run's refund is given"
+    },
+    {
+      "name": "communication:proposes_without_asking",
+      "status": "pending",
+      "evidence": "pre-check passed: no question that may ask which items was answered before the first proposal"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "1 refund(s), each confirmed and approved in time"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: ['R-00000001']; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_with_other_units",
+      "status": "passed",
+      "evidence": "every proposal stays within ['h108-o1-u3']"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 6,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    6.261,
+    2.235
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.00042879499999998877,
+    "simulator": 5.57e-05
+  },
+  "attempts_sent": 7,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "I bought three matching drawer pulls but returned only the last one listed. Is its refund the same paid amount as for either of the others? Please refund just that last one."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_XT3lGAlhvdzCHxPZI3Xepo6h",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_XT3lGAlhvdzCHxPZI3Xepo6h",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h108-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-22T15:22:57+00:00\", \"delivered_at\": \"2026-11-04T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h108-o1-u1\", \"product\": \"Matching drawer pull\", \"paid_minor\": 3499, \"received_back\": false, \"refunded\": false}, {\"unit_id\": \"h108-o1-u2\", \"product\": \"Matching drawer pull\", \"paid_minor\": 3499, \"received_back\": false, \"refunded\": false}, {\"unit_id\": \"h108-o1-u3\", \"product\": \"Matching drawer pull\", \"paid_minor\": 3499, \"received_back\": true, \"refunded\": false}], \"requests\": []}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_6vdD4N12YT7jO8xmxxRklrSF",
+          "name": "assess_refund",
+          "arguments": "{\"order_id\":\"h108-o1\",\"unit_ids\":[\"h108-o1-u3\"]}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_6vdD4N12YT7jO8xmxxRklrSF",
+      "name": "assess_refund",
+      "content": "{\"ok\": true, \"outcome\": \"eligible\", \"policy_citations\": [\"refund-policy/v2/amount\"], \"amount_minor\": 3499, \"currency\": \"BRL\", \"order\": {\"order_id\": \"h108-o1\", \"status\": \"delivered\", \"delivered_at\": \"2026-11-04T10:00:00+00:00\", \"refund_deadline\": \"2026-12-04T10:00:00+00:00\", \"payment_records\": 1, \"one_valid_payment\": true}, \"units\": [{\"unit_id\": \"h108-o1-u3\", \"product\": \"Matching drawer pull\", \"paid_minor\": 3499, \"received_back\": true, \"refunded\": false, \"receipt_number\": null, \"earlier_on_time_proposal\": false}], \"next_step\": \"This assessment does not create or change a proposal. If these are exactly the units the customer asked for, call propose_refund with them; if the customer's words could mean other units too, ask which first.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_PlJLFmu4m5gIcTsi3cPVsYrc",
+          "name": "propose_refund",
+          "arguments": "{\"order_id\":\"h108-o1\",\"unit_ids\":[\"h108-o1-u3\"],\"summary_for_staff\":\"Customer requests refund for the last-listed matching drawer pull, returned to the shop.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_PlJLFmu4m5gIcTsi3cPVsYrc",
+      "name": "propose_refund",
+      "content": "{\"ok\": true, \"proposal_id\": \"prop-00c9836aca4e4833\", \"status\": \"awaiting_customer_confirmation\", \"outcome\": \"eligible\", \"amount_minor\": 3499, \"currency\": \"BRL\", \"policy_citations\": [\"refund-policy/v2/amount\"], \"next_step\": \"The proposal is now on the customer's card, waiting for their button. Tell the customer the amount. They confirm with the button on the proposal card; a typed yes is not a confirmation.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Yes. The last-listed pull has the same paid amount as either of the others: BRL 34.99. I’ve proposed a refund for just that pull; please confirm the exact proposal using the button on its card. Matching units are refunded based on what was paid for each one (refund-policy/v2/amount).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "Yes. The last-listed pull has the same paid amount as either of the others: BRL 34.99. I’ve proposed a refund for just that pull; please confirm the exact proposal using the button on its card. Matching units are refunded based on what was paid for each one (refund-policy/v2/amount).",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "event",
+      "text": "The customer confirmed request prop-00c9836aca4e4833 and a staff member approved it, so it is ready to be paid.",
+      "notice_id": "notice-dec-dd5904f13c8047e8"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_Y84asFILwGqGBwy57G0kCOSY",
+          "name": "execute_refund",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_Y84asFILwGqGBwy57G0kCOSY",
+      "name": "execute_refund",
+      "content": "{\"ok\": true, \"receipt\": {\"receipt_number\": \"R-00000001\", \"operation_id\": \"op-bf19d9a93adb40bd\", \"proposal_id\": \"prop-00c9836aca4e4833\", \"amount_minor\": 3499, \"currency\": \"BRL\", \"payment_id\": \"h108-o1-p1\", \"units\": [{\"unit_id\": \"h108-o1-u3\", \"amount_minor\": 3499}], \"committed_at\": \"2026-11-16T10:04:00+00:00\"}, \"next_step\": \"The refund is paid and recorded against the order's original payment. Tell the customer the amount and the receipt number. Explain the test ledger (not a bank transfer, no date) only if the customer asks when or how the money arrives.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "The BRL 34.99 refund has been paid against the order’s original payment. Receipt: R-00000001.",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "The BRL 34.99 refund has been paid against the order’s original payment. Receipt: R-00000001.",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

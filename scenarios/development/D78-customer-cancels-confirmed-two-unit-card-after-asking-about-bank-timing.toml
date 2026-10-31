@@ -1,0 +1,88 @@
+# Development copy of H286 (scenarios/held-out-v1.2/H286-customer-cancels-confirmed-two-unit-card-after-asking-about-bank-timing.toml): copied on 2026-10-30,
+# after the final evaluation of v1.2 used its held-out and stress sets (plan change log, 2026-10-30). The
+# source file stays frozen and unchanged.
+# Customer cancels confirmed two-unit card after asking about bank timing.
+# The author's candidate H286 (author-output-3.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/conversion-log.md.
+# Olist order 06351d6c05e58972856f24bc50d69b23 (data/olist/subset-v1.2.json): 2 item(s), credit_card 406.26 in 10 instalment(s).
+id = "D78"
+title = "Customer cancels confirmed two-unit card after asking about bank timing"
+split = "development"
+derived_from = "H286"
+category = "clarification_handoff"
+template = "customer-cancels-confirmed-two-unit-card-after-asking-about-bank-timing"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # Shop time UTC; o1 delivered 18 days before now
+agent_visible_orders = ["h286-o1"]
+
+[[fixture.customers]]
+id = "h286-sabrina"
+name = "Sabrina Moura"
+email = "sabrina.moura@example.test"
+
+[[fixture.staff]]
+id = "h286-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h286-o1"
+customer = "h286-sabrina"
+status = "delivered"
+purchased_at = 2026-10-23T09:02:03Z
+delivered_at = 2026-10-29T10:00:00Z  # delivered 18 days before now
+payments = [{ method = "credit_card", amount_minor = 40626, installments = 10 }]  # 19590 + shipping 823 + 19390 + shipping 823
+olist_order = "06351d6c05e58972856f24bc50d69b23"
+
+[[fixture.orders.units]]
+id = "h286-o1-u1"
+product = "Travel cutlery tin"
+price_minor = 19590
+paid_minor = 19590
+shipping_minor = 823
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h286-o1-u2"
+product = "Reusable straw set"
+price_minor = 19390
+paid_minor = 19390
+shipping_minor = 823
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 2
+
+[customer]
+id = "h286-sabrina"
+goal = "Confirm the two-unit proposal but cancel with its button before staff approval and receive no receipt."
+opening_message = "I returned the tin and straw set. Please set up a combined refund, and does that mean the bank will pay me immediately?"
+facts = []
+behaviour = [
+    "Confirm the matching card first, then cancel it with its card button. Decline any replacement card or a person after the cancellation.",
+    "If offered a person, decline; if offered a smaller or new proposal, decline.",
+    "Once the card-button cancellation is acknowledged, answer the last question or offer and end.",
+]
+confirms = { units = ["h286-o1-u1", "h286-o1-u2"], amount_minor = 38980 }  # paid(u1)+paid(u2)
+cards = { other = "decline", after_confirming = "cancel" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h286-o1-u1", "h286-o1-u2"]
+decision = "eligible"
+amount_minor = 38980
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["cancelled"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/payout"]
+quality_cites = []
+communication = ["states_correct_amount"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/payout" = "A proposal is not a completed refund or a guaranteed immediate bank transfer, and no refund exists without a paid receipt."

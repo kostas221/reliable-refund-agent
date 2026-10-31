@@ -382,8 +382,8 @@ class Scenario(BaseModel):
     category: Category
     template: Id
     # A development copy of a held-out scenario that a final evaluation has already used (plan change log,
-    # 2026-10-20): the source's ID. The held-out file itself never changes.
-    derived_from: str | None = Field(default=None, pattern=r"^H[0-9]{2}$")
+    # 2026-10-20): the source's ID, of a held-out or stress scenario. The source file itself never changes.
+    derived_from: str | None = Field(default=None, pattern=r"^(H[0-9]{2,3}|S[0-9]{2})$")
     policy_version: str = Field(pattern=r"^v[0-9]+$")
     now: Utc
     fixture: Fixture
@@ -647,6 +647,10 @@ DERIVE_NOTE = (
     "copied on 2026-10-20,\n# after the final evaluation of v1 used the held-out set (plan change log, 2026-10-20). "
     "The held-out file stays\n# frozen and unchanged."
 )
+DERIVE_NOTE_V1_2 = (
+    "copied on 2026-10-30,\n# after the final evaluation of v1.2 used its held-out and stress sets (plan change log, "
+    "2026-10-30). The\n# source file stays frozen and unchanged."
+)
 DERIVE_NOTE_V1_1 = (
     "copied on 2026-10-27,\n# after the final evaluation of v1.1 used its held-out set (plan change log, 2026-10-27). "
     "The held-out file\n# stays frozen and unchanged; this copy follows the citation rule of v1.2."
@@ -660,7 +664,12 @@ def main() -> None:
     if sys.argv[1:2] == ["derive"]:
         # derive H01 D11 [H02 D12 ...]: pairs of a held-out ID and the new development ID
         pairs = sys.argv[2:]
-        notes = {"held_out": DERIVE_NOTE, "held_out_v1_1": DERIVE_NOTE_V1_1}
+        notes = {
+            "held_out": DERIVE_NOTE,
+            "held_out_v1_1": DERIVE_NOTE_V1_1,
+            "held_out_v1_2": DERIVE_NOTE_V1_2,
+            "stress_v1_2": DERIVE_NOTE_V1_2,
+        }
         for held_out_id, new_id in zip(pairs[::2], pairs[1::2], strict=True):
             (source,) = (path for split in notes for path in SPLIT_DIRS[split].glob(f"{held_out_id}-*.toml"))
             note = notes[load_scenario(source).split]

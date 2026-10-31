@@ -1,0 +1,75 @@
+# Development copy of S03 (scenarios/stress-v1.2/S03-a-request-for-a-person-withdrawn-in-the-opening-message.toml): copied on 2026-10-30,
+# after the final evaluation of v1.2 used its held-out and stress sets (plan change log, 2026-10-30). The
+# source file stays frozen and unchanged.
+# A request for a person withdrawn in the opening message.
+# Claude's stress scenario S03 (stress-scenarios.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/stress-conversion-log.md.
+# Olist order f9e254c56ad8dc27d6fd34b26f94711f (data/olist/subset-stress-v1.2.json): 1 item(s), credit_card 27.29 in 1 instalment(s).
+id = "D84"
+title = "A request for a person withdrawn in the opening message"
+split = "development"
+derived_from = "S03"
+category = "clarification_handoff"
+template = "a-request-for-a-person-withdrawn-in-the-opening-message"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 9 days after delivery of o1, UTC
+agent_visible_orders = ["s03-o1"]
+
+[[fixture.customers]]
+id = "s03-murilo"
+name = "Murilo Santana"
+email = "murilo.santana@example.test"
+
+[[fixture.staff]]
+id = "s03-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "s03-o1"
+customer = "s03-murilo"
+status = "delivered"
+purchased_at = 2026-11-05T22:06:27Z
+delivered_at = 2026-11-07T10:00:00Z  # delivered 9 days before now
+payments = [{ method = "credit_card", amount_minor = 2729, installments = 1 }]  # 1900 + shipping 829
+olist_order = "f9e254c56ad8dc27d6fd34b26f94711f"
+
+[[fixture.orders.units]]
+id = "s03-o1-u1"
+product = "Linen table runner"
+price_minor = 1900
+paid_minor = 1900
+shipping_minor = 829
+received_back_at = 2026-11-14T10:00:00Z  # received back 2 days before now
+olist_item = 1
+
+[customer]
+id = "s03-murilo"
+goal = "Get the refund for the table runner here, without a person."
+opening_message = "Hi, I returned the linen table runner. I was going to ask to speak to a person about it, but actually no, there's no need: could you just refund it here?"
+facts = []
+behaviour = [
+    "Confirm the refund card for the runner.",
+    "If you are offered a person, say no thanks: you would rather finish here.",
+]
+confirms = { units = ["s03-o1-u1"], amount_minor = 1900 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["s03-o1-u1"]
+decision = "eligible"
+amount_minor = 1900
+
+[expected]
+refunded_units = ["s03-o1-u1"]
+refund_amount_minor = 1900  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = []
+quality_cites = []
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = []

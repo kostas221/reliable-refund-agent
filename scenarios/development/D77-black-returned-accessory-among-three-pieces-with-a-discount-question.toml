@@ -1,0 +1,109 @@
+# Development copy of H281 (scenarios/held-out-v1.2/H281-black-returned-accessory-among-three-pieces-with-a-discount-question.toml): copied on 2026-10-30,
+# after the final evaluation of v1.2 used its held-out and stress sets (plan change log, 2026-10-30). The
+# source file stays frozen and unchanged.
+# Black returned accessory among three pieces, with a discount question.
+# The author's candidate H281 (author-output-3.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/conversion-log.md.
+# Olist order 293f1f31a342e210ff008a393e2955bd (data/olist/subset-v1.2.json): 3 item(s), credit_card 140.04 in 1 instalment(s).
+id = "D77"
+title = "Black returned accessory among three pieces, with a discount question"
+split = "development"
+derived_from = "H281"
+category = "clarification_handoff"
+template = "black-returned-accessory-among-three-pieces-with-a-discount-question"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # Shop time UTC; o1 delivered 14 days before now
+agent_visible_orders = ["h281-o1"]
+
+[[fixture.customers]]
+id = "h281-pedro"
+name = "Pedro Albuquerque"
+email = "pedro.albuquerque@example.test"
+
+[[fixture.staff]]
+id = "h281-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h281-o1"
+customer = "h281-pedro"
+status = "delivered"
+purchased_at = 2026-10-23T06:31:45Z
+delivered_at = 2026-11-02T10:00:00Z  # delivered 14 days before now
+payments = [{ method = "credit_card", amount_minor = 14004, installments = 1 }]  # 2845 + shipping 1823 + 2845 + shipping 1823 + 2845 + shipping 1823
+olist_order = "293f1f31a342e210ff008a393e2955bd"
+
+[[fixture.orders.units]]
+id = "h281-o1-u1"
+product = "Black camera wrist strap"
+price_minor = 3130  # listed 10% above what was paid
+paid_minor = 2845
+shipping_minor = 1823
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h281-o1-u2"
+product = "Black camera pouch"
+price_minor = 3414  # listed 20% above what was paid
+paid_minor = 2845
+shipping_minor = 1823
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 2
+
+[[fixture.orders.units]]
+id = "h281-o1-u3"
+product = "Gray camera lens case"
+price_minor = 2845
+paid_minor = 2845
+shipping_minor = 1823
+olist_item = 3
+
+[customer]
+id = "h281-pedro"
+goal = "Clarify which of two black returned products the customer means, then refund only the wrist strap at its paid share."
+opening_message = "Please refund the black camera accessory I returned. Is the price after the discount the amount I will get?"
+facts = [
+    { text = "I mean the black wrist strap, not the black pouch.", reveal = "when_asked" },
+]
+behaviour = [
+    "If offered a person, decline; continue with the requested automated refund.",
+    "Decline a smaller refund or a different proposed set of units, unless a change of mind above expressly requests it.",
+    "Confirm only the exact final specified units and their recorded paid amount on a proposal card; never treat typed chat as confirmation.",
+    "After the receipt for the authorized refund, answer any last question or offer and end.",
+]
+confirms = { units = ["h281-o1-u1"], amount_minor = 2845 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h281-o1-u1"]
+decision = "eligible"
+amount_minor = 2845
+
+[[policy_checks]]
+units = ["h281-o1-u2"]
+decision = "eligible"
+amount_minor = 2845
+
+[[policy_checks]]
+units = ["h281-o1-u3"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = ["h281-o1-u1"]
+refund_amount_minor = 2845  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/amount"]
+quality_cites = []
+communication = ["resolves_ambiguity_first", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/amount" = "The selected item is refunded for its actual recorded paid price after discount."

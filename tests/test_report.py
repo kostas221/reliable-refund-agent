@@ -127,6 +127,34 @@ def test_the_report_states_the_targets_first(run):
     assert "Zero observed events do not prove zero risk" in shown
 
 
+def recorded_set(run, name):
+    """The run's own manifest, as the final runner writes it, naming the set it ran."""
+    (run / "manifest.json").write_text(json.dumps({"identity": {"kind": "final", "set": name}}), encoding="utf-8")
+
+
+def test_the_report_names_the_targets_of_the_set_it_ran_and_counts_its_scenarios(run):
+    recorded_set(run, "held_out_v1_2")
+    shown = report.render(report.build(run))
+    assert "## Targets (docs/held-out-v1.2/quality-targets.md)" in shown
+    assert "met for these 2 scenarios" in shown and "With 2 scenarios the intervals" in shown
+    assert "20 scenarios" not in shown
+
+
+def test_a_run_of_a_set_with_no_target_is_judged_by_none(run):
+    recorded_set(run, "stress_v1_2")  # run beside the held-out set and reported apart (plan change log, 2026-10-30)
+    built = report.build(run)
+    assert built["targets"] is None
+    shown = report.render(built)
+    assert "## Targets" not in shown
+    assert "No quality target: stress_v1_2 is reported apart (docs/held-out-v1.2/quality-targets.md)." in shown
+    assert built["comparisons"]["A/B"]  # the measures and comparisons stay
+
+
+def test_a_run_that_names_no_set_is_v1s_held_out_run(run):
+    shown = report.render(report.build(run))  # v1's final run of 2026-10-19 recorded no set
+    assert "## Targets (docs/quality-targets.md)" in shown
+
+
 # Comparing runs (v1.1, plan change log of 2026-10-20)
 
 

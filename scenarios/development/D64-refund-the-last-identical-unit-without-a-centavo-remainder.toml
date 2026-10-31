@@ -1,0 +1,101 @@
+# Development copy of H108 (scenarios/held-out-v1.2/H108-refund-the-last-identical-unit-without-a-centavo-remainder.toml): copied on 2026-10-30,
+# after the final evaluation of v1.2 used its held-out and stress sets (plan change log, 2026-10-30). The
+# source file stays frozen and unchanged.
+# Refund the last identical unit without a centavo remainder.
+# The author's candidate H108 (author-output-2.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/conversion-log.md.
+# Olist order 42c1fb96d0ddaa4cd3e00d607bf2cfe7 (data/olist/subset-v1.2.json): 3 item(s), credit_card 215.22 in 10 instalment(s).
+id = "D64"
+title = "Refund the last identical unit without a centavo remainder"
+split = "development"
+derived_from = "H108"
+category = "eligible"
+template = "refund-the-last-identical-unit-without-a-centavo-remainder"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # 12 days after delivery of o1, UTC
+agent_visible_orders = ["h108-o1"]
+
+[[fixture.customers]]
+id = "h108-otavio"
+name = "Otavio Ribeiro"
+email = "otavio.ribeiro@example.test"
+
+[[fixture.staff]]
+id = "h108-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h108-o1"
+customer = "h108-otavio"
+status = "delivered"
+purchased_at = 2026-10-22T15:22:57Z
+delivered_at = 2026-11-04T10:00:00Z  # delivered 12 days before now
+payments = [{ method = "credit_card", amount_minor = 21522, installments = 10 }]  # 3499 + shipping 3675 + 3499 + shipping 3675 + 3499 + shipping 3675
+olist_order = "42c1fb96d0ddaa4cd3e00d607bf2cfe7"
+
+[[fixture.orders.units]]
+id = "h108-o1-u1"
+product = "Matching drawer pull"
+price_minor = 3499
+paid_minor = 3499
+shipping_minor = 3675
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h108-o1-u2"
+product = "Matching drawer pull"
+price_minor = 3499
+paid_minor = 3499
+shipping_minor = 3675
+olist_item = 2
+
+[[fixture.orders.units]]
+id = "h108-o1-u3"
+product = "Matching drawer pull"
+price_minor = 3499
+paid_minor = 3499
+shipping_minor = 3675
+received_back_at = 2026-11-14T10:00:00Z  # received back 2 days before now
+olist_item = 3
+
+[customer]
+id = "h108-otavio"
+goal = "Refund only the returned third drawer pull while confirming that identical units carry the same paid amount."
+opening_message = "I bought three matching drawer pulls but returned only the last one listed. Is its refund the same paid amount as for either of the others? Please refund just that last one."
+facts = []
+behaviour = [
+    "Confirm only the third listed unit at its fixed paid amount; never ask to refund the two unreturned pulls.",
+    "If offered a person, decline unless a person is expressly part of your goal.",
+    "If offered a smaller refund or a different proposal from the one requested, decline it unless the behaviour above says otherwise.",
+    "Finish after the requested receipt, the stated refusal, cancellation, rejection, or the announced handoff, as appropriate; answer any final question or offer before ending.",
+]
+confirms = { units = ["h108-o1-u3"], amount_minor = 3499 }  # paid(u3)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h108-o1-u3"]
+decision = "eligible"
+amount_minor = 3499
+
+[[policy_checks]]
+units = ["h108-o1-u1"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = ["h108-o1-u3"]
+refund_amount_minor = 3499  # paid(u3)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/amount"]
+quality_cites = []
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/amount" = "Each of the identical units has its fixed paid amount, and no residual centavos need to be assigned to the last unit."

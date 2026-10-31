@@ -47,6 +47,7 @@ from refund_agent.agent.tools import tool_definitions
 from refund_agent.evaluation import manifest
 from refund_agent.evaluation.customers import SIMULATOR_INSTRUCTIONS, simulator_instructions
 from refund_agent.evaluation.runner import CUT_OFF
+from refund_agent.evaluation.sets import SETS
 from refund_agent.evaluation.trials import Batch, awake, run_try, write_json
 from refund_agent.policy import REPO_ROOT
 from refund_agent.refunds import Configuration
@@ -78,45 +79,6 @@ REPEATS = 3
 MAX_BUDGET_USD = 15.0  # plan section 12: the first final batch
 
 
-@dataclass(frozen=True)
-class HeldOutSet:
-    split: str  # the scenarios' split, refund_agent.scenarios.SPLIT_DIRS
-    targets: Path  # the quality targets, committed before the run
-    predictions: Path  # the predictions, committed before the run
-    prefix: str  # of the run's folder
-    spent: str = ""  # why the set may no longer run, if it may not
-
-
-SETS = {
-    "held_out": HeldOutSet(
-        "held_out",
-        REPO_ROOT / "docs" / "quality-targets.md",
-        REPO_ROOT / "docs" / "final" / "predictions.md",
-        "final",
-        spent="v1's held-out set is spent: its final evaluation ran on 2026-10-19 (runs/final-20261019T201207Z)",
-    ),
-    "held_out_v1_1": HeldOutSet(
-        "held_out_v1_1",
-        REPO_ROOT / "docs" / "held-out-v1.1" / "quality-targets.md",
-        REPO_ROOT / "docs" / "held-out-v1.1" / "predictions.md",
-        "final-v1.1",
-        spent="v1.1's held-out set is spent: its final evaluation ran on 2026-10-26 (runs/final-v1.1-20261026T125831Z)",
-    ),
-    # v1.2: the 19 held-out scenarios, and the stress scenarios run beside them and reported apart, with no target
-    # (plan change log, 2026-10-30). One file holds the targets and one the predictions of both.
-    "held_out_v1_2": HeldOutSet(
-        "held_out_v1_2",
-        REPO_ROOT / "docs" / "held-out-v1.2" / "quality-targets.md",
-        REPO_ROOT / "docs" / "held-out-v1.2" / "predictions.md",
-        "final-v1.2",
-    ),
-    "stress_v1_2": HeldOutSet(
-        "stress_v1_2",
-        REPO_ROOT / "docs" / "held-out-v1.2" / "quality-targets.md",
-        REPO_ROOT / "docs" / "held-out-v1.2" / "predictions.md",
-        "stress-v1.2",
-    ),
-}
 RUNS = REPO_ROOT / "runs"
 # Assumed model requests per conversation for the dry run's estimate: not a limit the graph enforces.
 AGENT_REQUESTS, SIMULATOR_REQUESTS = 12, 8

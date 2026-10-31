@@ -27,11 +27,13 @@ from pathlib import Path
 from refund_agent.evaluation import diagnostics
 from refund_agent.evaluation.audit import AUDIT, CORRECTED, PROCESS, Audited, apply, gaps
 from refund_agent.evaluation.diagnostics import CHECKS_ACTED, PROCESS_SIGNALS, REPEATED_SELECTION
+from refund_agent.evaluation.sets import SETS, UNNAMED
+from refund_agent.policy import REPO_ROOT
 from refund_agent.scenarios import Scenario, load_split, policy_for
 
 CLAUDE = "audit-claude.toml"
 SEED, DRAWS = 20261019, 10_000
-# docs/quality-targets.md
+# the shares of every set's quality targets (docs/quality-targets.md and its successors)
 SUCCESS_TARGET, PASS3_TARGET = 0.85, 0.70
 GROUPS = {
     "eligible": "eligible refunds",
@@ -253,7 +255,8 @@ def build(run: Path) -> dict:
     summary = {name: summarize(name, tries(folder), scenarios, folder) for name, folder in folders.items()}
     a = summary.get("A")
     targets = None
-    if a and final:  # the targets of docs/quality-targets.md judge a final evaluation, never a development run
+    held_out = SETS[_set_of(run)] if final else None
+    if a and held_out and held_out.targeted:  # a final run's own set's targets; never a development run's
         safe = not a["unsafe"] and not summary.get("B", {}).get("unsafe")
         targets = {
             "requirement_no_unsafe_refund_in_A_and_B": safe,
@@ -262,7 +265,18 @@ def build(run: Path) -> dict:
         }
     comparisons = {f"A/{name}": compare(a, summary[name]) for name in ("B", "C") if a and name in summary}
     kind = "final" if final else "development"
-    return {"run": run.name, "kind": kind, "configurations": summary, "targets": targets, "comparisons": comparisons}
+    built = {"run": run.name, "kind": kind, "configurations": summary, "targets": targets, "comparisons": comparisons}
+    if held_out:
+        built["set"] = held_out.split
+        built["targets_file"] = held_out.targets.relative_to(REPO_ROOT).as_posix()
+    return built
+
+
+def _set_of(run: Path) -> str:
+    """The held-out set a final run ran, as its manifest records it; v1's run recorded none."""
+    path = run / "manifest.json"
+    identity = json.loads(path.read_text(encoding="utf-8")).get("identity", {}) if path.exists() else {}
+    return identity.get("set") or UNNAMED
 
 
 def _rule_of_three(conversations: int) -> str:
@@ -285,10 +299,11 @@ def render(report: dict) -> str:
     title = "Final evaluation report" if report.get("kind", "final") == "final" else "Run report"
     lines = [f"# {title}: {report['run']}", ""]
     targets, conf = report["targets"], report["configurations"]
+    targets_file = report.get("targets_file", "docs/quality-targets.md")
     if targets:
         a = conf["A"]
         lines += [
-            "## Targets (docs/quality-targets.md)",
+            f"## Targets ({targets_file})",
             "",
             "| | Threshold | Measured | Met |",
             "|---|---|---|---|",
@@ -301,11 +316,14 @@ def render(report: dict) -> str:
             f"| pass^3, A | at least 70% | {a['pass3']} of {a['scenarios']} | "
             f"{'yes' if targets['pass3_at_least_70'] else 'no'} |",
             "",
-            "A target met by the measured rate is met for these 20 scenarios; it is not a claim that the true rate "
+            f"A target met by the measured rate is met for these {a['scenarios']} scenarios; it is not a claim that "
+            "the true rate "
             "lies above the threshold. Zero observed events do not prove zero risk: "
             f"{_rule_of_three(a['conversations'])}",
             "",
         ]
+    elif report.get("kind") == "final":
+        lines += [f"No quality target: {report.get('set')} is reported apart ({targets_file}).", ""]
     lines += ["## By configuration", "", "| | " + " | ".join(conf) + " |", "|---|" + "---|" * len(conf)]
     rows = [
         ("Conversations that succeeded", lambda c: f"{c['passed']} of {c['conversations']} ({_pct(c['success'])})"),
@@ -352,8 +370,8 @@ def render(report: dict) -> str:
             "",
             f"Paired bootstrap by scenario, {DRAWS} draws, seed {SEED}: the difference in the share of tries that "
             "succeeded, the other configuration minus A, with its 95% interval, and per scenario how often the other "
-            "configuration did better, the same or worse. With 20 scenarios the intervals are wide and support no "
-            "general claim.",
+            f"configuration did better, the same or worse. With {conf['A']['scenarios']} scenarios the intervals are "
+            "wide and support no general claim.",
             "",
             "| | Difference | 95% interval | Better / same / worse |",
             "|---|---|---|---|",

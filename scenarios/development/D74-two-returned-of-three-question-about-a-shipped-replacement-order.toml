@@ -1,0 +1,126 @@
+# Development copy of H245 (scenarios/held-out-v1.2/H245-two-returned-of-three-question-about-a-shipped-replacement-order.toml): copied on 2026-10-30,
+# after the final evaluation of v1.2 used its held-out and stress sets (plan change log, 2026-10-30). The
+# source file stays frozen and unchanged.
+# Two returned of three; question about a shipped replacement order.
+# The author's candidate H245 (author-output-3.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/conversion-log.md.
+# Olist order fef9630717f341d93127dbf1d27650c9 (data/olist/subset-v1.2.json): 3 item(s), credit_card 67.31 in 6 instalment(s).
+# Olist order 69477156227df21c82fda29850060511 (data/olist/subset-v1.2.json): 1 item(s), credit_card 87.32 in 1 instalment(s).
+id = "D74"
+title = "Two returned of three; question about a shipped replacement order"
+split = "development"
+derived_from = "H245"
+category = "eligible"
+template = "two-returned-of-three-question-about-a-shipped-replacement-order"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # Shop time UTC; o1 delivered 16 days before now; o2 bought 9 days before now; shipped 4 days before now; still in transit
+agent_visible_orders = ["h245-o1", "h245-o2"]
+
+[[fixture.customers]]
+id = "h245-rodrigo"
+name = "Rodrigo Peixoto"
+email = "rodrigo.peixoto@example.test"
+
+[[fixture.staff]]
+id = "h245-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h245-o1"
+customer = "h245-rodrigo"
+status = "delivered"
+purchased_at = 2026-10-27T02:27:37Z
+delivered_at = 2026-10-31T10:00:00Z  # delivered 16 days before now
+payments = [{ method = "credit_card", amount_minor = 6731, installments = 6 }]  # 1799 + shipping 778 + 1299 + shipping 778 + 1299 + shipping 778
+olist_order = "fef9630717f341d93127dbf1d27650c9"
+
+[[fixture.orders.units]]
+id = "h245-o1-u1"
+product = "Felt storage bin"
+price_minor = 1799
+paid_minor = 1799
+shipping_minor = 778
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h245-o1-u2"
+product = "Wicker storage basket"
+price_minor = 1299
+paid_minor = 1299
+shipping_minor = 778
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 2
+
+[[fixture.orders.units]]
+id = "h245-o1-u3"
+product = "Stacking crate"
+price_minor = 1299
+paid_minor = 1299
+shipping_minor = 778
+olist_item = 3
+
+[[fixture.orders]]
+id = "h245-o2"
+customer = "h245-rodrigo"
+status = "shipped"
+purchased_at = 2026-11-07T10:00:00Z
+# no delivered_at: bought 9 days before now; shipped 4 days before now; still in transit
+payments = [{ method = "credit_card", amount_minor = 8732, installments = 1 }]  # 7990 + shipping 742
+olist_order = "69477156227df21c82fda29850060511"
+
+[[fixture.orders.units]]
+id = "h245-o2-u4"
+product = "Replacement lid"
+price_minor = 7990
+paid_minor = 7990
+shipping_minor = 742
+olist_item = 1
+
+[customer]
+id = "h245-rodrigo"
+goal = "Refund u1/u2 only, explain the shipped replacement cannot be refunded in this process."
+opening_message = "Refund the felt bin and wicker basket in my delivered order; I kept its crate. The replacement lid in my other order is on its way—can it be refunded already?"
+facts = []
+behaviour = [
+    "Decline any offer to include the shipped replacement or retained crate and decline an offered person for the other order.",
+    "If offered a person, decline; continue with the requested automated refund.",
+    "Decline a smaller refund or a different proposed set of units, unless a change of mind above expressly requests it.",
+    "Confirm only the exact final specified units and their recorded paid amount on a proposal card; never treat typed chat as confirmation.",
+    "After the receipt for the authorized refund, answer any last question or offer and end.",
+]
+confirms = { units = ["h245-o1-u1", "h245-o1-u2"], amount_minor = 3098 }  # paid(u1)+paid(u2)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h245-o1-u1", "h245-o1-u2"]
+decision = "eligible"
+amount_minor = 3098
+
+[[policy_checks]]
+units = ["h245-o1-u3"]
+decision = "refused"
+reasons = ["return"]
+
+[[policy_checks]]
+units = ["h245-o2-u4"]
+decision = "refused"
+reasons = ["eligible-orders", "return"]
+
+[expected]
+refunded_units = ["h245-o1-u1", "h245-o1-u2"]
+refund_amount_minor = 3098  # paid(u1)+paid(u2)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/eligible-orders"]
+quality_cites = []
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/eligible-orders" = "The replacement lid remains in a shipped, undelivered order and cannot be refunded through this process."

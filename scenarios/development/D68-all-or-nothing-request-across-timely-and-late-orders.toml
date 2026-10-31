@@ -1,0 +1,104 @@
+# Development copy of H196 (scenarios/held-out-v1.2/H196-all-or-nothing-request-across-timely-and-late-orders.toml): copied on 2026-10-30,
+# after the final evaluation of v1.2 used its held-out and stress sets (plan change log, 2026-10-30). The
+# source file stays frozen and unchanged.
+# All-or-nothing request across timely and late orders.
+# The author's candidate H196 (author-output-2.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/conversion-log.md.
+# Olist order e8d5ac327490a6d1580be779a264c2fb (data/olist/subset-v1.2.json): 1 item(s), credit_card 107.35 in 1 instalment(s).
+# Olist order 988117e4f714ed70371d15b7063e0add (data/olist/subset-v1.2.json): 1 item(s), credit_card 186.13 in 8 instalment(s).
+id = "D68"
+title = "All-or-nothing request across timely and late orders"
+split = "development"
+derived_from = "H196"
+category = "ineligible"
+template = "all-or-nothing-request-across-timely-and-late-orders"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # delivered 15 days before now for o1; delivered 47 days before now for o2, UTC
+agent_visible_orders = ["h196-o1", "h196-o2"]
+
+[[fixture.customers]]
+id = "h196-leticia"
+name = "Leticia Amaral"
+email = "leticia.amaral@example.test"
+
+[[fixture.staff]]
+id = "h196-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h196-o1"
+customer = "h196-leticia"
+status = "delivered"
+purchased_at = 2026-10-28T18:41:01Z
+delivered_at = 2026-11-01T10:00:00Z  # delivered 15 days before now
+payments = [{ method = "credit_card", amount_minor = 10735, installments = 1 }]  # 8890 + shipping 1845
+olist_order = "e8d5ac327490a6d1580be779a264c2fb"
+
+[[fixture.orders.units]]
+id = "h196-o1-u1"
+product = "Desk calendar stand"
+price_minor = 8890
+paid_minor = 8890
+shipping_minor = 1845
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "h196-o2"
+customer = "h196-leticia"
+status = "delivered"
+purchased_at = 2026-09-25T21:35:58Z
+delivered_at = 2026-09-30T10:00:00Z  # delivered 47 days before now
+payments = [{ method = "credit_card", amount_minor = 18613, installments = 8 }]  # 16900 + shipping 1713
+olist_order = "988117e4f714ed70371d15b7063e0add"
+
+[[fixture.orders.units]]
+id = "h196-o2-u2"
+product = "Pen organizer"
+price_minor = 16900
+paid_minor = 16900
+shipping_minor = 1713
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 1
+
+[customer]
+id = "h196-leticia"
+goal = "Insist on both a timely returned unit and a late returned unit, declining the eligible one alone."
+opening_message = "I returned two desk accessories from separate orders. Refund both in full together, or do neither; I do not want a one-item refund."
+facts = []
+behaviour = [
+    "Reject the offer to refund only the calendar stand; do not change your all-or-nothing goal.",
+    "If offered a person, decline unless expressly requested above.",
+    "If offered a smaller amount, different units, or an alternative original-payment refund, decline it unless explicitly requested above.",
+    "Finish when the refusal is explained, after answering the agent’s most recent question or offer.",
+    "If offered a new proposal, decline it; no card confirmation is authorized for this request.",
+]
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h196-o1-u1"]
+decision = "eligible"
+amount_minor = 8890
+
+[[policy_checks]]
+units = ["h196-o2-u2"]
+decision = "refused"
+reasons = ["window"]
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["none", "ineligible", "cancelled"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/window"]
+quality_cites = []
+communication = ["explains_refusal_reason"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/window" = "The older pen-organizer order is beyond the 30-day deadline; only the timely item could be refunded separately."

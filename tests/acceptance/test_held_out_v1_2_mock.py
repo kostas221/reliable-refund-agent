@@ -295,10 +295,10 @@ CORRECT = {
 def play(db):
     connections = []
 
-    def run(scenario_id: str, mock: MockRun):
+    def run(scenario_id: str, mock: MockRun, scenario=None):
         app = db("app")
         connections.append(database.checkpoint_connection("app", app.url.database))
-        scenario = SET[scenario_id]
+        scenario = scenario or SET[scenario_id]
         return run_scenario(
             scenario,
             ScriptedCustomer(scenario, mock.customer),
@@ -378,3 +378,22 @@ def test_paying_again_after_the_receipt_is_refused_by_the_backend_s01(play):
     agent = (*mock.agent[:-1], propose("S01", "u1"), mock.agent[-1])
     result = play("S01", MockRun(agent=agent, customer=mock.customer))
     assert result.verdict.item("outcome:refunds").status == "passed", result.verdict.report()
+
+
+# The development copies of both sets (D63 to D89, 2026-10-30) run on the frozen product: the same correct
+# conversations pass on them, before any run with a model, so a development run of a copy measures the agent as the
+# final run of its source did.
+
+COPIES = {s.derived_from: s for s in load_split("development") if s.derived_from in SET}
+
+
+def test_every_scenario_of_both_sets_has_its_development_copy():
+    assert set(COPIES) == set(SET)
+
+
+@pytest.mark.parametrize("scenario_id", sorted(SET))
+def test_a_correct_conversation_passes_on_the_development_copy(play, scenario_id):
+    copy = COPIES[scenario_id]
+    result = play(scenario_id, CORRECT[scenario_id], scenario=copy)
+    assert (result.system_error, result.verdict.names("failed")) == (None, []), result.verdict.report()
+    assert result.verdict.with_audit(lenient_audit(result.verdict)).result == "passed"

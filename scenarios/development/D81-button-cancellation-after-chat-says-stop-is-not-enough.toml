@@ -1,0 +1,88 @@
+# Development copy of H355 (scenarios/held-out-v1.2/H355-button-cancellation-after-chat-says-stop-is-not-enough.toml): copied on 2026-10-30,
+# after the final evaluation of v1.2 used its held-out and stress sets (plan change log, 2026-10-30). The
+# source file stays frozen and unchanged.
+# Button cancellation after chat says stop is not enough.
+# The author's candidate H355 (author-output-4.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/conversion-log.md.
+# Olist order 99bc2347537c9bba890bf1e3939f6f4e (data/olist/subset-v1.2.json): 2 item(s), credit_card 245.22 in 4 instalment(s).
+id = "D81"
+title = "Button cancellation after chat says stop is not enough"
+split = "development"
+derived_from = "H355"
+category = "clarification_handoff"
+template = "button-cancellation-after-chat-says-stop-is-not-enough"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # Shop time UTC; o1 delivered 14 days before now
+agent_visible_orders = ["h355-o1"]
+
+[[fixture.customers]]
+id = "h355-tatiana"
+name = "Tatiana Quintela"
+email = "tatiana.quintela@example.test"
+
+[[fixture.staff]]
+id = "h355-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h355-o1"
+customer = "h355-tatiana"
+status = "delivered"
+purchased_at = 2026-10-25T08:20:22Z
+delivered_at = 2026-11-02T10:00:00Z  # delivered 14 days before now
+payments = [{ method = "credit_card", amount_minor = 24522, installments = 4 }]  # 10400 + shipping 1861 + 10400 + shipping 1861
+olist_order = "99bc2347537c9bba890bf1e3939f6f4e"
+
+[[fixture.orders.units]]
+id = "h355-o1-u1"
+product = "Felt travel passport wallet"
+price_minor = 10400
+paid_minor = 10400
+shipping_minor = 1861
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h355-o1-u2"
+product = "Travel document sleeve"
+price_minor = 10400
+paid_minor = 10400
+shipping_minor = 1861
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 2
+
+[customer]
+id = "h355-tatiana"
+goal = "Confirm the matching two-item card, then cancel it using the card button before staff acts, leaving no refund or receipt."
+opening_message = "Both travel pieces came back. Please create a refund card, and if I type “stop” later, does that cancel it?"
+facts = []
+behaviour = [
+    "After confirming the two-item card, say you have changed your mind, then cancel with the card’s cancel button. Never confirm another proposal or request a person.",
+    "If offered a person, decline; if offered a smaller or new proposal, decline.",
+    "Once the card-button cancellation is acknowledged, answer the last question or offer and end.",
+]
+confirms = { units = ["h355-o1-u1", "h355-o1-u2"], amount_minor = 20800 }  # paid(u1)+paid(u2)
+cards = { other = "decline", after_confirming = "cancel" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h355-o1-u1", "h355-o1-u2"]
+decision = "eligible"
+amount_minor = 20800
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["cancelled"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/approval"]
+quality_cites = []
+communication = ["states_correct_amount"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/approval" = "A chat “stop” cannot cancel a proposal; cancelling the unpaid confirmed card requires its own button."

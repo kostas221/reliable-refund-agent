@@ -1,0 +1,108 @@
+# Development copy of H238 (scenarios/held-out-v1.2/H238-remaining-third-unit-and-earlier-receipt-question.toml): copied on 2026-10-30,
+# after the final evaluation of v1.2 used its held-out and stress sets (plan change log, 2026-10-30). The
+# source file stays frozen and unchanged.
+# Remaining third unit and earlier receipt question.
+# The author's candidate H238 (author-output-3.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/conversion-log.md.
+# Olist order 25bd2ad9d282f59e4e6a048ef9bf214f (data/olist/subset-v1.2.json): 3 item(s), credit_card 289.02 in 2 instalment(s).
+id = "D71"
+title = "Remaining third unit and earlier receipt question"
+split = "development"
+derived_from = "H238"
+category = "eligible"
+template = "remaining-third-unit-and-earlier-receipt-question"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # Shop time UTC; o1 delivered 22 days before now
+agent_visible_orders = ["h238-o1"]
+
+[[fixture.customers]]
+id = "h238-yasmin"
+name = "Yasmin Lacerda"
+email = "yasmin.lacerda@example.test"
+
+[[fixture.staff]]
+id = "h238-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h238-o1"
+customer = "h238-yasmin"
+status = "delivered"
+purchased_at = 2026-09-04T06:43:56Z
+delivered_at = 2026-10-25T10:00:00Z  # delivered 22 days before now
+payments = [{ method = "credit_card", amount_minor = 28902, installments = 2 }]  # 5390 + shipping 4244 + 5390 + shipping 4244 + 5390 + shipping 4244
+olist_order = "25bd2ad9d282f59e4e6a048ef9bf214f"
+
+[[fixture.orders.units]]
+id = "h238-o1-u1"
+product = "Mini planter"
+price_minor = 5390
+paid_minor = 5390
+shipping_minor = 4244
+received_back_at = 2026-11-02T10:00:00Z  # received back 14 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h238-o1-u2"
+product = "Mini planter"
+price_minor = 5390
+paid_minor = 5390
+shipping_minor = 4244
+received_back_at = 2026-11-02T10:00:00Z  # received back 14 days before now
+olist_item = 2
+
+[[fixture.orders.units]]
+id = "h238-o1-u3"
+product = "Mini planter"
+price_minor = 5390
+paid_minor = 5390
+shipping_minor = 4244
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 3
+
+[[fixture.past_refunds]]
+units = ["h238-o1-u1", "h238-o1-u2"]
+committed_at = 2026-11-06T10:00:00Z  # 10 days before now
+receipt_number = "R-H238-0001"
+
+[customer]
+id = "h238-yasmin"
+goal = "Refund only the third unit while recognizing the two earlier paid receipts remain paid."
+opening_message = "You already refunded my first two mini planters. The third has now been received back. Do I keep the old receipt too?"
+facts = []
+behaviour = [
+    "If offered a person, decline; continue with the requested automated refund.",
+    "Decline a smaller refund or a different proposed set of units, unless a change of mind above expressly requests it.",
+    "Confirm only the exact final specified units and their recorded paid amount on a proposal card; never treat typed chat as confirmation.",
+    "After the receipt for the authorized refund, answer any last question or offer and end.",
+]
+confirms = { units = ["h238-o1-u3"], amount_minor = 5390 }  # paid(u3)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h238-o1-u3"]
+decision = "eligible"
+amount_minor = 5390
+
+[[policy_checks]]
+units = ["h238-o1-u1", "h238-o1-u2", "h238-o1-u3"]
+decision = "refused"
+reasons = ["remaining"]
+
+[expected]
+refunded_units = ["h238-o1-u3"]
+refund_amount_minor = 5390  # paid(u3)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/remaining"]
+quality_cites = ["refund-policy/v2/validity"]
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/remaining" = "The first two planters were already refunded, so only the third remains eligible for a new refund."

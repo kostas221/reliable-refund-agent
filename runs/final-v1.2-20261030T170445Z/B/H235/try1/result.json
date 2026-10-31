@@ -1,0 +1,203 @@
+{
+  "scenario": "H235",
+  "try": 1,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded h235-o1-u1 for 2999, h235-o1-u2 for 2999"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal refunded, acceptable ['refunded']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v2/window",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: The new request for both units is still inside thirty days; the earlier rejection does not itself extend the deadline."
+    },
+    {
+      "name": "communication:states_correct_amount",
+      "status": "pending",
+      "evidence": "pre-check passed: ['R$ 59,98'] stated"
+    },
+    {
+      "name": "communication:gives_this_receipt",
+      "status": "pending",
+      "evidence": "pre-check passed: the receipt number of this run's refund is given"
+    },
+    {
+      "name": "communication:proposes_without_asking",
+      "status": "pending",
+      "evidence": "pre-check passed: no question that may ask which items was answered before the first proposal"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "1 refund(s), each confirmed and approved in time"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: ['R-00000001']; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 6,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    8.629,
+    4.1
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.008985699999999985,
+    "simulator": 7.159999999999979e-05
+  },
+  "attempts_sent": 7,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "An old request for the cup was rejected, but I am asking again for the cup and the coaster together. Am I still within thirty days?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_DUJ7oKVsiLVGNpZfWdraDArm",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_DUJ7oKVsiLVGNpZfWdraDArm",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h235-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-09-25T08:58:33+00:00\", \"delivered_at\": \"2026-10-22T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h235-o1-u1\", \"product\": \"Stoneware espresso cup\", \"paid_minor\": 2999, \"received_back\": true, \"refunded\": false}, {\"unit_id\": \"h235-o1-u2\", \"product\": \"Wooden coaster\", \"paid_minor\": 2999, \"received_back\": true, \"refunded\": false}], \"requests\": [{\"proposal_id\": \"h235-p1\", \"status\": \"rejected\", \"amount_minor\": 2999, \"unit_ids\": [\"h235-o1-u1\"], \"created_at\": \"2026-11-07T10:00:00+00:00\", \"receipt_number\": null, \"rejection_reason\": null}]}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_AwjMPdBJflbuFZr2uMc0KKsC",
+          "name": "assess_refund",
+          "arguments": "{\"order_id\":\"h235-o1\",\"unit_ids\":[\"h235-o1-u1\",\"h235-o1-u2\"]}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_AwjMPdBJflbuFZr2uMc0KKsC",
+      "name": "assess_refund",
+      "content": "{\"ok\": true, \"outcome\": \"eligible\", \"policy_citations\": [\"refund-policy/v2/amount\"], \"amount_minor\": 5998, \"currency\": \"BRL\", \"order\": {\"order_id\": \"h235-o1\", \"status\": \"delivered\", \"delivered_at\": \"2026-10-22T10:00:00+00:00\", \"refund_deadline\": \"2026-11-21T10:00:00+00:00\", \"payment_records\": 1, \"one_valid_payment\": true}, \"units\": [{\"unit_id\": \"h235-o1-u1\", \"product\": \"Stoneware espresso cup\", \"paid_minor\": 2999, \"received_back\": true, \"refunded\": false, \"receipt_number\": null, \"earlier_on_time_proposal\": false}, {\"unit_id\": \"h235-o1-u2\", \"product\": \"Wooden coaster\", \"paid_minor\": 2999, \"received_back\": true, \"refunded\": false, \"receipt_number\": null, \"earlier_on_time_proposal\": false}], \"next_step\": \"This assessment does not create or change a proposal. If these are exactly the units the customer asked for, call propose_refund with them; if the customer's words could mean other units too, ask which first.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_UZC3TJjeglAjKfQxkqAfXGcY",
+          "name": "propose_refund",
+          "arguments": "{\"order_id\":\"h235-o1\",\"unit_ids\":[\"h235-o1-u1\",\"h235-o1-u2\"],\"summary_for_staff\":\"Customer requests cup and coaster together after an earlier cup request was rejected; asks whether still within thirty days.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_UZC3TJjeglAjKfQxkqAfXGcY",
+      "name": "propose_refund",
+      "content": "{\"ok\": true, \"proposal_id\": \"prop-6294cee28a174eaf\", \"status\": \"awaiting_customer_confirmation\", \"outcome\": \"eligible\", \"amount_minor\": 5998, \"currency\": \"BRL\", \"policy_citations\": [\"refund-policy/v2/amount\", \"refund-policy/v2/approval\"], \"next_step\": \"The proposal is now on the customer's card, waiting for their button. Tell the customer the amount. They confirm with the button on the proposal card; a typed yes is not a confirmation. Tell the customer also, citing each section: An earlier request for the Stoneware espresso cup ended unpaid (h235-p1 was rejected by a staff member), so this new proposal needs the customer's confirmation and a staff member's approval again (refund-policy/v2/approval).\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Yes—your new request is within the deadline of **21 November 2026 at 10:00 UTC**. The rejected cup request does not extend that deadline (refund-policy/v2/window).\n\nI’ve created a proposal for the cup and coaster together: **BRL 59.98** (refund-policy/v2/amount).\n\nPlease confirm using the **button on the proposal card**; a typed “yes” does not count. Since the earlier cup request was rejected, this new proposal needs fresh confirmation and staff approval (refund-policy/v2/approval).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "Yes—your new request is within the deadline of **21 November 2026 at 10:00 UTC**. The rejected cup request does not extend that deadline (refund-policy/v2/window).\n\nI’ve created a proposal for the cup and coaster together: **BRL 59.98** (refund-policy/v2/amount).\n\nPlease confirm using the **button on the proposal card**; a typed “yes” does not count. Since the earlier cup request was rejected, this new proposal needs fresh confirmation and staff approval (refund-policy/v2/approval).",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "event",
+      "text": "The customer confirmed request prop-6294cee28a174eaf and a staff member approved it, so it is ready to be paid.",
+      "notice_id": "notice-dec-45270a073a7f4f94"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_u03VpuaXA3JGxkwqLgYAr13J",
+          "name": "execute_refund",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_u03VpuaXA3JGxkwqLgYAr13J",
+      "name": "execute_refund",
+      "content": "{\"ok\": true, \"receipt\": {\"receipt_number\": \"R-00000001\", \"operation_id\": \"op-8bb0d95a2f9e4c41\", \"proposal_id\": \"prop-6294cee28a174eaf\", \"amount_minor\": 5998, \"currency\": \"BRL\", \"payment_id\": \"h235-o1-p1\", \"units\": [{\"unit_id\": \"h235-o1-u1\", \"amount_minor\": 2999}, {\"unit_id\": \"h235-o1-u2\", \"amount_minor\": 2999}], \"committed_at\": \"2026-11-16T10:04:00+00:00\"}, \"next_step\": \"The refund is paid and recorded against the order's original payment. Tell the customer the amount and the receipt number. Explain the test ledger (not a bank transfer, no date) only if the customer asks when or how the money arrives.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Your **BRL 59.98** refund for the cup and coaster has been recorded against your original payment (refund-policy/v2/payment).\n\n**Receipt: R-00000001**.",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "Your **BRL 59.98** refund for the cup and coaster has been recorded against your original payment (refund-policy/v2/payment).\n\n**Receipt: R-00000001**.",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

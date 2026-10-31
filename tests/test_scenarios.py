@@ -58,6 +58,8 @@ COPIES = [s for s in DEVELOPMENT if s.derived_from]  # copies of held-out scenar
 CONTRAST = [s for s in DEVELOPMENT if not s.derived_from and int(s.id[1:]) > 30]
 FINAL_RUN = REPO_ROOT / "runs" / "final-20261019T201207Z" / "manifest.json"
 FINAL_RUN_V1_1 = REPO_ROOT / "runs" / "final-v1.1-20261026T125831Z" / "manifest.json"
+FINAL_RUN_V1_2 = REPO_ROOT / "runs" / "final-v1.2-20261030T170445Z" / "manifest.json"
+STRESS_RUN_V1_2 = REPO_ROOT / "runs" / "stress-v1.2-20261030T174734Z" / "manifest.json"
 SUBSET = json.loads((REPO_ROOT / "data" / "olist" / "subset.json").read_text(encoding="utf-8"))
 # A list price above what was paid is synthetic, and written in the scenario (data/olist/README.md).
 SYNTHETIC_LIST_PRICE = {"H02"}
@@ -78,11 +80,14 @@ def policy_order(scenario: Scenario, unit_id: str) -> eligibility.Order:
 
 
 def test_development_scenarios_numbered_in_order():
-    assert [s.id for s in DEVELOPMENT] == [f"D{n:02d}" for n in range(1, 63)]
+    assert [s.id for s in DEVELOPMENT] == [f"D{n:02d}" for n in range(1, 90)]
     assert [s.id for s in ORIGINAL] == [f"D{n:02d}" for n in range(1, 11)]
-    # v1's held-out set as D11 to D30 (2026-10-20); v1.1's as D43 to D62, in the order of its IDs (2026-10-27)
+    # v1's held-out set as D11 to D30 (2026-10-20); v1.1's as D43 to D62, in the order of its IDs (2026-10-27);
+    # v1.2's 19 as D63 to D81 and its 8 stress scenarios as D82 to D89, in the order of their IDs (2026-10-30)
     v1_1 = [(f"D{n:02d}", s.id) for n, s in zip(range(43, 63), HELD_OUT_V1_1, strict=True)]
-    assert [(s.id, s.derived_from) for s in COPIES] == [(f"D{n + 10:02d}", f"H{n:02d}") for n in range(1, 21)] + v1_1
+    v1_2 = [(f"D{n:02d}", s.id) for n, s in zip(range(63, 90), HELD_OUT_V1_2 + STRESS_V1_2, strict=True)]
+    expected = [(f"D{n + 10:02d}", f"H{n:02d}") for n in range(1, 21)] + v1_1 + v1_2
+    assert [(s.id, s.derived_from) for s in COPIES] == expected
     assert [s.id for s in CONTRAST] == [f"D{n:02d}" for n in range(31, 43)]
 
 
@@ -119,7 +124,10 @@ def test_a_customer_who_may_be_offered_a_person_where_a_handoff_is_forbidden_kno
         on_its_way = [o for o in s.fixture.orders if o.customer == s.customer.id and o.status != "delivered"]
         if on_its_way and s.expected.handoff == "forbidden":
             behaviour = " ".join(s.customer.behaviour).casefold()
-            assert "if you are offered a staff member" in behaviour and "say no thanks" in behaviour, s.id
+            # The copies of v1.2 (D63 to D89) keep the author's words, which answer the offer with a no in a form
+            # of their own; in the final run of 2026-10-30 H245's customer accepted none of its four offers.
+            said_no = "if you are offered a staff member" in behaviour and "say no thanks" in behaviour
+            assert said_no or "if offered a person, decline" in behaviour, s.id
 
 
 def test_a_customer_offered_a_person_beside_the_goal_knows_what_to_say():
@@ -140,7 +148,7 @@ WIDENED_ORIGINS = {"D49"}
 
 
 def test_a_development_copy_is_its_source_but_for_id_split_and_origin():
-    sources = {s.id: s for s in (*HELD_OUT, *HELD_OUT_V1_1)}
+    sources = {s.id: s for s in (*HELD_OUT, *HELD_OUT_V1_1, *HELD_OUT_V1_2, *STRESS_V1_2)}
     rule = {"cites", "obligations", "quality_cites"}  # the citation rule of v1.2, which development follows
     for copy in COPIES:
         source = sources[copy.derived_from]
@@ -161,6 +169,8 @@ def test_a_development_copy_is_its_source_but_for_id_split_and_origin():
 def test_only_held_out_scenarios_a_final_evaluation_ran_are_copied():
     ran = json.loads(FINAL_RUN.read_text(encoding="utf-8"))["identity"]["scenarios"]
     ran += json.loads(FINAL_RUN_V1_1.read_text(encoding="utf-8"))["identity"]["scenarios"]
+    for run in (FINAL_RUN_V1_2, STRESS_RUN_V1_2):
+        ran += json.loads(run.read_text(encoding="utf-8"))["identity"]["scenarios"]
     assert {s.derived_from for s in COPIES} <= set(ran)
 
 
@@ -173,6 +183,14 @@ def test_a_copy_changes_nothing_but_its_identity(tmp_path, monkeypatch):
         derive(source, "D99", "a test copy.")
     with pytest.raises(ValueError, match="not a held-out scenario"):
         derive(tmp_path / "D99-order-not-delivered.toml", "D98", "a test copy.")
+
+
+@pytest.mark.parametrize(("split", "source_id"), [("held_out_v1_2", "H102"), ("stress_v1_2", "S01")])
+def test_a_scenario_of_the_v1_2_sets_can_be_copied(tmp_path, monkeypatch, split, source_id):
+    monkeypatch.setitem(SPLIT_DIRS, "development", tmp_path)
+    (source,) = SPLIT_DIRS[split].glob(f"{source_id}-*.toml")
+    copy = load_scenario(derive(source, "D99", "a test copy."))
+    assert (copy.id, copy.split, copy.derived_from) == ("D99", "development", source_id)
 
 
 def test_a_held_out_scenario_cannot_claim_a_source():

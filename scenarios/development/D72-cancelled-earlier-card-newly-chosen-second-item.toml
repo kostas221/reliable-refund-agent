@@ -1,0 +1,100 @@
+# Development copy of H240 (scenarios/held-out-v1.2/H240-cancelled-earlier-card-newly-chosen-second-item.toml): copied on 2026-10-30,
+# after the final evaluation of v1.2 used its held-out and stress sets (plan change log, 2026-10-30). The
+# source file stays frozen and unchanged.
+# Cancelled earlier card, newly chosen second item.
+# The author's candidate H240 (author-output-3.md), converted by scripts/convert_held_out_v1_2.py;
+# every choice the text did not state is in docs/held-out-v1.2/conversion-log.md.
+# Olist order 97c1ad9812910864f063fcc01544976b (data/olist/subset-v1.2.json): 2 item(s), credit_card 250.55 in 5 instalment(s).
+id = "D72"
+title = "Cancelled earlier card, newly chosen second item"
+split = "development"
+derived_from = "H240"
+category = "eligible"
+template = "cancelled-earlier-card-newly-chosen-second-item"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z  # Shop time UTC; o1 delivered 19 days before now
+agent_visible_orders = ["h240-o1"]
+
+[[fixture.customers]]
+id = "h240-henrique"
+name = "Henrique Matos"
+email = "henrique.matos@example.test"
+
+[[fixture.staff]]
+id = "h240-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h240-o1"
+customer = "h240-henrique"
+status = "delivered"
+purchased_at = 2026-10-20T06:15:09Z
+delivered_at = 2026-10-28T10:00:00Z  # delivered 19 days before now
+payments = [{ method = "credit_card", amount_minor = 25055, installments = 5 }]  # 7999 + shipping 1143 + 14999 + shipping 914
+olist_order = "97c1ad9812910864f063fcc01544976b"
+
+[[fixture.orders.units]]
+id = "h240-o1-u1"
+product = "Striped bath towel"
+price_minor = 7999
+paid_minor = 7999
+shipping_minor = 1143
+received_back_at = 2026-11-07T10:00:00Z  # received back 9 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h240-o1-u2"
+product = "Hand towel"
+price_minor = 14999
+paid_minor = 14999
+shipping_minor = 914
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 2
+
+[[fixture.past_proposals]]
+id = "h240-p1"
+units = ["h240-o1-u1"]
+created_at = 2026-11-10T10:00:00Z  # 6 days before now
+status = "cancelled"
+
+[customer]
+id = "h240-henrique"
+goal = "Refund u2 only, with no reuse of the cancelled u1 proposal."
+opening_message = "Last week I cancelled a refund card for the bath towel. I changed my mind: now I want only the returned hand towel. Does the cancelled card matter?"
+facts = []
+behaviour = [
+    "If offered a person, decline; continue with the requested automated refund.",
+    "Decline a smaller refund or a different proposed set of units, unless a change of mind above expressly requests it.",
+    "Confirm only the exact final specified units and their recorded paid amount on a proposal card; never treat typed chat as confirmation.",
+    "After the receipt for the authorized refund, answer any last question or offer and end.",
+]
+confirms = { units = ["h240-o1-u2"], amount_minor = 14999 }  # paid(u2)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h240-o1-u2"]
+decision = "eligible"
+amount_minor = 14999
+
+[[policy_checks]]
+units = ["h240-o1-u1"]
+decision = "eligible"
+amount_minor = 7999
+
+[expected]
+refunded_units = ["h240-o1-u2"]
+refund_amount_minor = 14999  # paid(u2)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/approval"]
+quality_cites = []
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/approval" = "The cancelled bath-towel card cannot authorize this different hand-towel refund; the new card needs its own confirmation and staff approval."

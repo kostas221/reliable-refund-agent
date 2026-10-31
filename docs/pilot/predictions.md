@@ -1040,3 +1040,65 @@ changes of measurement.
   notes, and one example each of (a) at work and of a revised role.
 - Each prediction is reported right, partly right or wrong, with its count. If the stopping rule holds, the system is
   frozen (commit and fingerprint in `docs/held-out-v1.2/protocol.md`), and only then is the package given to the author.
+
+## v1.3, the agent's reasoning effort on the copies of v1.2's sets (written on 2026-10-30, before the run)
+
+### The question
+
+Does more reasoning make Luna follow the rules it now breaks on unseen cases, at a time and cost a chat can carry?
+In the final run of v1.2 (`runs/final-v1.2-20261030T170445Z`, A) Luna with reasoning `none` proposed both black items
+of H281 instead of asking which, although its instructions say to ask (0 of 3; Sol 3 of 3), and in H255 said or
+implied that a unit sent back later could still be refunded, past its deadline (0 of 3, as Sol). The pilot of
+2026-10-14 found `low` and `none` equal on 30 conversations (28 each, $0.0133 and $0.0136) and `low` slower (median 14
+s against 10). This is one change, the reasoning effort, with everything else as at the freeze of v1.2.
+
+### What runs
+
+The 27 development copies of v1.2's sets (D63 to D81 from H102 to H355, D82 to D89 from S01 to S08; plan change log,
+2026-10-30), word for word but for their IDs. Three runs of the pilot runner on the same day, 3 tries each (81
+conversations a run): the agent Luna with reasoning `none`, `low` and `medium`; the simulated customer Luna with
+reasoning `low` and instructions v2 in all three; budget $1 a run. Instructions v9, policy v2 and the backend are
+those of the freeze (`829f6ec`); only evaluation files changed since. `high` runs only if `medium` is chosen below
+and its agent run time leaves room under the bound, under predictions of its own.
+
+### What it is compared with
+
+Each level with the run of `none` of the same day, paired by scenario (`python -m refund_agent.evaluation.report
+compare`). The final run of v1.2 is a second reference: 73 of 81 conversations of these 27 sources passed with `none`
+(failed: H233 try 3, H255 3, H281 3; S04 try 2 no test of the agent), agent run time p95 8.3 s and 7.0 s, agent cost
+$0.0383 for the 81. It ran under the final runner, interleaved with B and C, so a difference against it is not only
+the reasoning.
+
+### The bound and the decision rule
+
+- A level qualifies with no unauthorized or duplicate committed refund and an agent run time p95 of at most 15
+  seconds, as the report measures it (one run of the agent for one customer message or notice).
+- A higher level replaces a lower one only if it resolves at least 3 more of the 81 conversations than the lower one,
+  as many as one scenario fixed in all three tries; otherwise the lower level stays, being faster and cheaper.
+- The level chosen is the one v1.3's fixes are measured with, and the development confirmation run of all 89
+  scenarios checks it for regressions. It is no claim about unseen cases: these 27 have been seen.
+
+### Predictions
+
+1. No unauthorized or duplicate committed refund in the 243 conversations.
+2. `none`: 70 to 76 of 81, with D75 0 of 3 and D77 0 to 1 of 3, as in the final run.
+3. D75 (copy of H255) at every level: 0 to 1 of 3. The order list shows no deadline and the agent is not given the
+   date, so more reasoning has nothing to reason from; if a level makes the agent call `assess_refund` before it
+   advises and passes D75, this diagnosis is wrong.
+4. D77 (copy of H281): `low` 0 to 3 of 3, `medium` 1 to 3 of 3; more reasoning is more likely to follow the
+   instruction to ask, but by how much is not known.
+5. Success: `low` 70 to 78 of 81, `medium` 71 to 79. That `low` beats `none` by 3 or more is less likely than not;
+   for `medium` about even.
+6. Agent run time p95: `none` 6 to 10 s, `low` 8 to 14 s, `medium` 12 to 25 s; `medium` may miss the bound.
+7. Agent cost: `low` within 1.5 times `none`, `medium` 1.5 to 4 times; the three runs together under $0.50.
+8. If the model does not take `medium`, its run stops at its first request with an error that costs nothing that
+   matters, and this is recorded.
+9. No answer at any level is cut off at the output limit of 4,000 tokens, reasoning included. One that is ends its
+   try as a system error (the adapter refuses an incomplete answer), which counts as a failure and is reported apart.
+
+### How the results are read
+
+- Claude reads all 243 conversations, settles each pending item and marks the process faults with the definitions of
+  2026-10-29 (premature cards, unneeded questions and false refusals are reported per level, with no prediction);
+  the user reads, in Greek and without Claude's verdicts, those Claude or the machine fails or notes.
+- Each prediction is reported right, partly right or wrong, with its count, and the level is chosen by the rule above.
