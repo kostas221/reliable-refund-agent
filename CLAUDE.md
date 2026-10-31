@@ -279,7 +279,11 @@ $0.18); Claude read all 243 and changed no machine verdict: A 50/57, pass^3 16/1
 (18/19), C 49/57 (15/19), 0 unsafe; stress 23/24 each, 3 S04 conversations not a test. The report now reads the
 run's set (`refund_agent/evaluation/sets.py`: no target for the stress set). Next: the owner reads the 73 the rule
 selects, without Claude's verdicts; then `docs/held-out-v1.2/results.md`, the decision rule, commit on the owner's
-word. The author model's
+word. v1.3 reasoning experiment (plan change log, 2026-10-31; `docs/pilot/results.md`): copies D63-D89 of both
+sets, Luna none/low/medium, 81 conversations each, $0.159, 0 unsafe; 73/75/73; low and medium ask first where
+two items fit (6 of 6 each, none 0 of 6 without the backend); D75 fails at every level; the pre-registered rule
+kept none (3 more needed, low +2); the owner chose **low**, a recorded deviation (plan change log, 2026-10-31), so
+v1.3's repairs are measured with Luna low against the low run; the final runner's A still records v1.2's none. The author model's
 name and dates are still to be recorded. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
 `runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run

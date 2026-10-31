@@ -1858,3 +1858,115 @@ author package may now be given to the author (protocol, section 2).
 
 Claude read all 186 (`audit-claude.toml`, 59 notes, process marks in 15 conversations). The user reads, in Greek and
 without Claude's verdicts (`user-review/`): D40 try 3, D15 try 1, D55 try 1 and D49 try 1.
+
+## v1.3, the agent's reasoning effort on the copies of v1.2's sets
+
+For the project owner, who chooses the reasoning effort that v1.3's two repairs are measured with. Question,
+predictions and decision rule: [predictions.md](predictions.md), "v1.3, the agent's reasoning effort on the copies of
+v1.2's sets", written and committed before the runs.
+
+### What ran
+
+Three runs on 2026-10-31, one after another, from commit `7ae136a` (clean tree, fingerprint `40309f4a`): the 27
+development copies D63 to D89, 3 tries each, the agent Luna with reasoning `none`, `low` and `medium`, the simulated
+customer Luna with reasoning `low` in all three. Everything else as at the freeze of v1.2.
+
+| | `none` | `low` | `medium` |
+|---|---|---|---|
+| Run | `runs/pilot-20261031T120116Z-gpt-6-luna-none` | `runs/pilot-20261031T122314Z-gpt-6-luna-low` | `runs/pilot-20261031T124709Z-gpt-6-luna-medium` |
+| Unauthorized or duplicate refunds | 0 of 81 | 0 of 81 | 0 of 81 |
+| Conversations that succeeded | 73 of 81 | 75 of 81 | 73 of 81 |
+| No test of the agent (simulated customer) | 2 (D85) | 3 (D85) | 3 (D85) |
+| Among valid simulations | 73 of 79 | 75 of 78 | 73 of 78 |
+| Scenarios passed in all three tries | 23 of 27 | 25 of 27 | 23 of 27 |
+| Agent run time p50 / p95 | 4.0 s / 7.0 s | 3.3 s / 7.0 s | 4.1 s / 8.9 s |
+| Agent cost; per resolved case | $0.0392; $0.00054 | $0.0377; $0.00050 | $0.0522; $0.00071 |
+| Reasoning tokens, all agent requests | 0 | 2,264 in 455 | 21,338 in 465 |
+| Proposals refused by the selection check | 3 (D89) | 0 | 0 |
+| Process faults marked by the reader | premature cards 2 | premature cards 1 | premature cards 3, unneeded question 1 |
+
+The three runs cost $0.159 with the simulated customer. No try ended in a system error, and no answer reached the
+output limit.
+
+### Where the levels differ
+
+Paired by scenario against `none`: `low` +2.5 points (95% interval -4.9 to +12.3), better in 2 scenarios, the same in
+23, worse in 2; `medium` +0.0 points (-7.4 to +9.9), 2 better, 21 the same, 4 worse. Measured the same way: the same
+evaluator, runner, simulated customer, seeding and scenario files.
+
+- **D77 (copy of H281), two black items that fit the customer's words:** `none` proposed both in 3 of 3, as in the
+  final run; `low` and `medium` asked which first in 3 of 3 each. In D89, the other case where the words fit two
+  items, `none` again proposed first and was stopped by the selection check in 3 of 3, then asked; `low` and `medium`
+  asked first in 3 of 3 each. Without the backend's help, `none` asked first in 0 of 6 of these, `low` and `medium` in
+  6 of 6 each. In D87 (a black kettle called red), where proposing or asking are both allowed, `none` proposed in 3 of
+  3, once the kettle and the descaler together (a failure); `low` and `medium` asked in 3 of 3.
+- **D75 (copy of H255), the late return:** failed at every level, `none` 2 of 3, `low` and `medium` 3 of 3. In
+  `none`'s passing try, the agent first said the holder must arrive back, then, asked for an exception, called
+  `assess_refund` and told the deadline of 12 November. No level assessed before its first advice. More reasoning did
+  not bring the missing deadline; the diagnosis of the final run stands, and repair 1 of the v1.3 plan is still needed.
+- **D78 (copy of H286), a typed yes after the button cancelled the card:** `none` and `low` answered each typed yes
+  without a new card in 6 of 6; `medium` made a new card each time in 3 of 3, up to five in one conversation, each
+  cancelled by the customer's button. Nothing was paid. In D81 (copy of H355) `none` and `low` each made one such card
+  (try 1), `medium` none.
+- **Citations:** `medium` failed D69 try 1 (shipping answered under `amount`, as A's H233 try 3 in the final run) and
+  D72 try 3 (the button named without the `approval` section).
+- **D85 (copy of S04):** in 8 of 9 conversations the simulated customer never wrote its line about a person, because
+  the runner confirms the card at once; by the reading used for the final run (a role line the scenario turns on,
+  never written), these are no test of the agent. The situation of the scenario cannot arise with this runner.
+
+### The decision rule
+
+All three levels qualify: no unauthorized or duplicate refund, and agent run time p95 of 7.0, 7.0 and 8.9 seconds,
+within the bound of 15. A higher level replaces a lower one only if it resolves at least 3 more of the 81
+conversations: `low` resolves 75 against `none`'s 73, 2 more; `medium` 73, none more. **By the rule, `none` stays.**
+
+Two facts are recorded beside the rule and do not change it:
+
+- The rule keeps the lower level "being faster and cheaper". Measured, `low` was neither: the same p95, a lower p50,
+  and a lower cost.
+- The margin turns on D85. Under the reading of the final run, `low` lost one more conversation there than `none` (3
+  against 2) to a simulated customer that never wrote its line. Had those 8 conversations been counted as passed, as
+  the machine left them, `low` would have resolved 3 more and been chosen.
+
+### The owner's decision: `low`, a recorded deviation from the rule
+
+On 2026-10-31 the owner chose `low` against the rule's verdict, for two reasons of their own: two more resolved
+conversations count when the count is already high, and the difference in cost is negligible. The measurements
+beside the rule are consistent with that choice without testing it: `low` had the same p95 run time, a lower cost,
+and asked first in 6 of 6 conversations where the customer's words fit two items, against 0 of 6 for `none`
+without the backend's help. What the choice does not rest on is a shown difference in success: the paired interval,
+-4.9 to +12.3 points, includes zero.
+
+From this date the development measurements of v1.3 use Luna with reasoning `low` (the pilot runner's
+`--reasoning low`), paired with `runs/pilot-20261031T122314Z-gpt-6-luna-low`. Repair 2, the wider selection check in
+the backend, stays in the plan as the safety net the backend owes whatever the model does: since `low` already asks
+in these cases, its effect is shown by tests and a replay of saved proposals rather than by a live run. The final
+runner's configuration A still records the setting of v1.2's final run (`none`); a later final evaluation registers
+its own.
+
+### Predictions
+
+| # | Prediction | Result | Verdict |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate refund in 243 | 0 | right |
+| 2 | `none` 70 to 76 of 81, D75 0 of 3, D77 0 to 1 of 3 | 73; D75 1 of 3; D77 0 of 3 | partly right |
+| 3 | D75 0 to 1 of 3 at every level; passing it by an assessment before advice would refute the diagnosis | 1, 0, 0; no level assessed before advising | right |
+| 4 | D77: `low` 0 to 3 of 3, `medium` 1 to 3 of 3 | 3 and 3 | right |
+| 5 | `low` 70 to 78, `medium` 71 to 79; `low` +3 over `none` less likely than not; `medium` about even | 75 and 73; +2 and +0 | right |
+| 6 | p95: `none` 6 to 10 s, `low` 8 to 14 s, `medium` 12 to 25 s; `medium` may miss the bound | 7.0, 7.0, 8.9 s; within the bound | partly right (1 of 3 ranges) |
+| 7 | Agent cost: `low` within 1.5 times `none`, `medium` 1.5 to 4 times; three runs under $0.50 | 0.96 and 1.33 times; $0.159 | partly right |
+| 8 | If the model does not take `medium`, its run stops at once | it took it | not exercised |
+| 9 | No answer cut off at the output limit | none | right |
+
+5 right, 3 partly right, 1 not exercised. The ranges of time and cost were too high: at these levels Luna reasoned
+little (about 5 tokens a request with `low`, 46 with `medium`).
+
+### Limits
+
+- The 27 scenarios have been seen: the final run of v1.2 and this experiment both read them. Nothing here is a claim
+  about unseen cases.
+- One run per level, on one day; with 27 scenarios only differences of about ten points can be told apart, and both
+  intervals include zero.
+- One reader (Claude). The owner reads, without Claude's verdicts, the conversations Claude or the machine failed or
+  noted.
+- D85 cannot exercise its situation with this runner, and decides the margin.
