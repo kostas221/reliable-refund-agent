@@ -20,7 +20,8 @@ PAYMENT_METHODS = frozenset({"credit_card", "boleto", "voucher", "debit_card"})
 ENFORCED_BY = {
     "scope": "the currency check of valid_values; the UTC check of every function here",
     "eligible-orders": "evaluate()",
-    "window": "evaluate() with refund_deadline(), and the earlier on-time units the backend finds for each request",
+    "window": "evaluate() with window_deadline(), which the agent's order list shows too, and the earlier on-time "
+    "units the backend finds for each request",
     "return": "evaluate()",
     "amount": "split_paid() once when the order is recorded; evaluate() adds up the units' paid amounts and refuses a "
     "unit with nothing paid",
@@ -116,11 +117,28 @@ def single_valid_payment(order: Order) -> bool:
     )
 
 
-def _delivery_time_plausible(order: Order, at: datetime) -> bool:
-    if order.delivered_at is None:
+def _delivery_time_plausible(purchased_at: datetime, delivered_at: datetime | None, at: datetime) -> bool:
+    if delivered_at is None:
         return False
-    _require_utc(order.delivered_at, "delivered_at")
-    return order.purchased_at <= order.delivered_at <= at
+    _require_utc(delivered_at, "delivered_at")
+    return purchased_at <= delivered_at <= at
+
+
+def window_deadline(
+    policy: Policy, status: str, purchased_at: datetime, delivered_at: datetime | None, at: datetime
+) -> datetime | None:
+    """The deadline the window section applies to an order at the moment `at`, or None where that section does not
+    decide: an order not in an eligible status is refused before the window is read, and one with no plausible
+    delivery time goes to a person (section eligible-orders). evaluate() and the agent's order list both use it, so
+    the list never shows a deadline the decision would not apply (v1.3 repair 1, plan change log 2026-10-31). A
+    passed deadline does not by itself refuse a unit: one with an earlier on-time proposal goes to a person."""
+    _require_utc(at, "at")
+    _require_utc(purchased_at, "purchased_at")
+    if status not in policy.rules.eligible_order_statuses:
+        return None
+    if not _delivery_time_plausible(purchased_at, delivered_at, at):
+        return None
+    return refund_deadline(policy, delivered_at)
 
 
 def evaluate(
@@ -153,11 +171,12 @@ def evaluate(
 
     refused: list[str] = []
     needs_person: list[str] = []
+    deadline = window_deadline(policy, order.status, order.purchased_at, order.delivered_at, at)
     if order.status not in policy.rules.eligible_order_statuses:
         refused.append("eligible-orders")
-    elif not _delivery_time_plausible(order, at):
+    elif deadline is None:  # no plausible delivery time
         needs_person.append("eligible-orders")
-    elif at > refund_deadline(policy, order.delivered_at):
+    elif at > deadline:
         (needs_person if set(unit_ids) <= earlier_on_time_units else refused).append("window")
     if any(unit.refunded for unit in requested):
         refused.append("remaining")

@@ -353,16 +353,27 @@ def test_the_correct_conversation_without_its_citations_fails_on_them(play, scen
     assert set(result.verdict.names("failed")) == missing, result.verdict.report()
 
 
-@pytest.mark.parametrize(
-    ("scenario_id", "extra"),
-    [("H102", ("u1", "u2", "u3")), ("H241", ("u1", "u2")), ("S06", ("u1", "u2")), ("S04", ("u1", "u2"))],
-)
+@pytest.mark.parametrize(("scenario_id", "extra"), [("H102", ("u1", "u2", "u3")), ("H241", ("u1", "u2"))])
 def test_a_proposal_with_units_the_customer_did_not_ask_for_fails(play, scenario_id, extra):
-    # The wrong proposal first; the backend refuses it or the customer declines it, and the correct one follows.
+    # The wrong proposal first; the policy refuses it or the customer declines it, and the correct one follows.
     mock = CORRECT[scenario_id]
     agent = (LIST, propose(scenario_id, *extra), *mock.agent[1:])
     result = play(scenario_id, MockRun(agent=agent, customer=mock.customer))
     assert "forbidden:proposal_with_other_units" in result.verdict.names("failed"), result.verdict.report()
+
+
+@pytest.mark.parametrize(("scenario_id", "extra"), [("S06", ("u1", "u2")), ("S04", ("u1", "u2"))])
+def test_a_product_the_customers_words_do_not_name_is_refused_before_any_proposal(play, scenario_id, extra):
+    # v1.3 repair 2 (plan change log, 2026-10-31): the kettle with the descaler for "the red kettle" (S06), the beanie
+    # with the scarf for "the wool beanie" (S04). The selection check refuses the attempt before a proposal exists, so
+    # no wrong card reaches the customer; until that repair the policy's refusal or the customer's decline came after
+    # a recorded proposal, and the evaluator failed it. A refused attempt is recorded, as for S08, not failed.
+    mock = CORRECT[scenario_id]
+    agent = (LIST, propose(scenario_id, *extra), *mock.agent[1:])
+    result = play(scenario_id, MockRun(agent=agent, customer=mock.customer))
+    assert {"event": "propose", "check": "units_named", "actor": "agent"} in result.refusals, result.refusals
+    assert "forbidden:proposal_with_other_units" not in result.verdict.names("failed"), result.verdict.report()
+    assert result.verdict.item("outcome:refunds").status == "passed", result.verdict.report()
 
 
 def test_a_proposal_for_the_other_order_fails_s05(play):

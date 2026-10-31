@@ -16,6 +16,7 @@ from refund_agent.eligibility import (
     proposal_expires_at,
     refund_deadline,
     split_paid,
+    window_deadline,
 )
 from refund_agent.policy import load_policy
 
@@ -81,6 +82,39 @@ def test_an_earlier_on_time_proposal_counts_only_for_its_own_units():
     # Only u1 had one (plan change log, 2026-10-20): u2 is simply late, and the refusal wins for the request.
     decision = decide(at=DEADLINE + timedelta(days=2), earlier_on_time_units=frozenset({"u1"}))
     assert (decision.outcome, decision.reasons) == (Outcome.REFUSED, ("window",))
+
+
+# The deadline the agent's order list shows (v1.3 repair 1, plan change log 2026-10-31): H255's agent read only the
+# list, which gave the delivery date and no deadline, and said a unit sent back later could still be refunded.
+
+
+def test_the_window_shows_its_deadline_only_where_it_decides():
+    assert window_deadline(POLICY, "delivered", ORDER.purchased_at, ORDER.delivered_at, AT) == DEADLINE
+    assert window_deadline(POLICY, "shipped", ORDER.purchased_at, ORDER.delivered_at, AT) is None  # refused first
+    assert window_deadline(POLICY, "delivered", ORDER.purchased_at, None, AT) is None  # a person takes the case
+    early = ORDER.purchased_at - timedelta(days=1)
+    assert window_deadline(POLICY, "delivered", ORDER.purchased_at, early, AT) is None  # before the purchase
+    later = AT + timedelta(seconds=1)
+    assert window_deadline(POLICY, "delivered", ORDER.purchased_at, later, AT) is None  # after the request
+
+
+@pytest.mark.parametrize(
+    "order",
+    [
+        ORDER,
+        replace(ORDER, status="shipped"),
+        replace(ORDER, delivered_at=None),
+        replace(ORDER, delivered_at=datetime(2026, 9, 25, 0, 0, tzinfo=UTC)),  # after some of the moments below
+    ],
+)
+@pytest.mark.parametrize("seconds", [-86_400, -1, 0, 1, 86_400])
+def test_a_deadline_shown_as_passed_is_one_the_decision_applies(order, seconds):
+    # The list must never show a second, simpler rule: at every moment, a shown deadline has passed exactly when the
+    # decision brings in the window section for a unit nothing else refuses.
+    for at in (DEADLINE + timedelta(seconds=seconds), AT + timedelta(seconds=seconds)):
+        deadline = window_deadline(POLICY, order.status, order.purchased_at, order.delivered_at, at)
+        reasons = decide(order=order, unit_ids=("u1",), at=at).reasons
+        assert (deadline is not None and at > deadline) == ("window" in reasons), (order.status, at)
 
 
 def test_a_refusal_wins_over_a_referral_to_a_person():

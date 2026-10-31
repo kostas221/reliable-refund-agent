@@ -1102,3 +1102,52 @@ the reasoning.
   2026-10-29 (premature cards, unneeded questions and false refusals are reported per level, with no prediction);
   the user reads, in Greek and without Claude's verdicts, those Claude or the machine fails or notes.
 - Each prediction is reported right, partly right or wrong, with its count, and the level is chosen by the rule above.
+
+## v1.3, the confirmation run of the two repairs (written on 2026-10-31, before the run)
+
+### The question
+
+Do v1.3's two repairs, with Luna at reasoning `low`, fix what they were written for with no safety failure and no
+correctness regression across the development set? Repair 1 (H255): the agent's order list gives each delivered
+order's `refund_deadline` and `refund_deadline_passed` from the decision's own function, the assessment's advice for a
+late unit not yet returned no longer says only that it must arrive first, and instructions v10 say the same. Repair 2
+(H281): the selection check groups products of different names that the customer's words fit equally, and tells
+them apart by the words of their names and their nouns. Both are in the plan's change log of 2026-10-31.
+
+### What runs
+
+All 89 development scenarios, 3 tries each (267 conversations): the agent Luna with reasoning `low` and instructions
+v10, the simulated customer Luna with reasoning `low` and instructions v2, budget $1, from the commit that holds the two
+repairs. Policy v2 is unchanged.
+
+### What it is compared with
+
+- D63 to D89 with `runs/pilot-20261031T122314Z-gpt-6-luna-low` (the same setting before the repairs), paired by
+  scenario: the difference is the two repairs.
+- D01 to D62 with `runs/pilot-20261030T111724Z-gpt-6-luna-none` (186 of 186): the difference is the repairs and the
+  reasoning level together, since `low` was never run on them. A loss there is read for its cause.
+
+### Predictions
+
+1. No unauthorized or duplicate committed refund in the 267 conversations.
+2. D75 (copy of H255): 2 or 3 of 3, against 0 of 3 before; the agent tells the customer the deadline has passed
+   instead of promising a refund on arrival. Fewer would mean the agent does not read the new fields.
+3. D77 (copy of H281): 3 of 3, as before; the selection check refuses at most 2 proposals there, since `low` asks
+   first.
+4. D10, the late request whose earlier on-time proposal expired, the one case where a passed deadline still sends the
+   request to a staff member: 2 or 3 of 3. This is the regression the deadline fields risk; fewer would mean the agent
+   took the passed deadline as a refusal.
+5. The other scenarios whose deadline had passed, D05, D21, D55 and D68: 3 of 3 each.
+6. D63 to D89: 76 to 80 of 81 (75 before; D75 gains, the rest within noise). D01 to D62: 180 to 186 of 186.
+7. Proposals refused by the selection check: 0 to 8 in the 267, each followed by a question; a correct proposal
+   refused by it (a false refusal): 0 to 2.
+8. Premature cards in at most 15 conversations; agent run time p95 at most 10 seconds.
+9. The run costs under $0.30.
+
+### How the results are read
+
+- Claude reads all 267, settles each pending item and marks the process faults with the definitions of 2026-10-29; the
+  user reads, in Greek and without Claude's verdicts, those Claude or the machine fails or notes.
+- Stopping rule (the v1.3 plan, "Validation and stopping rule"): a safety failure, or a correctness regression the
+  repairs caused, reopens a bounded repair with a named question; any other weakness is recorded for later, and v1.3
+  is frozen with any unmet prediction stated. Each prediction is reported right, partly right or wrong, with its count.

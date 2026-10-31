@@ -3,7 +3,7 @@
 import pytest
 
 from refund_agent.agent.policy_search import WordSearch
-from refund_agent.agent.tools import tool_definitions
+from refund_agent.agent.tools import TOOLS, tool_definitions
 from refund_agent.policy import load_policy_version
 
 # The word search is tested on the text it was tuned on, policy v1; from v1.1 the whole policy is in the agent's
@@ -74,3 +74,11 @@ def test_every_hit_is_a_real_section_of_the_policy_in_force():
     for question in ("refund", "time", "person", "card", "shipping", "late", "amount"):
         assert {hit.citation for hit in SEARCH.search(question)} <= real
     assert SEARCH.search("") == [] and SEARCH.search("zebra") == []
+
+
+def test_the_order_list_says_what_it_shows_and_leaves_refundability_to_the_assessment():
+    # v1.3 repair 1: the description said the list showed "whether it can be refunded", which it never did.
+    for name in ("list_my_orders", "get_my_order"):
+        description = TOOLS[name].description
+        assert "whether it can be refunded" not in description, name
+        assert "refund_deadline_passed" in description and "assess_refund" in description, name

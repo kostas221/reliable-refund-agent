@@ -28,7 +28,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import Engine, text
 
-from refund_agent import reads
+from refund_agent import eligibility, reads
 from refund_agent.policy import Policy
 from refund_agent.refunds import (
     HANDOFF_REASONS,
@@ -172,9 +172,18 @@ def _orders(ctx: ToolContext) -> list[dict]:
                 {"ids": [o["order_id"] for o in mine]},
             ).all()
         )
+    now = ctx.clock()
     for order in mine:
         if found.get(order["order_id"]):
             order["seller_message"] = {"untrusted_text": found[order["order_id"]], "note": UNTRUSTED}
+        # The deadline the decision would apply, where it applies one (v1.3 repair 1, plan change log 2026-10-31): in
+        # H255 the agent read only this list, saw the delivery date and no deadline, and is not told the date.
+        deadline = eligibility.window_deadline(
+            ctx.policy, order["status"], order["purchased_at"], order["delivered_at"], now
+        )
+        if deadline is not None:
+            order["refund_deadline"] = deadline
+            order["refund_deadline_passed"] = now > deadline
         # A paid request carries the section that says its units are not refunded again, beside its receipt, where
         # the agent reads the fact (D20 of 2026-10-23 gave the receipt without it; review after the selection check).
         for request in order["requests"]:
@@ -247,9 +256,15 @@ def _named_case(ctx: ToolContext, order_id: str, unit_ids: list[str], reasons: t
     else:  # some requested units are received back or refunded: only the others can be disputed
         said = "they already sent " + ", ".join(f"{u['unit_id']} ({u['product']})" for u in missing)
         units = "only those units"
+    later = (  # sections return and window together: arriving later cannot make a late request timely
+        "explain that the refund deadline has passed, so a request after they arrive would be refused for being late "
+        "too; do not say they can be refunded once they arrive."
+        if "window" in reasons
+        else "explain that they must arrive first."
+    )
     return (
         f" If the customer says {said}, the policy names that case for a person: hand off with reason_code "
-        f"return_disputed, the order and {units}. If they will send them later, explain that they must arrive first."
+        f"return_disputed, the order and {units}. If they will send them later, {later}"
     )
 
 
@@ -456,6 +471,14 @@ def request_handoff(ctx: ToolContext, args: HandoffArgs, call_id: str) -> dict:
     }
 
 
+# What a passed deadline means, in the two reads that show it. Whether a unit can be refunded is assess_refund's answer.
+_DEADLINE_NOTE = (
+    "After a passed deadline a new request for the order's units is refused for being late, unless an earlier proposal "
+    "made in time covered them, when a staff member decides; assess_refund says which. With no deadline shown, the "
+    "order is not delivered or has no delivery time the policy can use."
+)
+
+
 @dataclass(frozen=True)
 class Tool:
     name: str
@@ -469,14 +492,16 @@ TOOLS = {
     for tool in (
         Tool(
             "list_my_orders",
-            "The signed-in customer's orders, with each unit, whether it can be refunded, the refund requests "
-            "already made for each order, and any seller message.",
+            "The signed-in customer's orders: each unit with whether the shop received it back and whether it was "
+            "refunded, the refund requests already made, any seller message, and for a delivered order its "
+            "refund_deadline and refund_deadline_passed. " + _DEADLINE_NOTE,
             NoArgs,
             list_my_orders,
         ),
         Tool(
             "get_my_order",
-            "One of the customer's orders, with its units, its refund requests and any seller message.",
+            "One of the customer's orders, as in list_my_orders: its units, its refund requests, any seller message, "
+            "and its refund_deadline and refund_deadline_passed when delivered. " + _DEADLINE_NOTE,
             OrderArgs,
             get_my_order,
         ),

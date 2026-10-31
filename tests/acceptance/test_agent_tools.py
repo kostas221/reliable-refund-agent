@@ -986,6 +986,38 @@ def test_a_yes_to_the_question_that_named_the_item_counts_although_a_fact_line_c
     assert made.get("status") == "awaiting_customer_confirmation", made
 
 
+@pytest.mark.parametrize("configuration", ["A", "C"])
+def test_products_of_different_names_the_words_fit_equally_wait_for_the_customers_words(db, configuration):
+    # v1.3 repair 2 (plan change log, 2026-10-31): H281 of v1.2's final run, both black accessories proposed for "the
+    # black camera accessory" in 6 of 6 tries of Luna (A and C).
+    ctx = agent_for(db, "D77", configuration)
+    said(ctx, "Please refund the black camera accessory I returned. Is the price after the discount the amount?")
+    for n, units in enumerate((["h281-o1-u1", "h281-o1-u2"], ["h281-o1-u1"], ["h281-o1-u2"])):
+        refused = call(ctx, "propose_refund", f"p-{n}", order_id="h281-o1", unit_ids=units)
+        assert refused["refused"] == "units_named", refused
+        assert "Black camera wrist strap (order h281-o1" in refused["explanation"]
+        assert "Black camera pouch (order h281-o1" in refused["explanation"]
+        assert "Gray camera lens case" not in refused["explanation"]  # "black" does not fit it
+    assert proposals(ctx) == []
+    said(ctx, "Which one would you like refunded: the wrist strap or the pouch?", author="agent")
+    said(ctx, "The wrist strap, please.")
+    pouch = call(ctx, "propose_refund", "p-pouch", order_id="h281-o1", unit_ids=["h281-o1-u2"])
+    assert pouch["refused"] == "units_named"
+    made = call(ctx, "propose_refund", "p-strap", order_id="h281-o1", unit_ids=["h281-o1-u1"])
+    assert made["status"] == "awaiting_customer_confirmation", made
+
+
+def test_a_product_named_by_its_noun_is_proposed_at_once_and_not_with_another(db):
+    # S06 (D87): "the red kettle" names the black electric kettle, not the kettle descaler; in try 1 of the run of
+    # none on 2026-10-31 the agent proposed both.
+    ctx = agent_for(db, "D87")
+    said(ctx, "Hello! I returned the red kettle, it was too loud. Could you refund it?")
+    both = call(ctx, "propose_refund", "p-both", order_id="s06-o1", unit_ids=["s06-o1-u1", "s06-o1-u2"])
+    assert both["refused"] == "units_named", both
+    made = call(ctx, "propose_refund", "p-kettle", order_id="s06-o1", unit_ids=["s06-o1-u1"])
+    assert made["status"] == "awaiting_customer_confirmation", made
+
+
 def test_items_the_customer_named_as_both_are_proposed_at_once(db):
     ctx = agent_for(db, "D32")
     said(ctx, "Hi, I sent back both linen scarves, the olive one and the rust one. Please refund both of them.")
@@ -1204,6 +1236,53 @@ def test_a_refusal_for_lateness_names_no_case_for_a_person(db, tool):
     refused = call(ctx, tool, order_id="d05-o1", unit_ids=["d05-o1-u1"])
     assert refused["outcome"] == "refused"
     assert "for a person" not in refused["next_step"] and "return_disputed" not in refused["next_step"]
+
+
+# v1.3 repair 1 (plan change log, 2026-10-31): in H255 of v1.2's final run no agent called assess_refund; the order
+# list gave the delivery date but no deadline, the agent is not told the date, and both the assessment's next step and
+# the instructions said only that a unit sent later "must arrive first".
+
+
+def test_the_order_list_gives_a_delivered_orders_deadline_and_that_it_passed(db):
+    ctx = agent_for(db, "D75")  # copy of H255: delivered 2026-10-13 10:00, so the deadline was 2026-11-12 10:00
+    (order,) = call(ctx, "list_my_orders")["orders"]
+    assert (order["refund_deadline"], order["refund_deadline_passed"]) == ("2026-11-12T10:00:00+00:00", True)
+    one = call(ctx, "get_my_order", order_id="h255-o1")["order"]
+    assert (one["refund_deadline"], one["refund_deadline_passed"]) == ("2026-11-12T10:00:00+00:00", True)
+
+
+def test_a_deadline_passes_only_after_its_last_moment(db):
+    ctx = agent_for(db, "D69")  # copy of H233: the yoga mat's deadline is 2026-11-16 18:00, eight hours after now
+    deadline = datetime(2026, 11, 16, 18, 0, tzinfo=UTC)
+    for at, passed in ((ctx.clock(), False), (deadline, False), (deadline + timedelta(seconds=1), True)):
+        orders = call(replace(ctx, clock=lambda at=at: at), "list_my_orders")["orders"]
+        mat = next(o for o in orders if o["order_id"] == "h233-o1")
+        assert (mat["refund_deadline"], mat["refund_deadline_passed"]) == ("2026-11-16T18:00:00+00:00", passed), at
+
+
+def test_an_order_on_its_way_shows_no_deadline(db):
+    ctx = agent_for(db, "D74")  # copy of H245: the replacement lid's order is shipped
+    lid = next(o for o in call(ctx, "list_my_orders")["orders"] if o["order_id"] == "h245-o2")
+    assert "refund_deadline" not in lid and "refund_deadline_passed" not in lid
+
+
+def test_an_order_with_no_delivery_time_shows_no_deadline(db):
+    ctx = agent_for(db, "D61")  # delivered with no delivery time recorded: a staff member takes the case
+    order = next(o for o in call(ctx, "list_my_orders")["orders"] if o["order_id"] == "h77-o1")
+    assert "refund_deadline" not in order and "refund_deadline_passed" not in order
+
+
+@pytest.mark.parametrize("tool", ["assess_refund", "propose_refund"])
+def test_a_late_unit_sent_later_is_not_said_to_be_refundable_once_it_arrives(db, tool):
+    ctx = agent_for(db, "D75")  # copy of H255: the holder is not back, and its deadline passed
+    refused = call(ctx, tool, order_id="h255-o1", unit_ids=["h255-o1-u1"])
+    assert refused["policy_citations"] == ["refund-policy/v2/window", "refund-policy/v2/return"]
+    assert "explain that they must arrive first." not in refused["next_step"]
+    assert (
+        "If they will send them later, explain that the refund deadline has passed, so a request after they arrive "
+        "would be refused for being late too; do not say they can be refunded once they arrive."
+    ) in refused["next_step"]
+    assert "already sent, the policy names that case for a person" in refused["next_step"]  # still a named case
 
 
 # The second review (2026-10-22): the named case was keyed by the first refusal reason only.

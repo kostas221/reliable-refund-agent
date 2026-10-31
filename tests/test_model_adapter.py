@@ -89,7 +89,7 @@ def test_the_instructions_name_only_real_tools_and_handoff_reasons():
     arguments = {name for tool in TOOLS.values() for name in tool.args.model_fields}
     assert named and named <= set(TOOLS) | arguments | set(HANDOFF_REASONS)
     assert set(HANDOFF_REASONS) <= named  # every reason the backend accepts is explained to the agent
-    assert INSTRUCTIONS.version == "agent-v9" and len(INSTRUCTIONS.sha256) == 64
+    assert INSTRUCTIONS.version == "agent-v10" and len(INSTRUCTIONS.sha256) == 64
 
 
 def test_every_citation_the_instructions_quote_exists_in_their_policy():
@@ -113,7 +113,7 @@ def test_the_instructions_hold_every_section_of_the_policy_under_its_id():
 
 
 def test_instructions_that_include_the_policy_need_it():
-    with pytest.raises(ValueError, match="agent-v9.md includes the policy"):
+    with pytest.raises(ValueError, match="agent-v10.md includes the policy"):
         load_instructions()
 
 
@@ -148,3 +148,24 @@ def test_what_the_policy_allows_after_a_refusal_is_offered_in_words_first():
 def test_the_agent_knows_it_is_told_of_the_customers_buttons():
     # Fix 3: seven times a declined request was said to wait for the customer's button.
     assert "You are told when the customer declines or cancels a card with its button" in SAID
+
+
+# Version 10 (v1.3 repair 1, plan change log 2026-10-31): v9 told the agent only that an item sent later "must arrive
+# first", and in H255 of v1.2's final run every agent said or implied it could then be refunded, past its deadline.
+
+
+def test_an_item_sent_later_past_its_deadline_is_not_promised_a_refund_on_arrival():
+    assert "If the customer will send an item later, explain that it must arrive first" in SAID
+    assert (
+        "if its order's refund deadline has passed (refund_deadline_passed in the order), say that a request after it "
+        "arrives would be late too, and never that it can be refunded once it arrives." in SAID
+    )
+
+
+def test_version_10_changes_only_that_sentence():
+    v9 = (REPO_ROOT / "prompts" / "agent-v9.md").read_text(encoding="utf-8")
+    v10 = (REPO_ROOT / "prompts" / "agent-v10.md").read_text(encoding="utf-8")
+    added = " if its order's refund deadline has passed (refund_deadline_passed in the order), say that a request "
+    added += "after it arrives would be late too, and never that it can be refunded once it arrives."
+    flat9, flat10 = " ".join(v9.split()), " ".join(v10.split())
+    assert flat10 == flat9.replace("refund already under way.", "refund already under way;" + added, 1)

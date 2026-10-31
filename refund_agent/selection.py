@@ -30,6 +30,19 @@ last (review after the selection check, 2026-10-23):
 
 Words are read, not meant: "the second one" and "the large one" select nothing, so the agent asks again. A notice
 from the backend is not the customer's answer.
+
+Products of different names that the customer's words fit equally are look-alikes too (v1.3 repair 2, plan change log
+2026-10-31): in H281 of v1.2's final run "the black camera accessory" fit a black wrist strap and a black pouch, and
+Luna proposed both in 6 of 6 tries, since the check looked only within one family. A product alone in its family is
+grouped with every product whose name holds all the words the customer used that its name shares with another
+("black", "camera"); the words that tell it apart then decide as above, so "the wrist strap, not the pouch" and "the
+pouch instead of the strap" are read with their negation. "Both" names a group of two only. A product is told apart
+by the words of its name the others lack ("wrist", "strap"), and by its noun, the last word of its
+family, when the others end in another noun: "the red kettle" names the "Electric kettle, black" and not the "Kettle
+descaler", where "kettle" only describes. A word inside another product's name does not name this one ("the kettle
+descaler" is not the kettle). Words that name nothing of any product leave the choice to the agent's question, as
+before: otherwise every customer with several orders would be stopped. Names are compared in the singular and
+without words such as "of" and "for".
 """
 
 from __future__ import annotations
@@ -51,6 +64,8 @@ _ONLY = re.compile(r"\b(only|just)\b")
 _COUNT = re.compile(r"\b(?:each|every|all|two|three|four|five|[2-5])\b((?:\s+\S+){1,3})")
 _YES = re.compile(r"(yes|yeah|yep|yup|sure|correct|right|exactly|that one|that's (?:the one|it|right))\b")
 _NO = re.compile(r"(no|nope)\b")
+# Words that name no product, left out when names are compared (v1.3 repair 2).
+_FUNCTION_WORDS = frozenset({"a", "an", "the", "of", "for", "with", "and", "or", "in", "on", "to", "by"})
 _MONTHS = (
     "january",
     "february",
@@ -74,6 +89,16 @@ def plain(text: str) -> str:
 
 def _words(text: str) -> set[str]:
     return set(_WORD.findall(plain(text)))
+
+
+def _stem(word: str) -> str:
+    """A word in the singular, roughly: "straps" and "strap" compare equal; short words such as "l" stay as they are."""
+    return word[:-1] if len(word) > 3 and word.endswith("s") else word
+
+
+def _name_words(product: str) -> set[str]:
+    """The words that can name a product: 'Black camera wrist strap' gives black, camera, wrist and strap."""
+    return {_stem(word) for word in _words(product) if word not in _FUNCTION_WORDS}
 
 
 def asks_customer(text: str) -> bool:
@@ -101,6 +126,21 @@ class Kind:
     def variant(self) -> set[str]:
         return _words(",".join(self.product.split(",")[1:]))
 
+    @property
+    def noun(self) -> str:
+        """The last word of its family, in the singular: strap, pouch, kettle (of "Electric kettle, black")."""
+        words = [word for word in _WORD.findall(self.family) if word not in _FUNCTION_WORDS]
+        return _stem(words[-1]) if words else ""
+
+
+def _own(kind: Kind, others: Sequence[Kind]) -> set[str]:
+    """The words that tell this kind apart from the others: those of its name they lack, and its noun when theirs
+    differ. Within one family this is the variant's words the others lack ("olive")."""
+    own = _name_words(kind.product) - set().union(*(_name_words(other.product) for other in others))
+    if kind.noun and all(other.noun != kind.noun for other in others):
+        own.add(kind.noun)
+    return own
+
 
 def _date_at(text: str, day: date) -> int | None:
     month = _MONTHS[day.month - 1]
@@ -115,9 +155,16 @@ def _date_at(text: str, day: date) -> int | None:
 
 def _named_at(kind: Kind, others: Sequence[Kind], clause: str) -> int | None:
     """Where in the clause words tell this kind apart from the others of its group, or None."""
-    own = kind.variant - set().union(*(other.variant for other in others))
+    own = _own(kind, others)
+    # A word inside another product's name does not name this one: "the kettle descaler" is not the kettle.
+    inside = [
+        found.span()
+        for other in others
+        if other.family != kind.family
+        for found in re.finditer(rf"\b{re.escape(other.family)}\b", clause)
+    ]
     for word in _WORD.finditer(clause):  # whole words: the "m" of "i'm" is not a size M
-        if word.group() in own:
+        if _stem(word.group()) in own and not any(start <= word.start() < end for start, end in inside):
             return word.start()
     if all(other.order_id != kind.order_id for other in others):
         found = re.search(rf"\b{re.escape(plain(kind.order_id))}\b", clause)
@@ -131,10 +178,11 @@ def _named_at(kind: Kind, others: Sequence[Kind], clause: str) -> int | None:
     return None
 
 
-def _all_of_them_at(clause: str, family: str) -> int | None:
-    """Where the clause names every kind of the family at once, or None."""
+def _all_of_them_at(clause: str, family: str, kinds: int) -> int | None:
+    """Where the clause names every kind of the family at once, or None. "Both" names a group of two only: among
+    three it does not say which two."""
     found = re.search(r"\bboth\b", clause)
-    if found:
+    if found and kinds == 2:
         return found.start()
     stems = [word[:-1] for word in _WORD.findall(family) if len(word) > 3]  # "scar" for scarf and scarves
     for found in _COUNT.finditer(clause):
@@ -143,15 +191,16 @@ def _all_of_them_at(clause: str, family: str) -> int | None:
     return None
 
 
-def _selected(group: Sequence[Kind], messages: Sequence[tuple[str, str]]) -> dict[Kind, bool]:
-    """Which kinds of the group the customer selects now: their messages read in order, clause by clause."""
+def _selected(group: Sequence[Kind], messages: Sequence[tuple[str, str]], name: str) -> dict[Kind, bool]:
+    """Which kinds of the group the customer selects now: their messages read in order, clause by clause. name: the
+    words the group's kinds share, for a count such as "the two scarves"."""
     state = dict.fromkeys(group, False)
     for index, (author, text) in enumerate(messages):
         if author != "customer":
             continue
         selected_here: set[Kind] = set()
         for clause in (part for part in _CLAUSE.split(plain(text)) if part.strip()):
-            whole = _all_of_them_at(clause, group[0].family)
+            whole = _all_of_them_at(clause, name, len(group))
             if whole is not None and not _EXCLUDED.search(clause[:whole]):  # "not both" alone selects nothing
                 state.update(dict.fromkeys(group, True))
                 selected_here.update(group)
@@ -187,14 +236,31 @@ def look_alikes_unnamed(
     the agent reads stays the agent's reading, and a notice from the backend is not the customer's answer."""
     kind_of = {unit: kind for kind in kinds for unit in kind.unit_ids}
     chosen = list(dict.fromkeys(kind_of[unit] for unit in unit_ids if unit in kind_of))
-    for family in dict.fromkeys(kind.family for kind in chosen):
-        group = tuple(kind for kind in kinds if kind.family == family)
+    said = {_stem(word) for author, text in messages if author == "customer" for word in _words(text)}
+    for kind in chosen:
+        group = _group(kind, kinds, said - _FUNCTION_WORDS)
         if len(group) < 2:
             continue
-        state = _selected(group, messages)
-        if not all(state[kind] for kind in chosen if kind.family == family):
+        families = {other.family for other in group}
+        shared = set.intersection(*(_name_words(other.product) for other in group))
+        state = _selected(group, messages, group[0].family if len(families) == 1 else " ".join(sorted(shared)))
+        if not all(state[other] for other in chosen if other in group):
             return group
     return ()
+
+
+def _group(kind: Kind, kinds: Sequence[Kind], said: set[str]) -> tuple[Kind, ...]:
+    """The kinds the customer could mean where the agent chose this one: its family, as before; or, for a product
+    alone in its family, every product whose name holds all the words the customer used that this one's name shares
+    with another ("black", "camera"). With no such word, the product alone. Only shared words count here: a word that
+    tells this product apart ("pouch") decides in _selected, where "not the pouch" and "instead of the strap" are read,
+    and does not take the product out of its group (release brief of 2026-10-31, checked with free probes)."""
+    family = tuple(other for other in kinds if other.family == kind.family)
+    others = set().union(*(_name_words(other.product) for other in kinds if other != kind))
+    used = _name_words(kind.product) & said & others
+    if len(family) > 1 or not used:
+        return family
+    return tuple(other for other in kinds if other == kind or used <= _name_words(other.product))
 
 
 def refusal(group: Sequence[Kind]) -> str:

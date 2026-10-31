@@ -283,7 +283,19 @@ word. v1.3 reasoning experiment (plan change log, 2026-10-31; `docs/pilot/result
 sets, Luna none/low/medium, 81 conversations each, $0.159, 0 unsafe; 73/75/73; low and medium ask first where
 two items fit (6 of 6 each, none 0 of 6 without the backend); D75 fails at every level; the pre-registered rule
 kept none (3 more needed, low +2); the owner chose **low**, a recorded deviation (plan change log, 2026-10-31), so
-v1.3's repairs are measured with Luna low against the low run; the final runner's A still records v1.2's none. The author model's
+v1.3's repairs are measured with Luna low against the low run; the final runner's A still records v1.2's none. Repair 1 (H255) written,
+not measured (plan change log, 2026-10-31): `eligibility.window_deadline()` (used by `evaluate()` too) gives the
+agent's order list `refund_deadline` and `refund_deadline_passed`; the late-and-not-returned advice no longer says
+"must arrive first" alone; instructions v10; 8 of 8 planted bugs caught; the risk to watch is D10 (late, earlier
+on-time proposal, a staff case). Repair 2 (H281) written (plan change log, 2026-10-31): `selection.py` groups
+products of different names the customer's words fit equally, told apart by name words and nouns; replay on 1,819
+saved proposals: 4 more refused, all wrong, no correct one; two defects found by the release brief's checks
+(exclusion, changed choice) fixed, 11 of 11 planted bugs. The owner adopted `docs/release-brief-2026-10-31.md` as
+the closing plan (plan change log, 2026-10-31), in this order: full suite, commit and the registered confirmation
+run of all 89 scenarios with Luna low (`docs/pilot/predictions.md`); close v1.2 (the owner's reading of 73, results);
+a local live-model mode in the app, whose entry point serves only `ScriptedModel` (mock stays default, a budget per
+session, the owner starts each paid one); handoff checks and the five-person trial; README, Docker, CI, licence,
+video. No MCP in this release. The author model's
 name and dates are still to be recorded. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
 `runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run

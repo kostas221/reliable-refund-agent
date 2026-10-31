@@ -243,6 +243,156 @@ CASES = {
 }
 
 
+# v1.3 repair 2 (plan change log, 2026-10-31): two products with different names that the customer's words fit equally.
+# In H281 of v1.2's final run Luna proposed both black accessories for "the black camera accessory" in 6 of 6 tries
+# (A and C); the check grouped only one product family, so it never looked. The repair must also let a clear choice
+# through: "the wrist strap", or "both" when the customer says both.
+
+STRAP = Kind("c1", "Black camera wrist strap", date(2026, 10, 1), date(2026, 10, 5), ("c1-u1",))
+POUCH = Kind("c1", "Black camera pouch", date(2026, 10, 1), date(2026, 10, 5), ("c1-u2",))
+LENS = Kind("c1", "Gray camera lens case", date(2026, 10, 1), date(2026, 10, 5), ("c1-u3",))
+CAMERA = (STRAP, POUCH, LENS)  # H281
+VAGUE_CAMERA = [("customer", "Please refund the black camera accessory I returned. Is the price after the discount?")]
+ASKED = [*VAGUE_CAMERA, ("agent", "Which one would you like refunded: the wrist strap or the pouch?")]
+
+KETTLE = Kind("k1", "Electric kettle, black", date(2026, 10, 20), date(2026, 10, 24), ("k1-u1",))
+DESCALER = Kind("k1", "Kettle descaler", date(2026, 10, 20), date(2026, 10, 24), ("k1-u2",))
+KITCHEN = (KETTLE, DESCALER)  # S06
+RED_KETTLE = [("customer", "Hello! I returned the red kettle, it was too loud. Could you refund it?")]
+
+BIN = Kind("s1", "Felt storage bin", date(2026, 10, 25), date(2026, 10, 31), ("s1-u1",))
+BASKET = Kind("s1", "Wicker storage basket", date(2026, 10, 25), date(2026, 10, 31), ("s1-u2",))
+CRATE = Kind("s1", "Wooden storage crate", date(2026, 10, 25), date(2026, 10, 31), ("s1-u3",))
+STORAGE = (BIN, BASKET, CRATE)  # H245
+
+MUG = Kind("m1", "Ceramic mug", date(2026, 10, 2), date(2026, 10, 6), ("m1-u1",))
+PLATE = Kind("m1", "Ceramic plate", date(2026, 10, 2), date(2026, 10, 6), ("m1-u2",))
+
+CASES.update(
+    {
+        "one of two products the words fit equally (H281)": (CAMERA, ["c1-u1"], VAGUE_CAMERA, False),
+        "both products the words fit equally (H281)": (CAMERA, ["c1-u1", "c1-u2"], VAGUE_CAMERA, False),
+        "the product named after the question": (
+            CAMERA,
+            ["c1-u1"],
+            [*ASKED, ("customer", "The wrist strap, please.")],
+            True,
+        ),
+        "the other product, after the first was named": (
+            CAMERA,
+            ["c1-u2"],
+            [*ASKED, ("customer", "The wrist strap, please.")],
+            False,
+        ),
+        "both, after the first was named": (
+            CAMERA,
+            ["c1-u1", "c1-u2"],
+            [*ASKED, ("customer", "The wrist strap, please.")],
+            False,
+        ),
+        "both, when the customer says both": (
+            CAMERA,
+            ["c1-u1", "c1-u2"],
+            [("customer", "Please refund both black camera accessories I returned.")],
+            True,
+        ),
+        "the product named from the start": (
+            CAMERA,
+            ["c1-u2"],
+            [("customer", "Please refund the black camera pouch I returned.")],
+            True,
+        ),
+        "a word that fits only one of them": (CAMERA, ["c1-u3"], [("customer", "Refund the gray case.")], True),
+        "the kettle, named by its noun though the colour is wrong (S06)": (KITCHEN, ["k1-u1"], RED_KETTLE, True),
+        "the kettle and the descaler, for the kettle (S06)": (KITCHEN, ["k1-u1", "k1-u2"], RED_KETTLE, False),
+        "the descaler, for the kettle (S06)": (KITCHEN, ["k1-u2"], RED_KETTLE, False),
+        "two products named, beside another of the same kind (H245)": (
+            STORAGE,
+            ["s1-u1", "s1-u2"],
+            [("customer", "Refund the felt bin and wicker basket in my delivered order; I kept its crate.")],
+            True,
+        ),
+        "a shared material is not a choice": (
+            (MUG, PLATE),
+            ["m1-u1"],
+            [("customer", "I sent back the ceramic one. Can I get a refund?")],
+            False,
+        ),
+        "the material and the noun": (
+            (MUG, PLATE),
+            ["m1-u1"],
+            [("customer", "I sent back the ceramic mug. Can I get a refund?")],
+            True,
+        ),
+        "the descaler, named with the kettle in its name": (
+            KITCHEN,
+            ["k1-u2"],
+            [("customer", "I returned the kettle descaler. Refund it, please.")],
+            True,
+        ),
+        "the kettle, when the customer named the kettle descaler": (
+            KITCHEN,
+            ["k1-u1"],
+            [("customer", "I returned the kettle descaler. Refund it, please.")],
+            False,
+        ),
+        "a product named in the singular, its name in the plural": (
+            (
+                Kind("g2", "Glass coasters", date(2026, 10, 2), date(2026, 10, 6), ("g2-u1",)),
+                Kind("g2", "Glass vase", date(2026, 10, 2), date(2026, 10, 6), ("g2-u2",)),
+            ),
+            ["g2-u1"],
+            [("customer", "I returned the glass coaster. Can I get a refund?")],
+            True,
+        ),
+        "a word such as 'the' in two names is not a choice": (
+            (
+                Kind("n1", "The Original rain jacket", date(2026, 10, 2), date(2026, 10, 6), ("n1-u1",)),
+                Kind("n1", "The Classic tote", date(2026, 10, 2), date(2026, 10, 6), ("n1-u2",)),
+            ),
+            ["n1-u1"],
+            [("customer", "Refund the item I returned, please.")],
+            True,
+        ),
+        # Exclusions and a changed choice (release brief of 2026-10-31, checked with free probes): a word the customer
+        # said of a product in "not the pouch" or "instead of the strap" does not name it.
+        "the strap, not the pouch": (
+            CAMERA,
+            ["c1-u1"],
+            [*ASKED, ("customer", "The wrist strap, not the pouch.")],
+            True,
+        ),
+        "the pouch, after the customer said not the pouch": (
+            CAMERA,
+            ["c1-u2"],
+            [*ASKED, ("customer", "The wrist strap, not the pouch.")],
+            False,
+        ),
+        "the pouch, after a changed choice": (
+            CAMERA,
+            ["c1-u2"],
+            [*ASKED, ("customer", "The wrist strap."), ("customer", "Actually, the pouch instead of the strap.")],
+            True,
+        ),
+        "the strap, after a changed choice": (
+            CAMERA,
+            ["c1-u1"],
+            [*ASKED, ("customer", "The wrist strap."), ("customer", "Actually, the pouch instead of the strap.")],
+            False,
+        ),
+        "a product the customer's 'both' did not describe": (
+            CAMERA,
+            ["c1-u1", "c1-u2", "c1-u3"],
+            [("customer", "Please refund both black camera accessories I returned.")],
+            False,
+        ),
+        # A known limit, kept on purpose: words that name nothing of any product leave the choice to the agent's
+        # question, as before, or every customer with several orders would be stopped.
+        "words that name no product": ((MUG, PLATE), ["m1-u1"], [("customer", "Refund what I sent back.")], True),
+    }
+)
+
+
 @pytest.mark.parametrize("case", sorted(CASES))
 def test_which_items_the_customers_words_pick_out(case):
     kinds, units, messages, holds = CASES[case]
