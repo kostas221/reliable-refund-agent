@@ -1,0 +1,209 @@
+{
+  "scenario": "D81",
+  "try": 2,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal cancelled, acceptable ['cancelled']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v2/approval",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: A chat “stop” cannot cancel a proposal; cancelling the unpaid confirmed card requires its own button."
+    },
+    {
+      "name": "communication:states_correct_amount",
+      "status": "pending",
+      "evidence": "pre-check passed: ['R$ 208,00'] stated"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 6,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    5.449,
+    6.038,
+    1.735
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.008539500000000033,
+    "simulator": 0.0004247000000000001
+  },
+  "attempts_sent": 9,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Both travel pieces came back. Please create a refund card, and if I type “stop” later, does that cancel it?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_iUBQDxX1ULKHcfebbaDZeitY",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_iUBQDxX1ULKHcfebbaDZeitY",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h355-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-25T08:20:22+00:00\", \"delivered_at\": \"2026-11-02T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h355-o1-u1\", \"product\": \"Felt travel passport wallet\", \"paid_minor\": 10400, \"received_back\": true, \"refunded\": false}, {\"unit_id\": \"h355-o1-u2\", \"product\": \"Travel document sleeve\", \"paid_minor\": 10400, \"received_back\": true, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-12-02T10:00:00+00:00\", \"refund_deadline_passed\": false}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_XWVc4SfEkvinMcxQEktmkBet",
+          "name": "propose_refund",
+          "arguments": "{\"order_id\":\"h355-o1\",\"unit_ids\":[\"h355-o1-u1\",\"h355-o1-u2\"],\"summary_for_staff\":\"Customer requests refund of both travel pieces.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_XWVc4SfEkvinMcxQEktmkBet",
+      "name": "propose_refund",
+      "content": "{\"ok\": true, \"proposal_id\": \"prop-b0af2ab08b6a4aa1\", \"status\": \"awaiting_customer_confirmation\", \"outcome\": \"eligible\", \"amount_minor\": 20800, \"currency\": \"BRL\", \"policy_citations\": [\"refund-policy/v2/amount\"], \"next_step\": \"The proposal is now on the customer's card, waiting for their button. Tell the customer the amount. They confirm with the button on the proposal card; a typed yes is not a confirmation.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "I’ve created a refund card for both travel pieces totaling **BRL 208.00** (refund-policy/v2/amount).\n\nPlease confirm using the button on the proposal card; a staff member will then review it. Typing “stop” does **not** cancel it—you must use the card’s **cancel button** before it is paid. Chat messages neither confirm nor cancel a request (refund-policy/v2/approval).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "I’ve created a refund card for both travel pieces totaling **BRL 208.00** (refund-policy/v2/amount).\n\nPlease confirm using the button on the proposal card; a staff member will then review it. Typing “stop” does **not** cancel it—you must use the card’s **cancel button** before it is paid. Chat messages neither confirm nor cancel a request (refund-policy/v2/approval).",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "event",
+      "text": "The customer cancelled request prop-b0af2ab08b6a4aa1 with the button on its card, so nothing will be paid.",
+      "notice_id": "notice-cancel-prop-b0af2ab08b6a4aa1"
+    },
+    {
+      "role": "customer",
+      "text": "Yes, that’s the refund I want for both travel pieces."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_Lru4goz7HlrqoZVYXJOHgqwg",
+          "name": "propose_refund",
+          "arguments": "{\"order_id\":\"h355-o1\",\"unit_ids\":[\"h355-o1-u1\",\"h355-o1-u2\"],\"summary_for_staff\":\"Customer renewed their request for both travel pieces after cancelling the previous proposal.\"}"
+        }
+      ],
+      "continuation": [
+        {
+          "id": "rs_091b52e599836413016ae76d5a960c87d2acd267c2fa047760",
+          "summary": [],
+          "type": "reasoning",
+          "content": [],
+          "encrypted_content": "gAAAAABq521dKOewRqT_gJoyMdcibveO40UOIAmgp6oTwAgQ6MK83eYQbcdDxarkGEwJU1hWdqgXX2QcpySwZlVU2eDxCdhz68Wv8jvGeJ0hHaJspcNib4_aNdmEVUEbIrfnjAs1HdoKWQgOtdM-Sta9mWTj-xyoPUqaghzxdaQ0C2796xQ-odYFJTHegLv7HmwUzFeFjL2dwUQ1GeODQLohdRVlSPHoKMzohTtUEbBBci4VTowxv15MgGL6ED4UW3nXScxHHuIdLbRNunhXHsHA-UGmi7p2_61uyGIe3Q8iNcLpNE24Tig_BAxnxJ6XnPOLWnWxxikZxnAWuFbFRdeZNobyyzoWNZQcbcN8Lfi4S7dvBFv12PCwoOVkarxyGZgidX6r8qCT8q-cT2if5IODmvQia7oba2ADPSt9H80P5n18yAsiGYmDxy96K0rKg46ipuTwgQDlABuA3xWfuoLA36mY2gonwxlxiwX-Wz8fbzw_I5ntMeChrSimS89TwL2fLMS1uAVXeJp-uDL3NLm8uS2JkW9vjXBafuPH5DI8ZLkm4hph3qQ9e86Vd0MNdbOf7ToQmv362GSA_QKIg1oDxUZpKEpDUsJVH74GymumtfoHj-PVtfyAE4Mbu1qbqemRbPIdiys-GWUY5A6gCxOoI6kWITbPXTOtRvBolvWC1Cl51DxF4VHivGw7Nt-um2LatUYLmEDGczWBoEZUXXzToRcFgEH56ommL8JEH7argxS5jTyX3PUHHNj0N4kj_wS-S1gTQU9uYDABXhVNMpVQZIDUjeYlQOwMMFPTSKUogu1zmV1CzSMnBxSZaAwuMnQtjK2q5IxJP-cie9qrCQqukH1Q8KAVBAGUTtcNezfdlXA3cAQYNY2xk04VuonUZW8XM_b0J6LY-Mxqca-wb4B9PWaAbTKfHQtwNs8el61XeWx5Lv2QEF-GYCpM8nRGDNVW6T54rUEQSAVwtEWsMev8NLWQggvAvfvBeoWlkXSO61957xHaxvK2OaMkkUlxMQDEVZGTESFx6pFdFHo7jpkT_a8Ci2Aa6wDzrN_F5iQdu_GnXDaUHhU2cJSxPhCKLAe30TNdi2CfI0tdOpoudeD9LIH7IyMwxC8gK3-ADj3U1GALvSWH-QVshpIv03Frd22QscMZOY4fCgpRXQ1JOxkWrazr8dlyap0qQ2peEH3btmB0CCVn72EbTLMxal9T9YGdoHZQjaGgx9jlTEFMIMXxMCgM2coDfjgfNuT-7YzU9t6X9axi8Li3eB85g8ACC8_itX3UonSMOzmtpFw8maVuuG7-MDuRF0gGaCoYL2XySYVRk0bHx8iwuqp2rIrB3fT-QyHRD7iH6nX374s8F_tH7rc_xbIr4aHSk2P375KLsHCtTUyLA2JER0-eYEk2xf546hsRA0Af3jgsBWWo7dlGwTgLTJeVzYN3Ip2KrNYP88Wg9EVBqWhwiZ18wIVqBMyb34Pp4XkFhW5BtZg3-uvlnIQeLA4uwgthsltCGKcLoUKx468AQtp2nzfslcU6Rn1fUMC_MY-CKBX3K7FCAYjwcCgX5_AgdEp9dofM4EMLcZg46SFxmqBmee2a-jZ1JzSWBRHASOLDAGY7dsP3qNO0BLn4veOA1jNS51F6ja6kdu5285c86H_Hj5xn-U165QxclbxUj_7crO2E6vsqvaq44HmqoTvAGzJMM60nAUiVkWsRvztMwcuK0JMm2i21d7IRdGYXC-pli4s0WJqtEXaaza4xlyzcO9VPjgSn82Hstbf3ThXJb_mnnL3ChLaHO-AirUtxf_zEibXC_7C_ft2uuYxL8SjKa2CEVYYSLKxm3dA3dXeJ55_TrtMTdSBBHNRe8k41ISQZI10msCp7jbVFQ9OyVmDCfu5o_0hRhjtyQCLcTaeztAjIM3H29NbtnblNKKA_oPlljS8_2pKyHBjGlpIyPT6qd0T85dxlmHKtE2tjS14X_JtjAerL05cyiENLqPZny0pntI3h_XhRPWZV6XWbNX4sbQdhruhRxHi8WDT4QHkMxmss0BR_b1_CCvZeHZfn-metfdT1WiRV5hLRy6BjJ59i9Pl09MA8-94QFeLX9jvWFaVE6wtrcBA3ICmdB78uG94VOQwfsyttKKuUxwooHcxtxHAXpbjbdb3xQjcy7UdGLjDYCUFGQ1o9WQ0u4AvQWqAml0jBWKlMsQ3YAAswIFdMePgawI2m41uKIQkHRcsoQ2I9TuVReFY5WykxTZszNyV3VnYSnS37KNMdxIWQ1Zw3XvXU-Ob46dwkb_GF_hA8mLgTA2qqCPGT7GL5R3z9QiNPQJ0g1hbzx6BV84gS9S18-PaJaQbPjl-LGq0kGMCKUUg="
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "call_id": "call_Lru4goz7HlrqoZVYXJOHgqwg",
+      "name": "propose_refund",
+      "content": "{\"ok\": true, \"proposal_id\": \"prop-00eeabfa5d0b429a\", \"status\": \"awaiting_customer_confirmation\", \"outcome\": \"eligible\", \"amount_minor\": 20800, \"currency\": \"BRL\", \"policy_citations\": [\"refund-policy/v2/amount\", \"refund-policy/v2/approval\"], \"next_step\": \"The proposal is now on the customer's card, waiting for their button. Tell the customer the amount. They confirm with the button on the proposal card; a typed yes is not a confirmation. Tell the customer also, citing each section: An earlier request for the Felt travel passport wallet and the Travel document sleeve ended unpaid (prop-b0af2ab08b6a4aa1 was cancelled), so this new proposal needs the customer's confirmation and a staff member's approval again (refund-policy/v2/approval).\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Your earlier card was cancelled without payment. I’ve created a new card for both travel pieces totaling **BRL 208.00** (refund-policy/v2/amount).\n\nPlease use the new card’s **confirm button**—your chat message does not confirm it. This new request needs your confirmation and a fresh staff approval (refund-policy/v2/approval).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "Your earlier card was cancelled without payment. I’ve created a new card for both travel pieces totaling **BRL 208.00** (refund-policy/v2/amount).\n\nPlease use the new card’s **confirm button**—your chat message does not confirm it. This new request needs your confirmation and a fresh staff approval (refund-policy/v2/approval).",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "event",
+      "text": "The customer cancelled request prop-00eeabfa5d0b429a with the button on its card, so nothing will be paid.",
+      "notice_id": "notice-cancel-prop-00eeabfa5d0b429a"
+    },
+    {
+      "role": "customer",
+      "text": "I’ve changed my mind. I’ll cancel this card using its cancel button."
+    },
+    {
+      "role": "agent",
+      "text": "The card is already cancelled, so no further action is needed. Nothing will be paid for this request (refund-policy/v2/approval).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "The card is already cancelled, so no further action is needed. Nothing will be paid for this request (refund-policy/v2/approval).",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

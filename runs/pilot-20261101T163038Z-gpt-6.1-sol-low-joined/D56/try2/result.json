@@ -1,0 +1,138 @@
+{
+  "scenario": "D56",
+  "try": 2,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['none', 'ineligible', 'cancelled']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v2/return",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: The tongs must arrive before they can be refunded."
+    },
+    {
+      "name": "communication:explains_refusal_reason",
+      "status": "pending",
+      "evidence": "pre-check passed: 2 agent messages"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 3,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    5.292,
+    2.346
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.0032047000000000048,
+    "simulator": 0.00013349999999999994
+  },
+  "attempts_sent": 5,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "I've returned the plate and the serving spoon. The wooden tongs are still with me and I'll send them next week. I'd rather get one refund covering all three now."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_LVueFUZR4s4W5ndNqafU06ZB",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_LVueFUZR4s4W5ndNqafU06ZB",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h60-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-31T10:23:37+00:00\", \"delivered_at\": \"2026-11-02T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h60-o1-u1\", \"product\": \"Ceramic salad plate\", \"paid_minor\": 3600, \"received_back\": true, \"refunded\": false}, {\"unit_id\": \"h60-o1-u2\", \"product\": \"Stainless steel serving spoon\", \"paid_minor\": 3300, \"received_back\": true, \"refunded\": false}, {\"unit_id\": \"h60-o1-u3\", \"product\": \"Wooden salad tongs\", \"paid_minor\": 4000, \"received_back\": false, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-12-02T10:00:00+00:00\", \"refund_deadline_passed\": false}]}"
+    },
+    {
+      "role": "agent",
+      "text": "The shop’s records show the plate and serving spoon were received, but not the wooden tongs. All three cannot be refunded now: the tongs must arrive first (refund-policy/v2/return).\n\nWould you like to request a refund for just the plate and serving spoon now? The tongs’ refund deadline is December 2, 2026, at 10:00 UTC (refund-policy/v2/window).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "The shop’s records show the plate and serving spoon were received, but not the wooden tongs. All three cannot be refunded now: the tongs must arrive first (refund-policy/v2/return).\n\nWould you like to request a refund for just the plate and serving spoon now? The tongs’ refund deadline is December 2, 2026, at 10:00 UTC (refund-policy/v2/window).",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "customer",
+      "text": "No, I want one refund for all three together, not just the plate and serving spoon. I understand the tongs need to arrive first."
+    },
+    {
+      "role": "agent",
+      "text": "Understood—I won’t create a refund request now. You can request one refund for all three after the tongs are received (refund-policy/v2/return), provided the request is made by December 2, 2026, at 10:00 UTC (refund-policy/v2/window).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "Understood—I won’t create a refund request now. You can request one refund for all three after the tongs are received (refund-policy/v2/return), provided the request is made by December 2, 2026, at 10:00 UTC (refund-policy/v2/window).",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

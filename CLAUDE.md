@@ -331,9 +331,16 @@ The author: GPT-6.1 Astra in ChatGPT (the owner), dated 2026-10-30 from the reco
 v1.1's date). **The owner chose Sol low as the product's model** (plan change log, 2026-11-01); its v1.3 confirmation
 run on all 89 (budget $4, predictions "v1.3, the product's model") checks the system with Sol and cannot rank models
 (Luna low 264/267 on development). A Sonnet comparison needs new unseen scenarios and an Anthropic adapter: after the
-release unless the owner decides otherwise. Next: that run, then the live-model mode with the added budget criteria.
-The author model's
-name and dates are still to be recorded. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
+release unless the owner decides otherwise. The run was cut off by the provider (no credit) at D51 try 2: D01-D50
+count from `runs/pilot-20261101T154122Z-gpt-6.1-sol-low` (D51-D78 voided, `voided-no-credit/`), D51-D89 ran again
+(`runs/pilot-20261101T163038Z-gpt-6.1-sol-low`), same fingerprint 4584800d, joined in
+`runs/pilot-20261101T163038Z-gpt-6.1-sol-low-joined` for reading and the report (results in `docs/pilot/results.md`,
+"v1.3, the product's model"): $1.58, 266/267 (D85 try 2 a simulator fault), pass^3 88/89, 0 unsafe, Claude read all
+267; process faults 0/0/0 (Luna low 7/1/2), 0 false deadline claims in 52; paired against Luna low +0.7 (95% +0.0 to
++1.9), 2 better, 0 worse; 10 of 10 predictions right. Stopping rule held: **Sol low is the model of the live mode and
+the trial**, agent unchanged at 80c5a0b. To watch: D81 tries 2-3, a new card at once after a button cancellation and a
+typed yes (nothing paid). Runner fixes recorded for later: stop on the provider's no-credit refusal; `--resume` for
+the pilot runner. Next: the live-model mode with the added budget criteria. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
 `runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run
 (`user-review/`), 7 of the comparison

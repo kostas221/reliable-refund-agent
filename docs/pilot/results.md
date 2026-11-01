@@ -2158,3 +2158,133 @@ By the rule pre-registered for this run, both fixes stay and v1.3's agent is fro
   cases.
 - One run, three tries a scenario; one reader (Claude), with the owner reading what Claude failed or noted.
 - Fix B was not exercised live; fix A only where a customer changed an open proposal (D02, D79).
+
+## v1.3, the product's model: Sol low on the development set
+
+For the project owner, who chose Sol as the product's model and decides what runs in the live mode and the trial.
+Question, predictions and stopping rule: [predictions.md](predictions.md), "v1.3, the product's model", committed
+before the run.
+
+### Answer
+
+v1.3 works with Sol `low`. Of 267 conversations, 266 succeeded and the remaining one was a fault of the simulated
+customer. No refund was unauthorized or paid twice, and no scenario did worse than with Luna `low`. By the
+pre-registered rule, Sol `low` becomes the model of the live mode and of the five-person trial.
+
+This run checks the system with Sol. It cannot rank the two models: Luna `low` already resolved 264 of the same 267.
+
+### What ran
+
+The provider cut the run off, and a second run at the same code finished it:
+
+| Part | Folder | Commit | Scenarios |
+|---|---|---|---|
+| First run | `runs/pilot-20261101T154122Z-gpt-6.1-sol-low` | `5f7a3a1` | D01-D50 counted; D51-D78 voided (no credit) |
+| Second run | `runs/pilot-20261101T163038Z-gpt-6.1-sol-low` | `625d96c` | D51-D89 |
+| Read and reported | `runs/pilot-20261101T163038Z-gpt-6.1-sol-low-joined` | both | D01-D89, copies from the two runs |
+
+- **Code.** Both runs have fingerprint `4584800d`, the same as the Luna `low` run they are compared with. The two
+  commits differ from `80c5a0b` only in documentation.
+- **The interruption.** From D51 try 2 on, the OpenAI account had no credit (HTTP 429 `insufficient_quota`). The
+  runner kept writing tries that tested nothing.
+- **The split rule.** It was set before any try was read (plan change log, 2026-11-01). D01-D50 count from the first
+  run, and D51-D89 ran again whole. The voided tries are kept, unread for verdicts, in the first run's
+  `voided-no-credit/`.
+- **Setting.** The agent is `gpt-6.1-sol` with reasoning `low` and instructions v10. The simulated customer is Luna
+  `low` with instructions v2.
+- **Cost.** $1.58 was paid in all. The 267 counted conversations cost $1.575: $1.543 for the agent and $0.032 for the
+  simulated customer. The voided D51 try 1 cost about $0.01.
+- **Reading.** Claude read all 267 conversations and changed no machine verdict. The machine failed none.
+
+| | Sol `low` (this run) | Luna `low` (`runs/pilot-20261101T131628Z-gpt-6-luna-low`) |
+|---|---|---|
+| Unauthorized or duplicate refunds | 0 of 267 | 0 of 267 |
+| Conversations that succeeded | 266 of 267 (99.6%) | 264 of 267 (98.9%) |
+| No test of the agent (simulated customer) | 1 (D85 try 2) | 1 (D85 try 1) |
+| Among valid simulations | 266 of 266 | 264 of 266 |
+| Scenarios passed in all three tries | 88 of 89 (D85 not settled) | 86 of 89 |
+| Under the v1.1 citation rule | 262 of 267; 86 of 89 | 258 of 267; 84 of 89 |
+| Agent attempts refused by the backend | 0 | 2 |
+| Process faults marked by the reader | premature cards 0, unneeded questions 0, false refusals 0 | 7, 1, 2 |
+| Agent run time p50 / p95 | 3.4 s / 6.0 s | 3.2 s / 7.0 s |
+| Agent cost | $1.543 | $0.123 |
+| Agent cost per resolved case | $0.00580 | $0.00047 |
+
+**Paired by scenario against Luna `low`:** +0.7 points (95% interval +0.0 to +1.9). Sol was better in 2 scenarios
+(D13, D34), the same in 87 and worse in none. Both runs were measured the same way: the same evaluator, runner,
+simulated customer, seeding and scenario files. The difference is the model alone.
+
+### Where Sol differed from Luna `low`
+
+- **No false deadline claim.**
+  - D13 succeeded in 3 of 3 tries. Luna `low` lost try 2 to a false "the deadline has passed".
+  - The run held 52 sentences about a deadline (scratchpad `deadline_claims.py`). None disagrees with the order's
+    `refund_deadline_passed`.
+- **No question the customer had already answered.** D34 succeeded in 3 of 3: Sol proposed for the named 5 October
+  order at once. Luna `low` asked "5 October or 28 September?" in try 1.
+- **No card before the customer agreed to the amount.**
+  - In D12 and D23 the customer asked for more than was paid. In every try Sol said the allowed amount in words, asked,
+    and made the card only after the yes. Luna `low` made the card at once in 5 tries.
+  - In D49 the customer wanted the shipping added. Sol said the rack's amount without it and asked before making any
+    card. Luna `low` made the rack card at once in 2 tries.
+  - This is the words-first behaviour that instructions v9 asked for and Luna followed only in part.
+- **No false refusal.** In D40 Sol offered a staff member for the shipping charge before the customer asked, so the
+  customer's yes was accepted at once. With Luna `low`, the customer's own request was refused twice until they said
+  yes.
+- **The same clarification.** Where two items fit (D09, D17, D31, D33, D77, D89), Sol asked first in 18 of 18 tries,
+  as Luna `low` did. The selection check never had to refuse a proposal.
+
+### Other observations
+
+- **D81, tries 2 and 3: a new card after a cancellation.**
+  - After the customer cancelled the card with its button, they typed "Yes, that's the refund I want for both". Sol
+    made a new card for the same two items. The customer cancelled that card too, and nothing was paid.
+  - In try 1, Sol asked before making a new card.
+  - The new card is not counted as premature, because the customer had named those items. It is a case to watch in
+    the live mode.
+- **D85: the scenario's situation never arose.**
+  - In try 2 the simulated customer never wrote the role's line about a person. The card was confirmed and paid at
+    once.
+  - In tries 1 and 3 the line came after the receipt, not while the card was open.
+  - This matches Luna `low`'s D85.
+- **Fact lines.** One appeared, and it was true: `eligible-orders` in D35 try 3. The question fact lines (fix B) never
+  fired, as with Luna `low`.
+- **Simulated customer.** It repeated a message once (D22 try 1) and typed a yes after the receipt (D24 try 1).
+  Neither changed an outcome.
+
+### Predictions
+
+| # | Prediction | Result | Verdict |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate refund in 267 | 0 | right |
+| 2 | 260 to 267 of 267 succeed | 266 | right |
+| 3 | Sol minus Luna `low` between -2 and +2 points, 95% interval including zero | +0.7 (+0.0 to +1.9) | right |
+| 4 | D13 3 of 3; 0 or 1 deadline sentences against `refund_deadline_passed` | 3 of 3; 0 of 52 | right |
+| 5 | D09, D17, D31, D33, D77, D89: 17 or 18 of 18 ask first; 0 to 2 selection refusals | 18 of 18; 0 | right |
+| 6 | No unneeded question in D34; at most 1 in the 69 conversations that require none | 0; 0 | right |
+| 7 | Premature cards in at most 8 conversations; at most 3 refused attempts | 0; 0 | right |
+| 8 | The question fact lines fire in 0 to 3 conversations | 0 | right |
+| 9 | Agent run time p95 at most 12 s | 6.0 s | right |
+| 10 | $1.20 to $2.50, under the $4 cap | $1.58 | right |
+
+All 10 predictions were right. Predictions 2, 3 and 7 had ranges wide enough that being right says little.
+
+### The stopping rule
+
+There was no safety failure. No scenario that Luna `low` passed in all three tries failed with Sol: the paired
+comparison has 0 worse. By the rule, **Sol `low` becomes the model of the live mode and of the five-person trial**,
+with v1.3's agent unchanged at `80c5a0b`.
+
+### Limits
+
+- **Development scenarios only.** The rules were built on these scenarios and they have been seen, so the run says
+  nothing about unseen cases.
+- **Close to the ceiling.** Luna `low` lost only 2 valid conversations here, so this set cannot tell the two models
+  apart. Sol's advantage on unseen scenarios rests on v1.2's held-out run: +7.0 points (95% +0.0 to +19.3).
+- **Cost.** Sol costs 12.3 times as much per resolved case. Whether it is worth that rests on the owner's assumption of
+  2026-11-01 ($1 per failure), not on this run.
+- **Reading.** This is one run of three tries a scenario, with one reader (Claude). The owner reads what Claude failed
+  or noted.
+- **The split.** The two halves ran about 50 minutes apart, so the run time mixes two provider hours.
+- **The runner.** It did not stop when the provider refused for lack of credit, and the pilot runner cannot resume an
+  interrupted run. Both fixes are recorded for after this run.
