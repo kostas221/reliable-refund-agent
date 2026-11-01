@@ -2288,3 +2288,63 @@ with v1.3's agent unchanged at `80c5a0b`.
 - **The split.** The two halves ran about 50 minutes apart, so the run time mixes two provider hours.
 - **The runner.** It did not stop when the provider refused for lack of credit, and the pilot runner cannot resume an
   interrupted run. Both fixes are recorded for after this run.
+
+## Live mode: the first paid session
+
+For the project owner, who decides whether the live mode is ready for the handoff checks and the trial. Question and
+predictions: [predictions.md](predictions.md), "Live mode: the first paid session", written before the session.
+
+### Answer
+
+The live mode works with the real model as the free tests said it would:
+
+- one refund went through both screens and was paid once;
+- the spending recorded in the database matches the request logs;
+- a budget too small for the next request paused the agent without losing anything;
+- a restart with a larger budget answered the paused message first.
+
+All six predictions were right.
+
+### What ran
+
+The owner ran it on 2026-11-01 on scenario D01 (Ana's mug), with `gpt-6.1-sol`, reasoning `low`, at commit `d26d584`. The three server starts used one demo database (`--keep` from the
+second on). Claude read the database and the three request logs after each part.
+
+| Part | Budget | Request log | Requests | Cost |
+|---|---|---|---|---|
+| 1. One refund | $0.50 | `runs/live-20261101T185317Z` | 5, all answered | $0.015137 |
+| 2. A pause | $0.05 | `runs/live-20261101T190030Z` | 1 stopped before sending, no attempt | $0 |
+| 3. The restart | $0.50 | `runs/live-20261101T190413Z` | 2, both answered | $0.001624 |
+
+In all: $0.0168, 7 attempts, none uncertain. The request logs stay out of git (`runs/live-*/`).
+
+### Predictions
+
+| # | Prediction | Result | Verdict |
+|---|---|---|---|
+| 1 | Part 1: one receipt, named in the agent's last message; the card says refunded | Receipt R-00000001 for R$ 49,90, named in the last message; the card shows Refunded; one proposal, one ledger line | right |
+| 2 | Part 1 costs $0.004 to $0.03 | $0.0151. The first request was the dearest, at $0.0097: it wrote the instructions to the provider's cache | right |
+| 3 | Mode door, `model_spend` and request logs agree to $0.0001 | `model_spend` $0.016762 against the logs' $0.016761 (each log rounded to six decimals); the banner showed $0.02 in parts 2 and 3 | right; the door was seen only at the banner's two decimals |
+| 4 | Part 2 goes on from part 1, shows the paused text, the banner says paused, and sends no request | The server printed "already spent on this database $0.0151; left $0.0349" at its start. The stop reads "spent $0.0151; the next request could cost up to $0.0964, over the limit of $0.05", with no attempt; `model_spend` stayed at 5 rows. The screen said the assistant was paused and the message was kept, with no "try again"; the banner turned yellow and said paused | right |
+| 5 | Part 3 answers the paused message first, then "Hello again"; one receipt; the banner no longer paused | Answered in that order; one receipt; the banner blue, without the pause | right |
+| 6 | No server error other than the pause's warning | The owner gave the server's output of all three parts afterwards. It shows no traceback and no 500. It has one warning, the pause ("the agent is paused in conv-...: spent $0.0151; ..."), and the 503 that answered the paused message. A 401 on one sign-in was a wrong password, before the owner asked for it. The database agrees: the one notice was delivered at its first attempt, `last_error` is empty, and no action was refused | right |
+
+### Observations
+
+- **A citation that does not fit.** The answer to "Thank you, is everything done?" cited `payout`, the section on when
+  money appears on a card. The answer was true, but it said nothing about payout. This is a quality matter, not a
+  fault, and was recorded rather than repaired.
+- **Expected warnings.** While the server was stopped between parts, the screens said "No answer from the server".
+  The screens were built to say that.
+- **Worst case per request.** A request in this conversation could cost up to about $0.09 to $0.10. The budget holds
+  that much before each request, so a $1 session pauses when about $0.90 has been spent. At about $0.006 per
+  development conversation, that is well over a hundred conversations.
+
+### Limits
+
+- One scenario, one person, one session. This shows the application's path works with the real model. It says
+  nothing new about the agent's quality.
+- Concurrency was not exercised live: a customer and a staff member never called the model at the same time. The
+  free tests cover it, including 16 threads competing for the last room in the budget.
+- The provider's no-credit refusal was not exercised live. The free tests cover it, with the answer recorded on
+  2026-11-01.

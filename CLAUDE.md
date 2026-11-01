@@ -349,9 +349,11 @@ delivery failed three times; `OutOfCredit` stops the runners at the provider's n
 to `runs/live-*/` (git-ignored); planted bugs in scratchpad `planted_live_mode.py`. Deadline claims: no repair
 before the trial (Sol 0 of 52), each trial session checked. Sonnet comparison stays after the release (the owner
 asked; reasons in the plan entry). `--resume` for the pilot runner still for later. 2669 tests (browser included)
-and 54 screen tests pass, 26 of 26 planted bugs caught. Next: the owner's first paid live session (three parts on
-D01, under $0.10; question and 6 predictions in `docs/pilot/predictions.md`, "Live mode: the first paid session"),
-read by Claude from the database and the logs; then the handoff checks and the trial. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
+and 54 screen tests pass, 26 of 26 planted bugs caught; committed as d26d584. The owner's first paid live session
+(D01, Sol low, three parts on one database, $0.0168; results in `docs/pilot/results.md`, "Live mode: the first paid
+session"): one refund paid once, a pause at $0.05 that sent nothing and kept the message, a restart that answered it
+first; `model_spend` and the request logs agree; 6 of 6 predictions right; a `payout` citation that did not fit, recorded. Next: the handoff checks (release brief, section 4) and the
+five-person trial with one staff-role participant, each session's deadline sentences checked. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
 `runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run
 (`user-review/`), 7 of the comparison
