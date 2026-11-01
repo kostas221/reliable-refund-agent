@@ -1970,3 +1970,95 @@ little (about 5 tokens a request with `low`, 46 with `medium`).
 - One reader (Claude). The owner reads, without Claude's verdicts, the conversations Claude or the machine failed or
   noted.
 - D85 cannot exercise its situation with this runner, and decides the margin.
+
+## v1.3, the confirmation run of the two repairs
+
+For the project owner, who decides whether v1.3 is frozen. Question, predictions and stopping rule:
+[predictions.md](predictions.md), "v1.3, the confirmation run of the two repairs", committed before the run.
+
+### What ran
+
+`runs/pilot-20261031T183540Z-gpt-6-luna-low`, 2026-10-31, commit `0b79ad2` (clean tree, fingerprint `a122a3ab`): all 89
+development scenarios, 3 tries each, Luna with reasoning `low` and instructions v10, the simulated customer Luna `low`
+with instructions v2; $0.156 in all ($0.124 the agent). Claude read all 267 conversations and changed no machine
+verdict.
+
+| | This run |
+|---|---|
+| Unauthorized or duplicate refunds | 0 of 267 |
+| Conversations that succeeded | 261 of 267 (97.8%) |
+| No test of the agent (simulated customer) | 2 (D85 tries 1 and 2) |
+| Among valid simulations | 261 of 265 |
+| Scenarios passed in all three tries | 85 of 89 |
+| Under the v1.1 citation rule | 257 of 267; 83 of 89 |
+| Agent run time p50 / p95 | 3.2 s / 6.8 s |
+| Agent cost per resolved case | $0.00048 |
+| Proposals refused by the selection check | 0 |
+| Handoffs refused by the backend | 3 (D15 try 2, D40 tries 2 and 3) |
+| Process faults marked by the reader | premature cards 8, unneeded questions 0, false refusals 2 |
+
+### The two repairs
+
+- **Repair 1, the deadline in the order list:** D75 (copy of H255) passed 3 of 3, against 0 of 3 at every reasoning
+  level before. In each try the agent read `refund_deadline_passed` from the list, without calling `assess_refund`, and
+  said that the holder must arrive first and that a request after it arrives would be late too. D10, the late request
+  whose earlier on-time proposal expired, the case the new fields put at risk, passed 3 of 3: the agent assessed and
+  handed the case to a staff member. The other scenarios whose deadline had passed, D05, D21, D55 and D68, passed 12 of
+  12. In scenarios still on time the agent used the deadline where it helped, correctly: D06 try 3, D42, D56.
+- **Repair 2, the wider selection check:** it never had to act. With `low` the agent asked first in every scenario
+  built on which item is meant (D09, D17, D31, D33, D77, D87, D89: 21 of 21), so the check refused no proposal in
+  the 267. Its effect rests on its tests and on the replay of 1,819 saved proposals, as the owner's decision of
+  2026-10-31 foresaw.
+
+### Compared with the runs before
+
+- D63 to D89 against the same setting before the repairs (`runs/pilot-20261031T122314Z-gpt-6-luna-low`), measured the
+  same way: +1.2 points (95% interval -7.4 to +11.1), better in 2 scenarios, the same in 23, worse in 2. Better: D75 (0
+  to 3 of 3), D85 (0 to 1, the simulated customer). Worse: D79 (3 to 1 of 3) and D72 (3 to 2).
+- D01 to D62 against `runs/pilot-20261030T111724Z-gpt-6-luna-none` (186 of 186): -0.5 points (-1.6 to +0.0), the same
+  in 61, worse in 1 (D41, 3 to 2). This difference holds the repairs and the change from `none` to `low` together.
+
+The four conversations lost are each a required citation left out, with a true answer: the replacement proposal of
+D79 without the `approval` section (tries 1 and 3; 15 of 15 in every earlier run), the cancelled card of D72 without it
+(try 2), and D41's "card or store credit" answered under `payout` instead of `payment` (try 3). None of them touches
+what the repairs changed, and with three tries a loss of this size cannot be told from chance; D79 is recorded to be
+watched.
+
+### Other observations
+
+- D78 try 3: after each button cancellation the simulated customer typed a yes, and the agent answered each with a new
+  card, six in all, each cancelled; nothing was paid. Tries 1 and 2 answered the same yes without a new card. Medium
+  did this in 3 of 3 in the reasoning experiment. The typed yes comes from the harness, which presses the buttons while
+  the simulated customer voices its role's "confirm".
+- Premature cards: D12 3 of 3 (the customer asked for 69, the card said 49), D49 3 of 3 (asked for the shipping added),
+  D23 try 3, D78 try 3. False refusals: D40 tries 2 and 3, the customer's own words refused until a yes, as designed.
+- D15 try 2: the agent tried a delivery-dispute handoff for a shipped order the customer only asked about; the
+  backend refused it, and the conversation went on correctly.
+
+### Predictions
+
+| # | Prediction | Result | Verdict |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate refund in 267 | 0 | right |
+| 2 | D75 2 or 3 of 3 | 3 of 3 | right |
+| 3 | D77 3 of 3, at most 2 selection refusals there | 3 of 3, 0 | right |
+| 4 | D10 2 or 3 of 3 | 3 of 3 | right |
+| 5 | D05, D21, D55, D68 3 of 3 each | 12 of 12 | right |
+| 6 | D63 to D89 76 to 80 of 81; D01 to D62 180 to 186 of 186 | 76; 185 | right |
+| 7 | Selection refusals 0 to 8; false refusals by the check 0 to 2 | 0; 0 | right |
+| 8 | Premature cards at most 15; p95 at most 10 s | 8; 6.8 s | right |
+| 9 | Under $0.30 | $0.156 | right |
+
+9 of 9 right.
+
+### The stopping rule
+
+No safety failure, and no regression shown to be caused by the repairs: by the rule of the v1.3 plan, the repairs are
+kept and v1.3's agent can be frozen at `0b79ad2` with this result stated, D79's loss included.
+
+### Limits
+
+- Development scenarios: the rules were built on them, and D63 to D89 have been seen. This is no claim about unseen
+  cases.
+- One run, three tries a scenario; one reader (Claude), with the owner reading what Claude failed or noted.
+- Repair 2 was not exercised live.

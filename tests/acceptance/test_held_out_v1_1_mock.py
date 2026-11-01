@@ -352,11 +352,13 @@ def test_the_correct_conversation_without_its_citations_fails_on_them(play, scen
     # A fact line from the records may still show a section the answer left out (agent/facts.py): that is the product.
     # In H35 it shows `remaining` after an answer that names the earlier refund without it; since 2026-10-26 (v1.2 fix
     # 4) it shows a handoff's sections after an announcement without them, which covers every citation of the five
-    # scenarios that end in a handoff. The evaluator still fails each of these citations with no line (the test above).
+    # scenarios that end in a handoff; since 2026-10-31 (v1.3) it shows the payment section after an answer to the
+    # customer's question about where the money goes (H28: a cancelled credit card; H52: one store voucher). The
+    # evaluator still fails each of these citations with no line (the test above).
     shown = " ".join(m["text"] for m in result.messages if m.get("fact_line"))
     missing = {f"cites:{c}" for c in scenario.expected.cites if c not in shown}
     assert set(result.verdict.names("failed")) == missing, result.verdict.report()
-    assert missing or scenario_id in {"H35", "H41", "H47", "H72", "H77", "H80"}
+    assert missing or scenario_id in {"H28", "H35", "H41", "H47", "H52", "H72", "H77", "H80"}
 
 
 @pytest.mark.parametrize(

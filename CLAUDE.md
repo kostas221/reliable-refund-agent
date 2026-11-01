@@ -295,7 +295,19 @@ the closing plan (plan change log, 2026-10-31), in this order: full suite, commi
 run of all 89 scenarios with Luna low (`docs/pilot/predictions.md`); close v1.2 (the owner's reading of 73, results);
 a local live-model mode in the app, whose entry point serves only `ScriptedModel` (mock stays default, a budget per
 session, the owner starts each paid one); handoff checks and the five-person trial; README, Docker, CI, licence,
-video. No MCP in this release. The author model's
+video. No MCP in this release. The confirmation run (`runs/pilot-20261031T183540Z-gpt-6-luna-low`, commit 0b79ad2,
+$0.156, results in `docs/pilot/results.md`): 261/267, pass^3 85/89, 0 unsafe; D75 0 to 3 of 3, D10 3/3, the selection
+check never had to act (low asked first 21/21); four citation losses (D79 x2, 15/15 before; D72; D41), not traced
+to the repairs; 9 of 9 predictions right; the stopping rule allows freezing v1.3's agent at 0b79ad2 on the owner's
+word. The owner chose instead to fix the four citation losses first (plan change log, 2026-10-31, a recorded
+deviation): (A) a proposal that replaces the conversation's open one gives `approval` in its result
+(`refunds.proposal_context`); (B) a fact line after an answer to the customer's question about shipping charges, where
+the money goes, or a cancelled refund card or request, when the answer lacks `shipping`, `payment` or `approval`
+(`agent/facts.py`: the customer's latest message asks, no event since). Failing-first tests, 14 of 14 planted bugs
+(scratchpad `planted_citation_fixes.py`); replay on 5,812 saved answers: 8 lines, all after such a question (the
+first draft gave 32, 22 wrong, and was narrowed). Predictions written ("v1.3, the citation fixes"); next: full suite,
+commit, one confirmation run of all 89 with Luna low; a regression a fix caused reverts it and v1.3 freezes at
+0b79ad2. The author model's
 name and dates are still to be recorded. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
 `runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run

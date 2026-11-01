@@ -1,0 +1,170 @@
+{
+  "scenario": "D40",
+  "try": 1,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['none', 'ineligible']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "handoffs with origin ['agent']; required, origins ['agent', 'customer']"
+    },
+    {
+      "name": "cites:refund-policy/v2/shipping",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: A request to refund shipping goes to a staff member."
+    },
+    {
+      "name": "communication:announces_handoff",
+      "status": "pending",
+      "evidence": "pre-check passed: an agent message follows the handoff"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 4,
+  "refusals": [],
+  "handoff_origins": [
+    "agent"
+  ],
+  "agent_seconds": [
+    3.593,
+    3.142,
+    0.041
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.00039174000000000153,
+    "simulator": 0.00016269999999999826
+  },
+  "attempts_sent": 7,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hello, you refunded my kettle last week, thank you, but I also paid 18 reais shipping for a kettle that arrived broken. I want the shipping refunded."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_c2pFyiGsZ6CRgTOsNRHkeUfR",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_c2pFyiGsZ6CRgTOsNRHkeUfR",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"d40-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-01T10:00:00+00:00\", \"delivered_at\": \"2026-10-05T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"d40-o1-u1\", \"product\": \"Glass electric kettle\", \"paid_minor\": 13990, \"received_back\": true, \"refunded\": true}], \"requests\": [{\"proposal_id\": \"d40-r1\", \"status\": \"refunded\", \"amount_minor\": 13990, \"unit_ids\": [\"d40-o1-u1\"], \"created_at\": \"2026-10-13T12:00:00+00:00\", \"receipt_number\": \"R-D40-0001\", \"rejection_reason\": null, \"policy_citation\": \"refund-policy/v2/remaining\"}], \"refund_deadline\": \"2026-11-04T10:00:00+00:00\", \"refund_deadline_passed\": false}]}"
+    },
+    {
+      "role": "agent",
+      "text": "Your kettle refund is recorded as paid: BRL 139.90, receipt R-D40-0001. The kettle unit can’t be refunded again (refund-policy/v2/remaining).\n\nShipping charges aren’t refunded automatically (refund-policy/v2/shipping). Would you like a staff member to review the shipping charge?",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "id": "rs_00b0fd89e605e645016ae63a3dc35087d2b67cdd51fba41d63",
+          "summary": [],
+          "type": "reasoning",
+          "content": [],
+          "encrypted_content": "gAAAAABq5jo_3elJ50xJq3NmbFFqPxjsWoNs6nZ_S7M-4cSc3-xZZBAZEe0naCp5xN1B8PumqdmyYVAL_Qe3b0ZxeqRcB4hEwNaXQhq7h7rWFh5te-6h6NDQMZfTI5Z-DaTFdTUNd0KHMkSOS4-SNRN3RVwZ5mcLZiGrPm2IZ_U4nKZzlRzVrfZNnDI1RaA0wQtr6wHgVIT6I1bn-gu7BN1UzPtFzFrKWLMpbpBijZLcBae-kMId9qOAPc3jgj5ChdUW1oElpQCRfng_-9sPiCxRzwK4z41wjLSsQv2XOS7UAOy8XrLOnyMPihuUeF3Eg0fERfQWzoLMvWo9d9KAs8bsG3-RN0BfswU39mSZdhX58FtFkDzWhN2hbDp9HXkhatZuMUPeZUW43HF9Psn-4f51uy8Ey_4e2XLjC2OrMjUrl3PrT1zr8FjewaeLRYNQ7m7Xt7iBudqV2gwaShgPHDwMN245MBUatlvJojPFhuOVi7mdMU6EOealFYwDhWKJ5ODRT-toYixR1J3AGDyIRlOfbQ63mGNWrZZYUSsR6sLej8_ruPzD4Ui1pxYYtKUeArFLAwiLJm4ngViBJg-l6zakhTQJ1WyaYgqwE-uIMQkTZ5zO4czL7v9rombGJBqpCPSv86bvZkys5FSAtJL-Nqufl1wHIEiv-2rqQ5NaZpGTCveTetdq8UoFSBhXEqOr7IXw8zQWPtF9g0hBioH1kAC5fyUyPFzGo4YpL0iqX1Mg9B4MCtUWJPUKr2mzfEoomwdsNFxHYkd1FBeCzVN1L6urBwoXCdhNEKljId8fPAtCAA1QbqKfIKmCGnYeMReMbg5A3fqA5Ttgu7yiHZjBHYJe56EeWLF6xpbQx2l2Hz2k4Hb9MJ4ZRXsC5pNYUZyf0lZBGp3FX9cuWXanfwho_5rGAraPLqno8razM6ojZ9t2UyO-2-4z_xBX47zoVqH09527yo3I_mJL6Foizx4WsjYaWEI3SxzntqTjmdllBJnPaTRxJgWQt6AECaiSB2A1omfRslmDLSArG0bIi8OwCD56itQT6VOE-NxkANJrmiRUtsGxWePkSc5ad--81JaOiYx6qBbXylNVqEdrDjzSNz29CzkjL6SAy96fQdJCln-JrvyaFZsDdvkFtnXfFAOVms0dgSrfJbdmOp2DT6J1cyeJhwXRJeZlTdgY0e1TpG1RNwx8OMI2VMbN9R7yxGYCVJ8SyaobhsD0_etiNVYxjKaGW-usOZiIsqvO8wvT5i5Sl5GqTzN-0EOvU7QSAUQar0j-_zjdwUdH8pQ-a0xf_SqMCnzbVKMjLOYx86gjRUXsBv8-y7hRWtmu_MwiA9EsEib-gdlm3KPul93sttsbit3I6qpCjA5AXdnkFF_2PaMYnYCTs0Nkqp47xxA25_qAcqV7VIH-q7EmDa14UPVDC8SJ52LBHReO2g_541XmfQ0MVp80QgoCbtj7dHseW2e6DM283UIoXAsA-wDNh-DIK5I4TAe5BxO-S0GYI8-Z7svHlf5TgbC4TuNApo0XbxV1r3L4ghyAFvEsqt6fFciSe8yB42rEFbBLbtl0k_-r3JfJi2SnRNvNDAzuF8JozW5I6-T-zEaTwXZPaNtmZlXVKMRc-QFUjASOniuwxD4-Tqz5vqX2Cn3nB7Q9KVtXlBm2dSRNUyDS8Edbfr-UZwnto2zCMhjdZoxMSpcohZUy7t4hsiEB0SQTo2FyDDyfygX7GrqShSBCs-485DPSB4KT-UwcAijtEPn_AdrpsmTG-_9gU1AsR2JoSD5L74hfxu0ZYLZ0amEXyluUTXaNtrOPzDkqyfe6xNsRssjCio9CrSSHEBYFpiDPJkk6SPIytbRl7-gtk-lJGp2gnWXHgfsDovcuCqCfKq2bnYKHA2W5xgSrwUKUapunZEMmy90-2vYkRNyr8iumrS_spMj1GrV1ClWelDcquvE0mr-Wh9GQlzPIdn7xHGvLXCTg-2xD-eKYqv-AfvlSM3wrJKrUhlFL2aU_cFavVpYxHUEfMTuZsjm3pEFg9Vhp99FPZ-mJKCc9rW0OvKB37m06hiLQp47MEwEdBwRfiZ2UuAm55CiI0kIcMITYgOESLnS-9GfmOWyKZBFf9fPhqfcRkgH17DfjsgfFi072vM-AkJjdpJkJ-u8VD8sS-JUW0b4="
+        },
+        {
+          "role": "assistant",
+          "content": "Your kettle refund is recorded as paid: BRL 139.90, receipt R-D40-0001. The kettle unit can’t be refunded again (refund-policy/v2/remaining).\n\nShipping charges aren’t refunded automatically (refund-policy/v2/shipping). Would you like a staff member to review the shipping charge?",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "customer",
+      "text": "Yes, please."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_2XpYhcbmFxWojACnHAASCFsa",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\":\"shipping_refund\",\"order_id\":\"\",\"unit_ids\":[],\"customer_words\":\"Yes, please.\",\"reason\":\"The customer asked to have the shipping charge refunded and agreed to a staff review.\",\"customer_goal\":\"Have the BRL 18 shipping charge refunded for the kettle order.\",\"confirmed_facts\":\"The order records show a delivered kettle order and a prior paid refund for the kettle unit, receipt R-D40-0001. (refund-policy/v2/remaining)\",\"decision_needed\":\"Review the requested BRL 18 shipping charge refund.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_2XpYhcbmFxWojACnHAASCFsa",
+      "name": "request_handoff",
+      "content": "{\"ok\": true, \"handoff_id\": \"hand-d0c23b5c2d774020\", \"closed_request\": null, \"reason_code\": \"shipping_refund\", \"policy_citations\": [\"refund-policy/v2/shipping\"], \"next_step\": \"This handoff closed no request: say nothing of closing one. Tell the customer a person will take over, and why, citing (refund-policy/v2/shipping). A refund already paid stays paid. Make no more changes.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "A staff member will take over to review your request for the BRL 18 shipping charge (refund-policy/v2/shipping).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "A staff member will take over to review your request for the BRL 18 shipping charge (refund-policy/v2/shipping).",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "customer",
+      "text": "Thank you."
+    }
+  ]
+}

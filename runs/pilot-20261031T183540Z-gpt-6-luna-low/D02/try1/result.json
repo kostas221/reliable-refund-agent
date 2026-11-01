@@ -1,0 +1,233 @@
+{
+  "scenario": "D02",
+  "try": 1,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded d02-o1-u1 for 6990, d02-o1-u2 for 3490"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal refunded, acceptable ['refunded']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "communication:states_correct_amount",
+      "status": "pending",
+      "evidence": "pre-check passed: ['R$ 104,80'] stated"
+    },
+    {
+      "name": "communication:gives_this_receipt",
+      "status": "pending",
+      "evidence": "pre-check passed: the receipt number of this run's refund is given"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "1 refund(s), each confirmed and approved in time"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: ['R-00000001']; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_with_other_units",
+      "status": "passed",
+      "evidence": "every proposal stays within ['d02-o1-u1', 'd02-o1-u2']"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 8,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    5.229,
+    3.344,
+    2.133
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.0007237299999999999,
+    "simulator": 0.0001348
+  },
+  "attempts_sent": 10,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hello, I returned the glass salad bowl from my order. How do I get my money back?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_dumwJlKdB8L81yC93qKz6e35",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_dumwJlKdB8L81yC93qKz6e35",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"d02-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-09-03T09:00:00+00:00\", \"delivered_at\": \"2026-09-08T12:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"d02-o1-u1\", \"product\": \"Glass salad bowl\", \"paid_minor\": 6990, \"received_back\": true, \"refunded\": false}, {\"unit_id\": \"d02-o1-u2\", \"product\": \"Stoneware dinner plate\", \"paid_minor\": 3490, \"received_back\": true, \"refunded\": false}, {\"unit_id\": \"d02-o1-u3\", \"product\": \"Linen napkins, set of four\", \"paid_minor\": 2990, \"received_back\": false, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-10-08T12:00:00+00:00\", \"refund_deadline_passed\": false}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_q7pDav0oG2Jglds6oMIvSKrZ",
+          "name": "assess_refund",
+          "arguments": "{\"order_id\":\"d02-o1\",\"unit_ids\":[\"d02-o1-u1\"]}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_q7pDav0oG2Jglds6oMIvSKrZ",
+      "name": "assess_refund",
+      "content": "{\"ok\": true, \"outcome\": \"eligible\", \"policy_citations\": [\"refund-policy/v2/amount\"], \"amount_minor\": 6990, \"currency\": \"BRL\", \"order\": {\"order_id\": \"d02-o1\", \"status\": \"delivered\", \"delivered_at\": \"2026-09-08T12:00:00+00:00\", \"refund_deadline\": \"2026-10-08T12:00:00+00:00\", \"payment_records\": 1, \"one_valid_payment\": true}, \"units\": [{\"unit_id\": \"d02-o1-u1\", \"product\": \"Glass salad bowl\", \"paid_minor\": 6990, \"received_back\": true, \"refunded\": false, \"receipt_number\": null, \"earlier_on_time_proposal\": false}], \"next_step\": \"This assessment does not create or change a proposal. If these are exactly the units the customer asked for, call propose_refund with them; if the customer's words could mean other units too, ask which first.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_NRLJndfrxQYAijlPCHqGSET4",
+          "name": "propose_refund",
+          "arguments": "{\"order_id\":\"d02-o1\",\"unit_ids\":[\"d02-o1-u1\"],\"summary_for_staff\":\"Customer asks for a refund for the returned Glass salad bowl.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_NRLJndfrxQYAijlPCHqGSET4",
+      "name": "propose_refund",
+      "content": "{\"ok\": true, \"proposal_id\": \"prop-904cfeadc9714a8c\", \"status\": \"awaiting_customer_confirmation\", \"outcome\": \"eligible\", \"amount_minor\": 6990, \"currency\": \"BRL\", \"policy_citations\": [\"refund-policy/v2/amount\"], \"next_step\": \"The proposal is now on the customer's card, waiting for their button. Tell the customer the amount. They confirm with the button on the proposal card; a typed yes is not a confirmation.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "The shop’s records show it received the Glass salad bowl back (refund-policy/v2/return). I’ve created a refund proposal for **BRL 69.90** (refund-policy/v2/amount). To continue, confirm the exact proposal using the button on its card; a reply in chat won’t confirm it (refund-policy/v2/approval). After you confirm, a staff member will review it.",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "The shop’s records show it received the Glass salad bowl back (refund-policy/v2/return). I’ve created a refund proposal for **BRL 69.90** (refund-policy/v2/amount). To continue, confirm the exact proposal using the button on its card; a reply in chat won’t confirm it (refund-policy/v2/approval). After you confirm, a staff member will review it.",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "customer",
+      "text": "The dinner plate was in the same parcel. Could you add it to the refund proposal?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_NvJTXqXKOZ6w2cRUypyYARv2",
+          "name": "propose_refund",
+          "arguments": "{\"order_id\":\"d02-o1\",\"unit_ids\":[\"d02-o1-u1\",\"d02-o1-u2\"],\"summary_for_staff\":\"Customer asks to add the returned Stoneware dinner plate to the refund proposal for the Glass salad bowl.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_NvJTXqXKOZ6w2cRUypyYARv2",
+      "name": "propose_refund",
+      "content": "{\"ok\": true, \"proposal_id\": \"prop-5b3fe62596f64084\", \"status\": \"awaiting_customer_confirmation\", \"outcome\": \"eligible\", \"amount_minor\": 10480, \"currency\": \"BRL\", \"policy_citations\": [\"refund-policy/v2/amount\"], \"next_step\": \"The proposal is now on the customer's card, waiting for their button. Tell the customer the amount. They confirm with the button on the proposal card; a typed yes is not a confirmation.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "I’ve replaced the proposal with one for both items, totaling **BRL 104.80** (refund-policy/v2/amount). Please confirm the updated proposal using the button on its card; a chat reply won’t confirm it (refund-policy/v2/approval). After confirmation, a staff member will review the request.",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "I’ve replaced the proposal with one for both items, totaling **BRL 104.80** (refund-policy/v2/amount). Please confirm the updated proposal using the button on its card; a chat reply won’t confirm it (refund-policy/v2/approval). After confirmation, a staff member will review the request.",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "event",
+      "text": "The customer confirmed request prop-5b3fe62596f64084 and a staff member approved it, so it is ready to be paid.",
+      "notice_id": "notice-dec-95083cf8abbf4b59"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_rqXD4LZJelFWQuC8wHRKZMHR",
+          "name": "execute_refund",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_rqXD4LZJelFWQuC8wHRKZMHR",
+      "name": "execute_refund",
+      "content": "{\"ok\": true, \"receipt\": {\"receipt_number\": \"R-00000001\", \"operation_id\": \"op-5db63b9d7531459e\", \"proposal_id\": \"prop-5b3fe62596f64084\", \"amount_minor\": 10480, \"currency\": \"BRL\", \"payment_id\": \"d02-o1-p1\", \"units\": [{\"unit_id\": \"d02-o1-u1\", \"amount_minor\": 6990}, {\"unit_id\": \"d02-o1-u2\", \"amount_minor\": 3490}], \"committed_at\": \"2026-09-21T10:05:00+00:00\"}, \"next_step\": \"The refund is paid and recorded against the order's original payment. Tell the customer the amount and the receipt number. Explain the test ledger (not a bank transfer, no date) only if the customer asks when or how the money arrives.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Your refund of **BRL 104.80** has been paid to the order’s original payment. Receipt number: **R-00000001**.",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "Your refund of **BRL 104.80** has been paid to the order’s original payment. Receipt number: **R-00000001**.",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

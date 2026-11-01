@@ -18,7 +18,14 @@ section yet:
 - a handoff's sections: a handoff was made, and the sections its result gave are not cited yet (final evaluation of
   v1.1, 2026-10-26: all 98 required refusal citations of the runs on policy v2 were shown, since a refusal's result
   gives its sections; a handoff's result gave none, and 11 of 18 required handoff citations were missed). Only the
-  sections not cited yet are said, after the agent's announcement.
+  sections not cited yet are said, after the agent's announcement;
+- a question about a rule: the customer's latest message asks (a question mark) and speaks of shipping charges, of
+  where the money goes, or of a refund card or request that was cancelled, declined or rejected; the answer replies
+  to that message (no event since) and speaks of the same; and the section the policy says answers it (shipping,
+  payment, approval) is not cited yet. In the runs of 2026-10-31 the agent answered such questions correctly under a
+  neighbouring section or none (D69 under amount, D41 under payout, D72 with no section), and no tool result gives
+  these sections for a question. The customer's words decide, so a receipt that says "original payment" adds nothing
+  without a question (plan change log, 2026-10-31).
 
 The graph says the line as its own message after an answer with no tool calls, so the customer, the model and the
 evaluator see the same words; the message is marked, and the diagnostics count the citations it carries apart from
@@ -43,6 +50,42 @@ HANDOFF_CASES = {
     "delivery_disputed": "A staff member reviews an order recorded as delivered that you say never arrived",
     "shipping_refund": "A staff member reviews a request to refund the shipping charge",
 }
+
+# A question about a rule: (section, what the customer's latest message says, what the answer says, the line). Each
+# line states only what its own section says, in both policies.
+_CLOSED = r"(?:cancell?ed|declined|rejected)"
+_A_REFUND = (
+    r"(?:(?:refund|proposal) (?:card|request)s?|proposals?|(?:earlier|previous|first|last|other) (?:refund|request)s?)"
+)
+QUESTIONS = (
+    (
+        "shipping",
+        re.compile(r"\b(?:shipping|postage|freight|delivery (?:fee|charge|cost)s?)\b", re.IGNORECASE),
+        re.compile(r"\b(?:shipping|postage|freight|delivery (?:fee|charge|cost)s?)\b", re.IGNORECASE),
+        "Shipping charges are never refunded automatically",
+    ),
+    (
+        "payment",
+        # A bank card, not the proposal card: "card" counts only with a word that makes it a means of payment.
+        re.compile(
+            r"\b(?:(?:credit|debit|bank|my|new|old|original|another|different|other|same|expired) card"
+            r"|bank|(?:another|other|different|someone else's) (?:person|account)|store credit|wallet|voucher"
+            r"|gift card|paypal|pix|boleto"
+            r"|where (?:does|will|did|would) (?:the|my) (?:money|refund) go"
+            r"|(?:money|refund) (?:go|goes|going|went) back)\b",
+            re.IGNORECASE,
+        ),
+        re.compile(r"\b(?:original (?:payment|card)|payment method|store credit)\b", re.IGNORECASE),
+        "A refund goes only to the order's original payment",
+    ),
+    (
+        "approval",
+        re.compile(rf"\b{_CLOSED}\b[^.?!]*\b{_A_REFUND}\b|\b{_A_REFUND}\b[^.?!]*\b{_CLOSED}\b", re.IGNORECASE),
+        re.compile(rf"\b{_CLOSED}\b", re.IGNORECASE),
+        "A cancelled or rejected proposal pays nothing, and every new proposal needs its own confirmation with its "
+        "card's button and a staff member's approval",
+    ),
+)
 
 
 def _handoffs(history: Sequence[dict]) -> list[tuple[str, list[str]]]:
@@ -150,6 +193,17 @@ def fact_line(history: Sequence[dict], answer: str, policy: Policy) -> str:
             sentences.append(
                 f"Only orders recorded as delivered can be refunded through this process, and {orders} ({eligible})."
             )
+    # The question is the customer's latest message, when the answer replies to it: an event after it (a staff
+    # decision, a payment) starts an answer of its own, such as a receipt that says "original payment".
+    latest = next((m for m in reversed(history) if m.get("role") in ("customer", "event")), {})
+    asked = (latest.get("text") or "") if latest.get("role") == "customer" else ""
+    if "?" not in asked:
+        asked = ""
+    for section, customer_words, answer_words, line in QUESTIONS:
+        citation = policy.citation(section)
+        if customer_words.search(asked) and answer_words.search(answer):
+            if citation not in answer and citation not in said_before:
+                sentences.append(f"{line} ({citation}).")
     for code, citations in _handoffs(history):
         missing = [c for c in citations if c not in answer and c not in said_before]
         if missing:

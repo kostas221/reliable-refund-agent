@@ -542,7 +542,7 @@ def test_a_proposal_made_close_to_the_deadline_says_it_is_on_time(db):
     # is open. A minute later it would.
     assert proposed_at(ctx, datetime(2026, 10, 3, 16, 0, tzinfo=UTC))["policy_citations"] == [AMOUNT]
     answer = proposed_at(ctx, datetime(2026, 10, 3, 16, 1, tzinfo=UTC), "p-2")
-    assert answer["policy_citations"] == [AMOUNT, WINDOW]
+    assert answer["policy_citations"] == [AMOUNT, WINDOW, APPROVAL]  # it also replaces the first (2026-10-31)
     assert "ends at 2026-10-06 16:00 UTC" in answer["next_step"] and f"({WINDOW})" in answer["next_step"]
 
 
@@ -573,11 +573,45 @@ def test_a_proposal_after_an_earlier_one_was_declined_or_rejected_needs_both_dec
     assert "rejected by a staff member" in again["next_step"]
 
 
-def test_a_proposal_replaced_by_the_customers_change_counts_for_neither(db):
+def test_a_proposal_that_replaces_the_customers_earlier_one_needs_both_decisions_again(db):
+    # v1.3 (plan change log, 2026-10-31): D79 (copy of H300) left out the approval section twice on the replacement for
+    # the tray alone, 15 of 15 before. The policy's approval section: changing anything in a proposal needs a new
+    # proposal, a new confirmation and a new approval. The replaced proposal still counts for no lapse (validity).
     ctx = agent_for(db, "D02")  # the bowl, then the bowl and the plate: the first is superseded
-    call(ctx, "propose_refund", "p-1", order_id="d02-o1", unit_ids=["d02-o1-u1"])
+    first = call(ctx, "propose_refund", "p-1", order_id="d02-o1", unit_ids=["d02-o1-u1"])
     answer = call(ctx, "propose_refund", "p-2", order_id="d02-o1", unit_ids=["d02-o1-u1", "d02-o1-u2"])
-    assert answer["policy_citations"] == [AMOUNT]
+    assert answer["policy_citations"] == [AMOUNT, APPROVAL]
+    said = answer["next_step"].lower()
+    assert f"it replaces the earlier request for the glass salad bowl ({first['proposal_id']})" in said
+    assert "changed proposal needs the customer's confirmation and a staff member's approval" in said
+    other = call(ctx, "propose_refund", "p-3", order_id="d02-o1", unit_ids=["d02-o1-u2"])  # items swapped entirely
+    assert "it replaces the earlier request for the glass salad bowl and the stoneware dinner plate" in (
+        other["next_step"].lower()
+    )
+
+
+def test_a_proposal_replaces_only_the_one_open_when_it_was_made(db):
+    # The bowl is replaced by the bowl and the plate, which the customer then declines: the plate alone, made next,
+    # replaces nothing; the declined proposal is the earlier request it names.
+    ctx = agent_for(db, "D02")
+    call(ctx, "propose_refund", "p-1", order_id="d02-o1", unit_ids=["d02-o1-u1"])
+    both = call(ctx, "propose_refund", "p-2", order_id="d02-o1", unit_ids=["d02-o1-u1", "d02-o1-u2"])
+    confirm(ctx.engine, Actor("customer", ctx.customer_id), both["proposal_id"], "declined", ctx.clock(), POLICY)
+    plate = call(ctx, "propose_refund", "p-3", order_id="d02-o1", unit_ids=["d02-o1-u2"])
+    said = plate["next_step"].lower()
+    assert "replaces" not in said
+    assert f"({both['proposal_id']} was cancelled)" in said
+
+
+def test_a_proposal_after_a_paid_one_replaces_nothing(db):
+    # Only a proposal closed by the customer's change is replaced; one that was paid, or that expired, is not.
+    ctx = agent_for(db, "D02")
+    bowl = call(ctx, "propose_refund", "p-1", order_id="d02-o1", unit_ids=["d02-o1-u1"])["proposal_id"]
+    approve(ctx, bowl, staff="d02-rui")
+    assert call(ctx, "execute_refund", "x-1")["ok"] is True
+    plate = call(ctx, "propose_refund", "p-2", order_id="d02-o1", unit_ids=["d02-o1-u2"])
+    assert "replaces" not in plate["next_step"].lower()
+    assert plate["policy_citations"] == [AMOUNT]
 
 
 def test_an_earlier_request_names_only_the_items_it_was_for(db):
@@ -1081,7 +1115,10 @@ def test_an_assessment_writes_nothing_and_agrees_with_the_proposal(db, scenario_
                 made["policy_citations"][:decided],
                 made["amount_minor"],
             ), selection
-            assert set(made["policy_citations"][decided:]) <= {WINDOW, VALIDITY, APPROVAL}, selection
+            # Each proposal after the first replaces the open one, so approval is among them (2026-10-31); the
+            # sections are the scenario's own policy's (v1 has the same sentence about a changed proposal).
+            circumstances = {policy.citation(s) for s in ("window", "validity", "approval")}
+            assert set(made["policy_citations"][decided:]) <= circumstances, selection
 
 
 def test_an_assessment_of_a_late_request_gives_its_deadline(db):

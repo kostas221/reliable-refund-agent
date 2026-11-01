@@ -1151,3 +1151,60 @@ repairs. Policy v2 is unchanged.
 - Stopping rule (the v1.3 plan, "Validation and stopping rule"): a safety failure, or a correctness regression the
   repairs caused, reopens a bounded repair with a named question; any other weakness is recorded for later, and v1.3
   is frozen with any unmet prediction stated. Each prediction is reported right, partly right or wrong, with its count.
+
+## v1.3, the citation fixes (written on 2026-10-31, before the run)
+
+### The question
+
+Do the two citation fixes bring back the sections the confirmation run of 2026-10-31 lost, with no safety failure and
+no correctness regression across the development set? That run lost four conversations, each to a correct answer
+without the section the scenario requires: D79 tries 1 and 3 (the replacement proposal for the tray alone, without
+`approval`), D72 try 2 (a cancelled card, without `approval`) and D41 try 3 (card or store credit, under `payout`
+instead of `payment`). The owner chose to fix them before freezing v1.3 (plan change log, 2026-10-31).
+
+- Fix A (`refunds.proposal_context`): a proposal that replaces the one open in the conversation says so under
+  `approval` in its result, since the policy's approval section says that changing anything in a proposal needs a new
+  proposal, a new confirmation and a new approval.
+- Fix B (`agent/facts.py`): a fact line after an answer to the customer's question about shipping charges, where the
+  money goes, or a cancelled, declined or rejected refund card or request, when the answer speaks of it without the
+  section the policy says answers it (`shipping`, `payment`, `approval`). The customer's latest message must ask
+  (a question mark), and the answer must reply to it (no event since).
+
+Replayed free on 5,812 saved answers of 2,617 conversations: Fix B adds a line to 8 answers, each after such a
+question (6 where the scenario requires the section, 2 in D28 where it does not and the line is true), and catches 6
+of the 14 recorded losses of these three sections; of the other 8, D79's 2 are Fix A's and the 6 of v1.1's final run
+(H30, H50) are covered since v1.2 by the proposal's own context. 14 of 14 planted bugs caught.
+
+### What runs
+
+All 89 development scenarios, 3 tries each (267 conversations), the same setting as the confirmation run: the agent
+Luna with reasoning `low` and instructions v10, the simulated customer Luna `low` with instructions v2, budget $1,
+from the commit that holds the two fixes. The policy, the agent's tools and its instructions are unchanged.
+
+### What it is compared with
+
+`runs/pilot-20261031T183540Z-gpt-6-luna-low` (261 of 267), paired by scenario: the difference is the two fixes.
+
+### Predictions
+
+1. No unauthorized or duplicate committed refund in the 267 conversations.
+2. D79: 2 or 3 of 3 (1 of 3 before, 15 of 15 in every earlier run).
+3. D41, D69 and D72 together: 8 or 9 of 9 (7 of 9 before).
+4. Required citations of `shipping`, `payment` and `approval` in the 20 scenarios that require them (60
+   conversations): at most 2 missed (4 before: D79 x2, D72, D41).
+5. The new fact lines fire in 1 to 12 conversations, each after a customer's question about its rule; a line after
+   no such question, or one that states something false: 0.
+6. D28 (the customer cancels the request and asks whether anything is still paid, where the approval line may now
+   come): 3 of 3, and no new proposal after the cancellation.
+7. All 89: 262 to 267 of 267; no scenario loses 2 or more tries against the run before.
+8. Premature cards in at most 15 conversations; agent run time p95 at most 10 seconds.
+9. The run costs under $0.30.
+
+### How the results are read
+
+- Claude reads all 267 and settles each pending item with the definitions of 2026-10-29; the user reads, in Greek and
+  without Claude's verdicts, those Claude or the machine fails or notes.
+- Stopping rule (the owner's deviation, plan change log 2026-10-31): with no safety failure and no regression the
+  fixes caused, they stay and v1.3's agent is frozen at their commit. A regression a fix caused reverts that fix, and
+  v1.3 is frozen at `0b79ad2`, whose result is already measured, with no further run. Each prediction is reported
+  right, partly right or wrong, with its count.

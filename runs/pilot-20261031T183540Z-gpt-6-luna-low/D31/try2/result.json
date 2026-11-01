@@ -1,0 +1,209 @@
+{
+  "scenario": "D31",
+  "try": 2,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded d31-o1-u1 for 7490"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal refunded, acceptable ['refunded']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "communication:resolves_ambiguity_first",
+      "status": "pending",
+      "evidence": "pre-check passed: the agent asked and the customer answered before the first proposal"
+    },
+    {
+      "name": "communication:states_correct_amount",
+      "status": "pending",
+      "evidence": "pre-check passed: ['R$ 74,90'] stated"
+    },
+    {
+      "name": "communication:gives_this_receipt",
+      "status": "pending",
+      "evidence": "pre-check passed: the receipt number of this run's refund is given"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "1 refund(s), each confirmed and approved in time"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: ['R-00000001']; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_with_other_units",
+      "status": "passed",
+      "evidence": "every proposal stays within ['d31-o1-u1']"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 6,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    2.44,
+    2.571,
+    2.772
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.0004472699999999996,
+    "simulator": 0.00012310000000000099
+  },
+  "attempts_sent": 8,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hi, I posted the linen scarf back last week. Can I have a refund?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_wS5z97CtDoZwWTqj8XnlYP5X",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_wS5z97CtDoZwWTqj8XnlYP5X",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"d31-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-06T09:00:00+00:00\", \"delivered_at\": \"2026-10-09T15:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"d31-o1-u1\", \"product\": \"Linen scarf, olive\", \"paid_minor\": 7490, \"received_back\": true, \"refunded\": false}, {\"unit_id\": \"d31-o1-u2\", \"product\": \"Linen scarf, rust\", \"paid_minor\": 7490, \"received_back\": true, \"refunded\": false}, {\"unit_id\": \"d31-o1-u3\", \"product\": \"Leather gloves\", \"paid_minor\": 12990, \"received_back\": false, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-11-08T15:00:00+00:00\", \"refund_deadline_passed\": false}]}"
+    },
+    {
+      "role": "agent",
+      "text": "Your order has two linen scarves recorded as received back: the olive scarf and the rust scarf. Which one would you like refunded? (refund-policy/v2/return)",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "id": "rs_0aff0a1b398180b9016ae6393b21ac87d2a58a8223bc6f0904",
+          "summary": [],
+          "type": "reasoning",
+          "content": [],
+          "encrypted_content": "gAAAAABq5jk7ojDDyGUxrqNjgrHO1aF2O6iBfcWzmD4QBTVOE81uL3PO1KsTDb_AM8Xq9G85CeW04mLSTzClcTT3T2KIgne7c7EgGr7I4Rg2kVwx8cl4-6KX4IVojyrAiNxJ2tB_LGAfpG9y8rM42DY4WuvxXDRNnrp80LCs3OqTIp_fcbEdhWSn8I2nb27-GUe3RVzPv0J-PDb0npSHXcuJuYsTMKSnqC5xTEOuiqVeirzMyTH9d2e_4FSTBI2Avg7dLM__MyYbBOo0OYkInNeEcVjhxN4414t9M01LqsXS4d56jfkGlSeCAE-J0R_1icDBix_8hD9eppHOynwxj4N3NVg4K--vJpgQzPaf66E2Hkh29Bxu2uaPT8WLf2bE2Tg3EbE--lWwP6SUuk8N9d4kucZ3Dy9Nik21FmBgqvlcBPOQEKH_FeH753WKbABWOHm_Q_j1PnYJPELPTg4-02m6S3qRLQOiKO31hDXCf6SHfQ6YNY3rWpYa8HJ3R6A7Z36_TFU_yBzEbe2P6UOTEnsOCWKjA6Ow3RNoFujdh-9n4zFXYTtS3Y-yJ1GHSd2VhftMC2LljWxFlE0iXAqMdXXpTaCO5vCXmaZifMLtnCe-RLuWtySSL7CaIQbHn9btOANiXKY8EKMawBW9KrcJF0WJm9nFDFRzFa4y14fCP0IDASWwBwkZODD6zFRfkOwEKrfTwlFLHuYrl7FwFLNak4HO_t-soaEb8Dml1hUqv_Cqg1l5ugldNtydWNo7-WQt--tj4Z13EyWDj8MgKKi6BJ9q3ri_TIOjUSxOkAUeo9DNBJP9ECcbvh9OSWVWNs30y2VzRgbAbqf3zErGl0gJWYmdmFbh2TIKaFPRNbxa6W3s9no_Y7xJYdpJgea-lbMqpz_wGLfPpjwURUsoNE-nZRgDPFKsmo2Wn69olwUArxDycjE85AHLiOw8slPr5_yVYNXaqWzLXsypb2GlX_DmyYN_ab2sSeKkY_t7oSqtIiilwO8AiJSOIou-SWFdVNGzFLcC3tsC4Uo1RTBarQm1ZmDlMtdYqpMFto0Nk80bcuI2Ckr3sDHUvnII1cfuRhivzY8M_qqOajo2A6Q6UgaQKJ1APrf-4mi9ls19uY61CRImBB1aUJVzcj7rHTaIxXefg5_Mjh9lQKfGOjTz0gP2J4KThjOoHGbijBTXx569VmGzFRcK4m5XIPBF4kbrcbQP6Nx6p8WXkj1B_no9wiXEJiuBjZEPaL0Pz2c3vykmJ5Ukq0X-8dnbS5RllGhgJSh-iUneK-GNZobceG_XJKveoiu8l6ku1JaVs_bfR5x4OwFNwtOo8fDdN54bW4RmRU0ONNHf-a4YjwrfgzDx38GbEJbMIjZH0szERQIPiCE6ecO9jQHZ-kyjhL6hsdiq0RWsKsDTtNTvWLHK-VnNPwwis3sxkGHpWuUEQ0pW_YOBZR_vcJx57f1ujL3gn5T35dtuUnpJ9bIyR5xINS8whQutCHHjldy7ow-vRw5IE2z8QFCCkGEM6jg2QTjyt-NYwx-I1jhbe5ikbc9haBN_O4g7t9HPJCWFEIFO2Xn3rEuKmWiBmV8-eOfosb__rb-jjhaQd6w7b7hGT5vgRpGLVSI-qTv0xXbGunfQ22AQqqkWWd5eBQCeucCRcnw="
+        },
+        {
+          "role": "assistant",
+          "content": "Your order has two linen scarves recorded as received back: the olive scarf and the rust scarf. Which one would you like refunded? (refund-policy/v2/return)",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "customer",
+      "text": "The olive scarf, please."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_8b1Qlp9Ng6DYGWQtECeIHEG0",
+          "name": "propose_refund",
+          "arguments": "{\"order_id\":\"d31-o1\",\"unit_ids\":[\"d31-o1-u1\"],\"summary_for_staff\":\"Customer requests a refund for the olive linen scarf.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_8b1Qlp9Ng6DYGWQtECeIHEG0",
+      "name": "propose_refund",
+      "content": "{\"ok\": true, \"proposal_id\": \"prop-cb5a0b261c3f4067\", \"status\": \"awaiting_customer_confirmation\", \"outcome\": \"eligible\", \"amount_minor\": 7490, \"currency\": \"BRL\", \"policy_citations\": [\"refund-policy/v2/amount\"], \"next_step\": \"The proposal is now on the customer's card, waiting for their button. Tell the customer the amount. They confirm with the button on the proposal card; a typed yes is not a confirmation.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "The refund proposal is for BRL 74.90. Please confirm the exact proposal using the button on its card; a reply in chat won’t confirm it. The amount is based on what you paid for the unit. (refund-policy/v2/amount)",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "The refund proposal is for BRL 74.90. Please confirm the exact proposal using the button on its card; a reply in chat won’t confirm it. The amount is based on what you paid for the unit. (refund-policy/v2/amount)",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "event",
+      "text": "The customer confirmed request prop-cb5a0b261c3f4067 and a staff member approved it, so it is ready to be paid.",
+      "notice_id": "notice-dec-54f5000070984643"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_VeHJilrY1xOt2V23o8s4BFxN",
+          "name": "execute_refund",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_VeHJilrY1xOt2V23o8s4BFxN",
+      "name": "execute_refund",
+      "content": "{\"ok\": true, \"receipt\": {\"receipt_number\": \"R-00000001\", \"operation_id\": \"op-a3ada68085ad4118\", \"proposal_id\": \"prop-cb5a0b261c3f4067\", \"amount_minor\": 7490, \"currency\": \"BRL\", \"payment_id\": \"d31-o1-p1\", \"units\": [{\"unit_id\": \"d31-o1-u1\", \"amount_minor\": 7490}], \"committed_at\": \"2026-10-20T10:05:00+00:00\"}, \"next_step\": \"The refund is paid and recorded against the order's original payment. Tell the customer the amount and the receipt number. Explain the test ledger (not a bank transfer, no date) only if the customer asks when or how the money arrives.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Your BRL 74.90 refund for the olive scarf has been paid to the order’s original payment. Receipt: **R-00000001**. (refund-policy/v2/payout)",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "Your BRL 74.90 refund for the olive scarf has been paid to the order’s original payment. Receipt: **R-00000001**. (refund-policy/v2/payout)",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

@@ -1094,10 +1094,13 @@ def proposal_context(engine: Engine, proposal_id: str, policy: Policy) -> list[t
     - window: the refund deadline falls before this proposal expires, so the limit passes while it is open;
     - validity: an earlier proposal for any of these units lapsed before it was paid (_LAPSED), so a new one was needed;
     - approval: an earlier proposal for any of these units was cancelled or declined by the customer, or rejected by a
-      staff member, so this one needs both decisions again.
+      staff member, so this one needs both decisions again; or this proposal replaces the one that was open in the
+      conversation when it was made, since changing anything in a proposal needs a new confirmation and a new approval
+      (section approval; D79 of the confirmation run of 2026-10-31 left the section out twice, plan change log).
 
     "Earlier" is any proposal of the customer made before this one, in any conversation; a proposal the customer
-    replaced with a change, or that a handoff closed, counts for neither."""
+    replaced with a change counts for no lapse, only as the one this proposal replaces, and one a handoff closed counts
+    for neither."""
     with engine.connect() as conn:
         proposal = _one(
             conn,
@@ -1127,6 +1130,23 @@ def proposal_context(engine: Engine, proposal_id: str, policy: Policy) -> list[t
             )
             .mappings()
             .all()
+        )
+        # The proposal made just before this one in the conversation, with all its items: superseded, it is the one
+        # this proposal replaced (propose() supersedes the conversation's open proposal when it makes a new one).
+        previous = (
+            conn.execute(
+                text(
+                    "SELECT p.id, p.status, p.status_reason, array_agg(u.product_name ORDER BY u.id) AS products "
+                    "FROM proposals p JOIN proposal_units pu ON pu.proposal_id = p.id "
+                    "JOIN order_units u ON u.id = pu.order_unit_id "
+                    "WHERE p.conversation_id = :conversation AND (p.created_at, p.created_xact) < "
+                    "(SELECT created_at, created_xact FROM proposals WHERE id = :id) "
+                    "GROUP BY p.id ORDER BY p.created_at DESC, p.created_xact DESC LIMIT 1"
+                ),
+                {"conversation": proposal["conversation_id"], "id": proposal_id},
+            )
+            .mappings()
+            .first()
         )
     context = []
     delivered = proposal["delivered_at"]
@@ -1165,6 +1185,15 @@ def proposal_context(engine: Engine, proposal_id: str, policy: Policy) -> list[t
                 "approval",
                 f"{'; '.join(closed)}, so this new proposal needs the customer's confirmation and a staff member's "
                 "approval again",
+            )
+        )
+    elif previous is not None and (previous["status"], previous["status_reason"]) == (Status.INVALIDATED, "superseded"):
+        context.append(
+            (
+                "approval",
+                f"it replaces the earlier request for the {' and the '.join(previous['products'])} ({previous['id']}), "
+                "which closed unpaid when it was changed, so this changed proposal needs the customer's confirmation "
+                "and a staff member's approval",
             )
         )
     return context

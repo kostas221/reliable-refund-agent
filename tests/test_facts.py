@@ -221,3 +221,109 @@ def test_every_reason_for_a_handoff_has_its_case_and_its_sections():
     assert set(HANDOFF_CASES) == set(HANDOFF_REASONS)
     assert set(HANDOFF_SECTIONS) | {"shop_decided"} == set(HANDOFF_REASONS)  # shop_decided: the decision's reasons
     assert all(POLICY.citation(section) for sections in HANDOFF_SECTIONS.values() for section in sections)
+
+
+# A question the customer asked about a rule, answered without the section the policy says answers it (citation rule,
+# case d; v1.3, plan change log 2026-10-31). From the confirmation run of 2026-10-31 and the reasoning runs before it:
+# D69 (shipping answered under amount), D41 (where the money goes, under payout) and D72 (a cancelled card, under no
+# section). The line comes only when the customer asked, so a receipt that says "original payment" adds nothing.
+
+SHIPPING, APPROVAL = "refund-policy/v2/shipping", "refund-policy/v2/approval"
+SHIPPING_LINE = f"Shipping charges are never refunded automatically ({SHIPPING})."  # the section's own words
+PAYMENT_LINE = f"A refund goes only to the order's original payment ({PAYMENT})."
+APPROVAL_LINE = (
+    "A cancelled or rejected proposal pays nothing, and every new proposal needs its own confirmation with its card's "
+    f"button and a staff member's approval ({APPROVAL})."
+)
+
+
+def customer(text_):
+    return {"role": "customer", "text": text_}
+
+
+YOGA = customer("Of my two returned purchases, refund only the older yoga mat. Is the delivery fee part of that?")
+MOUSE = customer("Does the money go back to my card or to store credit?")
+TOWEL = customer("Last week I cancelled a refund card for the bath towel. Does the cancelled card matter?")
+
+
+def test_a_shipping_question_answered_without_its_section_gets_it():
+    answer = (
+        "The delivery fee isn't included; shipping charges aren't part of the item refund (refund-policy/v2/amount)."
+    )
+    assert fact_line([YOGA], answer, POLICY) == SHIPPING_LINE
+
+
+def test_where_the_money_goes_answered_without_its_section_gets_it():
+    answer = (
+        "The refund was recorded against the order's original payment, not as store credit (refund-policy/v2/payout)."
+    )
+    assert fact_line([MOUSE], answer, POLICY) == PAYMENT_LINE
+
+
+def test_a_cancelled_card_question_answered_without_its_section_gets_it():
+    answer = "The cancelled bath-towel card doesn't count as an active refund request. I've proposed BRL 149.99."
+    assert fact_line([TOWEL], answer, POLICY) == APPROVAL_LINE
+
+
+def test_an_answer_that_cites_the_section_the_question_asks_gets_nothing():
+    assert fact_line([YOGA], f"Shipping isn't included ({SHIPPING}).", POLICY) == ""
+    assert fact_line([MOUSE], f"It goes to the original payment ({PAYMENT}).", POLICY) == ""
+    assert fact_line([TOWEL], f"It doesn't matter; confirm the new card ({APPROVAL}).", POLICY) == ""
+
+
+def test_a_section_cited_earlier_is_not_said_again():
+    earlier = agent(f"Shipping charges aren't refunded automatically ({SHIPPING}).")
+    assert fact_line([earlier, YOGA], "The delivery fee isn't included.", POLICY) == ""
+
+
+def test_the_same_words_with_no_question_from_the_customer_get_nothing():
+    # Every receipt says "original payment"; a fact line after each would be noise.
+    hello = customer("Hi, I sent back the wireless mouse. Could I get a refund?")
+    receipt = "Your refund of BRL 69.90 has been paid to the order's original payment. Receipt: R-00000001."
+    assert fact_line([hello], receipt, POLICY) == ""
+    assert fact_line([hello], "Shipping charges aren't part of the item refund.", POLICY) == ""
+    assert fact_line([hello], "The cancelled card is closed.", POLICY) == ""
+
+
+def test_an_answer_that_does_not_speak_of_it_gets_nothing():
+    assert fact_line([YOGA], "I've proposed BRL 145.00 for the yoga mat.", POLICY) == ""
+    assert fact_line([MOUSE], "Your receipt number is R-00000001.", POLICY) == ""
+
+
+def test_an_order_shipped_or_the_proposal_card_is_not_such_a_question():
+    shipped = customer("My controller was shipped last week. Where is it?")
+    assert SHIPPING not in fact_line([shipped], "It was shipped; I can't see where it is.", POLICY)
+    card = customer("Is that the right proposal card? I'll confirm it.")
+    assert fact_line([card], "Yes. Once paid, it goes to the order's original payment.", POLICY) == ""
+
+
+def test_the_question_is_the_customers_latest_message():
+    later = customer("Thanks. And is the receipt number the one above?")
+    assert fact_line([MOUSE, agent("It goes to the original card."), later], "Yes, original payment.", POLICY) == ""
+
+
+def test_a_reply_to_an_event_is_not_an_answer_to_the_customers_words():
+    # D54 and H55 (22 answers in the saved runs): "your account page" is the shop's site, and the receipt answers the
+    # staff decision, not the customer.
+    lunch_box = customer("Your account page seems to show you received it. If your records confirm it, refund it?")
+    approved = {"role": "event", "text": "The customer confirmed request prop-1 and a staff member approved it."}
+    receipt = "The BRL 25.00 refund has been paid to the order's original payment. Receipt: R-00000001."
+    assert fact_line([lunch_box, approved], receipt, POLICY) == ""
+    assert fact_line([lunch_box], "It will go to the original payment.", POLICY) == ""  # "account" alone says nothing
+    # A question about the card, then the staff decision: the receipt replies to the decision.
+    card = customer("Could you refund the mouse to my card?")
+    assert fact_line([card], receipt, POLICY) == PAYMENT_LINE
+    assert fact_line([card, agent("I've proposed BRL 69.90 for the mouse."), approved], receipt, POLICY) == ""
+
+
+def test_a_statement_with_no_question_gets_nothing():
+    # D77 try 2 (2026-10-31): the customer stated that shipping is excluded and asked nothing.
+    strap = customer("The black wrist strap, please. I understand the refund is its paid amount, excluding shipping.")
+    answer = "The proposal is BRL 28.45, its paid amount after the discount share and excluding shipping."
+    assert fact_line([strap], answer, POLICY) == ""
+
+
+def test_a_cancelled_bank_card_is_a_question_of_where_the_money_goes():
+    bank = customer("I cancelled my credit card last month. Where will the refund go?")
+    answer = "Even with the card cancelled, it goes to the original payment; your card's issuer handles the credit."
+    assert fact_line([bank], answer, POLICY) == PAYMENT_LINE  # a cancelled bank card is not a cancelled refund card

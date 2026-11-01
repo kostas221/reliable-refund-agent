@@ -97,7 +97,9 @@ def test_the_fact_line_falls_on_the_missed_citations_of_the_model_comparison_and
     where = sorted(" ".join(line.split(":")[0].split()[1:3]) for line in found.fact_lines)
     # The three citations Luna missed (D20 tries 1 and 2, D35 try 2) and Sol's one (D35 try 2), plus five answers that
     # state a fact the line is true of: D40's earlier refund (Luna) and D15's shipped controller (Sol, which cited the
-    # exceptions section).
+    # exceptions section). Since 2026-10-31 (v1.3) also D28 try 2 (Luna): the customer cancelled the request and asked
+    # whether anything would still be paid, and the answer said no without the approval section.
     assert where == sorted(
-        ["D20 try1", "D20 try2", "D35 try2", "D40 try1", "D40 try2"] + ["D15 try1", "D15 try2", "D15 try3", "D35 try2"]
+        ["D20 try1", "D20 try2", "D28 try2", "D35 try2", "D40 try1", "D40 try2"]
+        + ["D15 try1", "D15 try2", "D15 try3", "D35 try2"]
     )

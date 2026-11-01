@@ -1,0 +1,167 @@
+{
+  "scenario": "D61",
+  "try": 2,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal ineligible, acceptable ['ineligible']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "handoffs with origin ['agent']; required, origins ['agent']"
+    },
+    {
+      "name": "cites:refund-policy/v2/eligible-orders",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: An order with no recorded delivery time goes to a staff member."
+    },
+    {
+      "name": "communication:announces_handoff",
+      "status": "pending",
+      "evidence": "pre-check passed: an agent message follows the handoff"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 4,
+  "refusals": [],
+  "handoff_origins": [
+    "agent"
+  ],
+  "agent_seconds": [
+    8.777
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.00038474999999998927,
+    "simulator": 5.0700000000000744e-05
+  },
+  "attempts_sent": 5,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "My electric kettle shows as delivered, and you've already received the return. But I can't find a delivery date anywhere in the order details. Could you process the refund?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_Wd9080UopGO1rEpHLmw3waWY",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_Wd9080UopGO1rEpHLmw3waWY",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h77-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-14T02:09:12+00:00\", \"delivered_at\": null, \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h77-o1-u1\", \"product\": \"Stainless steel electric kettle\", \"paid_minor\": 4590, \"received_back\": true, \"refunded\": false}], \"requests\": []}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_dAunI2C6vXLufaByvWMehsBh",
+          "name": "assess_refund",
+          "arguments": "{\"order_id\":\"h77-o1\",\"unit_ids\":[\"h77-o1-u1\"]}"
+        }
+      ],
+      "continuation": [
+        {
+          "id": "rs_098d5032b96f670e016ae63daa2c1087d2a67f52ddb7ac6fcb",
+          "summary": [],
+          "type": "reasoning",
+          "content": [],
+          "encrypted_content": "gAAAAABq5j2qTwYY9xy9SybNoUmypREOPdKBcOjVrd1C4DfX2DOTpl11CkQvhw7r5ZBF7ois72WXTO5GzYG6eMcDgMk9WYGT9wrplIdF5tnrA458__qs-T0XFLIFCB8_y_SAVUhUsJ-hjDBa9xYjyBjEma__Y_6tIBOVpzzkzvdIhqbkh_Rq2NnFRHWpogiZk_dipRnIPiVgu4PCp6saTs57IV-5Z59NhLbu2_7w5cGg2RJlzEqeXCIo8qFYPb0CjvdpOkOb11rT9zAg9mfNUE1Ko1lcGf-DCOCGxDiw1KCyfb9HcbESnXNGye66Dhc4QRdgjFNok0SSRhwjl5YZFxe-9pXxAva6WR-K9XZB4NH1OKFWf87dbCUQ02-BF9ntlsorynH17IAQRGBD8RJq_TrY1k93bYYZSmn2nDZDmClcICfiSP9i55C8v69tZRx3Mq0YkTQOmQI0V5YB0uJvjTmkBzL50M-I_ctag3z25PJ7NojHJwkhJz1PIa7obWn8TI-p9tjfBLzOskTwt-Vro3j0h3fI6RudGSYg4YWAxKKu2-IDNI0x5Lml5vdG_PFpe3ddap1l72wljCXVju7wVv31oSqDDS-WfnL8uDVDFvmeiYs0u51GmXw53HW1tqsX_v-oZvyiv8TSfWA5YrJOsFN_2sfBUG7bMj6NW7aQZsvjoCDN2XPtb9ER2GXbiIqz2lg0P5m0AO6Ftc9h3o5n8F3qqg51C55yTRvbUeT9iQJZwv52xCjx5ZkFEo-DkKLSXqgFDdQQfmwpA5_W-u3snWPPaGvYj37kADlDl6fjtfvcY14DkXz86de799oJxM04nz8DzwlUZbqKBMOar_1vKjdvlPQFLRuH6NQG9xVXZUvhqDSGhKYcaT49aNtym7Jh6ep-A-kcuSXUyVgibfczd1wIix5Prm6y2RZ1D_M8iphbo80ZpAJ4-2093JPoLyFd9El5A0TwdZBbOKdNH3EcHxCQH-Z1pr3Rr8zyLYlEwSGy4gFyMQcGE6cfbYbLfc_MG-mxCPeC7vee_5FNJbB5haNRaRzvk1Llp6xSlI3aNtWDX7psBolCyg60YZkaPnWmPrJ0sVQISwT8tqoQ8FpAA46D3Ki2kwINvSq43f7K1d-BS1rsm5qKTCxMv9XBTDaRQKRkznw0-GBADM-RTUISdBwHNd0GMu2ZzOVOii1ZdP_wqNHgo-7TQ2MHKtaiZOmdMWyAvxMF9Dw04Nsl-HP5To_X8eZMLUCtaGxBRA3R8qi9JBvI2iLHKLEVCle0yDalRiCOiMyjuX68d21lVZiaX0D1n4GE9byUh3vBaJSi0jFapUTel6l4ss41tdHfYgbhq_77vea0kevhpymYeR_DvhdLPMn-4ic-GtZ55bwbuIBTjiyJEpahzjLqQUwYLKljdr8u7zkLdeOhV2A12XWbJDSFdhtjOmkIV9maq_RAcaDLDVRTF--wDu_qD5dRLsQ8Y4eCUnVaTQbIjelIcSNLWYR5Mje_cdsQLRSXhb72rrgIHMkpufd868ro7c878IIgC2_0Rxcxey33mqEp0FOYYw9FLVJ7fWNDWRvRIJwVwv1m5HVhRw5vI3H92g6bnFByaIjMRvXjWkUQkv-byFGpToelSm9P2_wZC9EkWqpqm0XfBLkLJMPCoggmLW9KMmTk04p-5QanlsjGjTXrubB_o6jM_pXFIibWnVqnfSsqRzUFBOuprz_RhUQS_mt312Aq6Cv5Pg7ARJINqPUTFrpDUMVvkgo1P9LnIU1s_3juqZS8HPnHc2YdMMhEdSgsWgJlXdlNYNPN9TLFI6-LCS_LHiZ2nYioPQ8BRofNWQHvC_9XdBl2MIvwAFV-ApgdzGnJmKoTFxoGh5ujX1-HIx3Hvpw5mD5Zk63kwijQLWV1QXes0UeLFXThgupVkSg-IzDGohsg-eJIMiu-w_2HmXqPHbVZFJHZo-5vPOKkXNXkhUzVvjJl_aC_Ja1istMwQcViII1hegaMFVBjp6T2BdUb2if_DHMMhC06D6Rcm8q9bXf9lUeEygo8ZPXy_Q1Yh9myOuVsDyz5zSqUS6V3y_Ip0lFWAvDFsD0JfYVly2bJG7xcLylM6-T6Yc5f_5RTrWWP_gwSJf3kyOm6TOGn9Dsczew63wsBwOdG4zHhC0SK7IRGY0TAFVBHxttvmU_OpTAnoMOrk3whPNwrhh-8RcT5_BG8bnCRzs9BYw=="
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "call_id": "call_dAunI2C6vXLufaByvWMehsBh",
+      "name": "assess_refund",
+      "content": "{\"ok\": true, \"outcome\": \"needs_person\", \"policy_citations\": [\"refund-policy/v2/eligible-orders\"], \"amount_minor\": null, \"currency\": \"BRL\", \"order\": {\"order_id\": \"h77-o1\", \"status\": \"delivered\", \"delivered_at\": null, \"refund_deadline\": null, \"payment_records\": 1, \"one_valid_payment\": true}, \"units\": [{\"unit_id\": \"h77-o1-u1\", \"product\": \"Stainless steel electric kettle\", \"paid_minor\": 4590, \"received_back\": true, \"refunded\": false, \"receipt_number\": null, \"earlier_on_time_proposal\": false}], \"next_step\": \"A staff member takes the case: hand off with request_handoff, reason_code shop_decided, this order and these units; the backend records the request for the staff member. Tell the customer.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_c8HtjcmypPYF2fPTYy6YjGBX",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\":\"shop_decided\",\"order_id\":\"h77-o1\",\"unit_ids\":[\"h77-o1-u1\"],\"customer_words\":\"\",\"reason\":\"The delivered order has no recorded delivery time, so the refund request requires staff review.\",\"customer_goal\":\"Process a refund for the returned electric kettle.\",\"confirmed_facts\":\"Order h77-o1 is recorded as delivered; its delivery time is missing. The return records show the kettle was received back. Assessment says the case needs a person (refund-policy/v2/eligible-orders).\",\"decision_needed\":\"Review the refund request given the missing delivery time.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_c8HtjcmypPYF2fPTYy6YjGBX",
+      "name": "request_handoff",
+      "content": "{\"ok\": true, \"handoff_id\": \"hand-7a21088d60794efb\", \"closed_request\": null, \"reason_code\": \"shop_decided\", \"policy_citations\": [\"refund-policy/v2/eligible-orders\"], \"next_step\": \"This handoff closed no request: say nothing of closing one. Tell the customer a person will take over, and why, citing (refund-policy/v2/eligible-orders). A refund already paid stays paid. Make no more changes.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "The return records show the kettle was received back, but the order has no recorded delivery date. A staff member needs to review the refund request because the delivery time is missing (refund-policy/v2/return) (refund-policy/v2/eligible-orders). A person will take over from here.",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "The return records show the kettle was received back, but the order has no recorded delivery date. A staff member needs to review the refund request because the delivery time is missing (refund-policy/v2/return) (refund-policy/v2/eligible-orders). A person will take over from here.",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}
