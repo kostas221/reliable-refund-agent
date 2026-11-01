@@ -53,7 +53,7 @@ They explain failures and change no score (refund_agent/evaluation/diagnostics.p
 | Required citation: shown, cited | 62 | 63 | 62 |
 | Required citation: shown, not cited | 4 | 3 | 4 |
 | Failed handoff: forbidden, begun by the agent | 0 | 0 | 1 |
-| Conversations that failed on required citations alone | 4 | 3 | 4 |
+| Conversations that failed on required citations alone | 1 | 3 | 2 |
 | Quality citations (never failed): shown / not shown | 1 / 5 | 1 / 5 | 1 / 5 |
 | Simulated customer reminded to answer before ending: answered / ended anyway | 0 / 1 | 1 / 1 | 0 / 0 |
 | Proposals after a paid refund | 0 | 0 | 0 |

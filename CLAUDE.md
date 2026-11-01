@@ -311,9 +311,24 @@ fixes"): 264/267, pass^3 86/89, 0 unsafe, Claude read all 267; paired +1.1 (95% 
 3 of 3, the agent cited the section it was given), fix B never fired (D41, D69, D72 cited by the agent itself, 9/9,
 chance); lost D13 try 2 (a false "deadline passed" against `refund_deadline_passed: false`, as on 2026-10-23; repair
 recorded for after the freeze) and D34 try 1 (an unneeded "which order?"), neither touched by the fixes; 8 of 9
-predictions right (5 wrong: no line fired). **v1.3's agent is frozen at 80c5a0b** by the pre-registered rule. Next,
-per the release brief: commit this run; close v1.2 (the owner reads the 73 held-out conversations, then
-`docs/held-out-v1.2/results.md`); then the live-model mode in the app. The author model's
+predictions right (5 wrong: no line fired). **v1.3's agent is frozen at 80c5a0b** by the pre-registered rule;
+committed. The product's model (plan change log, 2026-11-01, the owner's point): expected cost per conversation =
+model cost + failure rate x $1 per failure (set by Claude at the owner's request, conservative against Gartner's
+$13.50 median assisted contact); on v1.2's final run Luna $0.123, Sol $0.059 (break-even $0.08; written after seeing
+those data, gain +7, 95% +0.0 to +19.3). v1.2's own rule stays as written and is reported beside it; the owner
+chooses at v1.2's close; if Sol, one v1.3 confirmation run with Sol low first (~$2). No Haiku trial. An outside
+critique of the closing plan (2026-11-01) was checked point by point and adopted (plan change log): the $1 criterion
+is an assumption ("with $1 and the observed difference, Sol is preferred", the overclaim removed); the live mode's
+completion criteria add a shared budget under concurrency (the `Budget` has no lock and lives in memory, notices are
+delivered from a background thread), no silent reset on restart, and a clear recoverable state when the budget runs
+out with an approval pending; false deadline claims are measured free before the human trial and a bounded repair
+decided after the model choice, correcting the answer before the customer sees it; one trial participant plays staff.
+**v1.2 is closed** (`docs/held-out-v1.2/results.md`): the owner waived the reading of the 73 (a recorded deviation);
+Claude's second check confirmed 68 and added `explains_refusal_reason` to 5 H255 conversations already failed (no
+outcome change); A 50/57, 16/19, both targets met, 0 unsafe in 162; B 54/57; no difference shown (+7.0, 95% +0.0 to
++19.3); the pre-registered rule chooses Luna, the $1 criterion Sol; predictions 5 right, 3 partly, 2 wrong. Still to
+record by the owner: the author model's name, dates and messages. Next: the owner chooses the product's model; then
+the live-model mode in the app with the added budget criteria. The author model's
 name and dates are still to be recorded. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
 `runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run
