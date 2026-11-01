@@ -1,0 +1,227 @@
+{
+  "scenario": "D33",
+  "try": 2,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded d33-o2-u1 for 4590"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal refunded, acceptable ['refunded']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "communication:resolves_ambiguity_first",
+      "status": "pending",
+      "evidence": "pre-check passed: the agent asked and the customer answered before the first proposal"
+    },
+    {
+      "name": "communication:states_correct_amount",
+      "status": "pending",
+      "evidence": "pre-check passed: ['R$ 45,90'] stated"
+    },
+    {
+      "name": "communication:gives_this_receipt",
+      "status": "pending",
+      "evidence": "pre-check passed: the receipt number of this run's refund is given"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "1 refund(s), each confirmed and approved in time"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: ['R-00000001']; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_with_other_units",
+      "status": "passed",
+      "evidence": "every proposal stays within ['d33-o2-u1']"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 7,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    3.039,
+    8.082,
+    7.705
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.0005685150000000055,
+    "simulator": 0.00013810000000000038
+  },
+  "attempts_sent": 9,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hello, I sent back the white ceramic planter. Can I get my money back?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_mbWOeRqTasyLx7LM1s0MKbhd",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_mbWOeRqTasyLx7LM1s0MKbhd",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"d33-o2\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-05T10:00:00+00:00\", \"delivered_at\": \"2026-10-08T12:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"d33-o2-u1\", \"product\": \"Ceramic planter, white\", \"paid_minor\": 4590, \"received_back\": true, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-11-07T12:00:00+00:00\", \"refund_deadline_passed\": false}, {\"order_id\": \"d33-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-09-28T10:00:00+00:00\", \"delivered_at\": \"2026-10-01T12:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"d33-o1-u1\", \"product\": \"Ceramic planter, white\", \"paid_minor\": 4590, \"received_back\": true, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-10-31T12:00:00+00:00\", \"refund_deadline_passed\": false}]}"
+    },
+    {
+      "role": "agent",
+      "text": "I found the white ceramic planter in two orders, and both are recorded as received back (refund-policy/v2/return). Which order would you like to request a refund for: **d33-o2** or **d33-o1**?",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "id": "rs_048f5045f324288b016ae74053fbfc87d2b283075ba1891f10",
+          "summary": [],
+          "type": "reasoning",
+          "content": [],
+          "encrypted_content": "gAAAAABq50BUWxBq2IGdDHewoQ6MH4LfU_uJTgOGSi9Z-bjo12y77QGY3m4rxW1NbdG-BwB3ZQQFiEHFUlEuq8jQtk4E4845mx91RAX5_eitTuGpgplEVWgfGlzRXS8tm60cp8rZSMntauwRmJBcBd31Dx0KuNHcPKZues93MXcogvl1wNVyF0yeBWy4in58l8BsdZn-UHNGAXfLI7gW2t39mYsxlSj3moliqu_chxtnt8wOKJfBOuYOxsizXvRTRwiOQnaAwE84bbB0v9ZfpfpZFCDKRaovhcn8-Wx5iYHWkAWVLbPa57sxMuiLxEatlRc6SuU06xze8clGwZOPPnu4dlRAEO3sex3A-gR71zMWi3OPLI8jmqUS5y6AF-EcTYF0-LMY7XXkt3ulixoiQGbeUTCpyKAWMGFC4XdMn2tPsLpd0V51tdf-qLkAdcwBCfuXdHFTK_il2iNulVsyr21xCUAOliIGVDDB5TJfKyQAMK0GEJ02ECww71AS0rrRWcnfARpN3GQRLlMSWB0E9byTbCCSjFIiHDP-NpJiOC190GrK5h2Jp8vH_tJOy1f7hhSmMFkPhdfz_tCnKUEkBd-TnvuRszC4RexwNb1YZGIQXI83-f2ntHiWz_wwwUQ0Qa1PK-7K4KGkosnBMMllVrJGimDeC4WV6vLDAnK45lOX4UwnRYm6tinIlkjRpI9ZnoweomqlDDIulODJ9LE02ndnYopqddLZVDN8kyxIHPVzXkfWyMPEMQs3oJNLp7fWp0SHLCwIeL2f2KD898i-89KDbrI5RYcmF0qLAwHLQjm2DjwhwsHCr346bwS6Vpvtq36nAW3BGlSVNJoCIaFqoYJr3OQ8aYj85IwdKDb_FidyXuZx6L9S6Ok5AEy_B-YPkFF3PwbODc-2CFo4eZU0E8MEAjlxbU9hNPLspfzUOwwKlsAlCQ8kDOiTpSeuPXsvTfAI5s2wdkcqeOn623HKx96v0_wU_WtwHe2mJSbRZpvMF1zGudwflyjXypl5T8faEmkByg-x2TGsS4im5Bmp6ywgLB9yve2ik3L2IX7-14ilgSuLyVWhEI9lOEFV38h5gjGAgu0NFePFx_G2XfliLuevJWGwVtFa8ABAaWADN4Ze4SaT8ZqTIXWKDRYliSGf50hRQ4yJgqh9ruLHgruCfH6K834WxTtU24rGcjwG84h54R6EoD6_XtTYcDLfYNWlGYKyTdxAG4qiZk4ErIQDWsGIT5naE2OO8SfmSnpJeGvdXbPc9vWpCHIZ5OHotbtEC4DBBJla54KVMLnX9f8pCNX5G0-Zji5mxUO_QfkqXkHObQPg74lT3u_p_bhzPkfx5qMTkKoh4yG2BNxYwyfm_aVZbM3DU0eA_THM4i9NW-ZZgSabnX1Is6lfkF_pIk6AlGjY2rO1gPuMcnKng2pS0ILVLm0OuQQWrZKMIEfSQu6iJebSjCqPqxxoZgc3nRKu-5pZNZLBNY0XuzfSi9uIURqX-WGNn6dbfgbhco1aAu0_90n5LL2u9h3xPPG7xpVCV_pSKWkvqQh5z6GFl8fQfz9tSbusV0eKW_4D5k6g0vxhpoen_fMFcisZUSB-ZmrhOAw4kHFrVul1uLX3lBs32He5abbjfjWKRUjeEspWF-dj7rc1Zif77nJ4mibfRCfHolB-1r9HRc9c"
+        },
+        {
+          "role": "assistant",
+          "content": "I found the white ceramic planter in two orders, and both are recorded as received back (refund-policy/v2/return). Which order would you like to request a refund for: **d33-o2** or **d33-o1**?",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "customer",
+      "text": "The planter from my second order, placed on 5 October. It arrived cracked."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_kB1zXctu9D5K0PtUOfXvZFgh",
+          "name": "assess_refund",
+          "arguments": "{\"order_id\":\"d33-o2\",\"unit_ids\":[\"d33-o2-u1\"]}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_kB1zXctu9D5K0PtUOfXvZFgh",
+      "name": "assess_refund",
+      "content": "{\"ok\": true, \"outcome\": \"eligible\", \"policy_citations\": [\"refund-policy/v2/amount\"], \"amount_minor\": 4590, \"currency\": \"BRL\", \"order\": {\"order_id\": \"d33-o2\", \"status\": \"delivered\", \"delivered_at\": \"2026-10-08T12:00:00+00:00\", \"refund_deadline\": \"2026-11-07T12:00:00+00:00\", \"payment_records\": 1, \"one_valid_payment\": true}, \"units\": [{\"unit_id\": \"d33-o2-u1\", \"product\": \"Ceramic planter, white\", \"paid_minor\": 4590, \"received_back\": true, \"refunded\": false, \"receipt_number\": null, \"earlier_on_time_proposal\": false}], \"next_step\": \"This assessment does not create or change a proposal. If these are exactly the units the customer asked for, call propose_refund with them; if the customer's words could mean other units too, ask which first.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_wPgX9SjXGLtAl0RbLVgl4nMN",
+          "name": "propose_refund",
+          "arguments": "{\"order_id\":\"d33-o2\",\"unit_ids\":[\"d33-o2-u1\"],\"summary_for_staff\":\"Customer says the white ceramic planter arrived cracked.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_wPgX9SjXGLtAl0RbLVgl4nMN",
+      "name": "propose_refund",
+      "content": "{\"ok\": true, \"proposal_id\": \"prop-9006cdcd24614549\", \"status\": \"awaiting_customer_confirmation\", \"outcome\": \"eligible\", \"amount_minor\": 4590, \"currency\": \"BRL\", \"policy_citations\": [\"refund-policy/v2/amount\"], \"next_step\": \"The proposal is now on the customer's card, waiting for their button. Tell the customer the amount. They confirm with the button on the proposal card; a typed yes is not a confirmation.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "I’ve proposed a refund of **BRL 45.90** for the planter (refund-policy/v2/amount). Please confirm the exact proposal using the button on its card; a reply in chat won’t confirm it. After you confirm, a staff member will review it (refund-policy/v2/approval).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "I’ve proposed a refund of **BRL 45.90** for the planter (refund-policy/v2/amount). Please confirm the exact proposal using the button on its card; a reply in chat won’t confirm it. After you confirm, a staff member will review it (refund-policy/v2/approval).",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "event",
+      "text": "The customer confirmed request prop-9006cdcd24614549 and a staff member approved it, so it is ready to be paid.",
+      "notice_id": "notice-dec-4dd2d68d6b5b4f3d"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_CiciiAV3I4riXbSJeZBsQIeF",
+          "name": "execute_refund",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_CiciiAV3I4riXbSJeZBsQIeF",
+      "name": "execute_refund",
+      "content": "{\"ok\": true, \"receipt\": {\"receipt_number\": \"R-00000001\", \"operation_id\": \"op-726eddfc80f94a1f\", \"proposal_id\": \"prop-9006cdcd24614549\", \"amount_minor\": 4590, \"currency\": \"BRL\", \"payment_id\": \"d33-o2-p1\", \"units\": [{\"unit_id\": \"d33-o2-u1\", \"amount_minor\": 4590}], \"committed_at\": \"2026-10-20T10:05:00+00:00\"}, \"next_step\": \"The refund is paid and recorded against the order's original payment. Tell the customer the amount and the receipt number. Explain the test ledger (not a bank transfer, no date) only if the customer asks when or how the money arrives.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Your refund of **BRL 45.90** has been paid to the order’s original payment. Receipt: **R-00000001**.",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "Your refund of **BRL 45.90** has been paid to the order’s original payment. Receipt: **R-00000001**.",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

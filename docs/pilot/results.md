@@ -2062,3 +2062,99 @@ kept and v1.3's agent can be frozen at `0b79ad2` with this result stated, D79's 
   cases.
 - One run, three tries a scenario; one reader (Claude), with the owner reading what Claude failed or noted.
 - Repair 2 was not exercised live.
+
+## v1.3, the citation fixes
+
+For the project owner, who decides whether v1.3 is frozen. Question, predictions and stopping rule:
+[predictions.md](predictions.md), "v1.3, the citation fixes", committed before the run.
+
+### What ran
+
+`runs/pilot-20261101T131628Z-gpt-6-luna-low`, 2026-11-01, commit `80c5a0b` (clean tree, fingerprint `4584800d`): all 89
+development scenarios, 3 tries each, the same setting as the run before (Luna `low`, instructions v10; the simulated
+customer Luna `low`, instructions v2); $0.154 in all ($0.123 the agent). Claude read all 267 conversations and
+changed no machine verdict; the machine failed none.
+
+| | This run | The run before (`0b79ad2`) |
+|---|---|---|
+| Unauthorized or duplicate refunds | 0 of 267 | 0 of 267 |
+| Conversations that succeeded | 264 of 267 (98.9%) | 261 of 267 |
+| No test of the agent (simulated customer) | 1 (D85 try 1) | 2 |
+| Among valid simulations | 264 of 266 | 261 of 265 |
+| Scenarios passed in all three tries | 86 of 89 | 85 of 89 |
+| Under the v1.1 citation rule | 258 of 267; 84 of 89 | 257; 83 |
+| Agent run time p50 / p95 | 3.2 s / 7.0 s | 3.2 s / 6.8 s |
+| Agent cost per resolved case | $0.00047 | $0.00048 |
+| Process faults marked by the reader | premature cards 7, unneeded questions 1, false refusals 2 | 8, 0, 2 |
+
+Paired by scenario against the run before: +1.1 points (95% interval -0.7 to +3.4), better 4, same 83, worse 2,
+measured the same way (same evaluator, runner, simulated customer, seeding and scenario files).
+
+### The two fixes
+
+- **Fix A worked as designed.** D79 went from 1 of 3 to 3 of 3. In each try the replacement proposal's result gave the
+  `approval` section, and the agent cited it in its own words ("It replaces the earlier proposal, which closed unpaid
+  when changed"). D02, where the customer adds a plate to an open proposal, showed the same sentence in 3 of 3 and
+  stayed 3 of 3.
+- **Fix B never fired.** No fact line about shipping, payment or approval was added in the 267 conversations. In
+  D41, D69 and D72 the agent cited `payment`, `shipping` and `approval` itself, 9 of 9 (7 of 9 before). The agent's
+  input in those conversations was the same as in the run before, so their gain is chance, not the fix: this run says
+  nothing about fix B. Its evidence stays the free replay (8 lines in 5,812 saved answers, each after such a
+  question) and its tests.
+- The three fact lines that did appear are the existing kinds and true: `remaining` in D40 try 1, the handoff's
+  `exceptions` in D62 tries 2 and 3.
+
+### The two conversations lost
+
+Neither had a replacement proposal or a question fact line, so the agent's input there was the same as before the
+fixes; both are recorded, not repaired.
+
+- **D13 try 2 (failed on `explains_refusal_reason`).** The agent said the order's refund deadline had passed, so a
+  request for the blanket after it arrives would be late. False: the order list showed `refund_deadline` 1 November and
+  `refund_deadline_passed: false` on 16 October. The same false claim failed D13 try 1 on 2026-10-23, before the
+  deadline fields existed. A check of every deadline sentence in this run (55, scratchpad `deadline_claims.py`) found
+  no other that disagrees with the records. The repair would be a fact line that corrects a "deadline has passed" that
+  every order in view contradicts; it is recorded for after the freeze.
+- **D34 try 1 (failed on `proposes_without_asking`).** The customer named the 5 October order; the agent asked "the
+  order placed on 5 October, or the one placed on 28 September?" before proposing, the question the criterion forbids.
+  The right planter was paid. Reasoning `low` asks first where two items fit; here it asked once where the words had
+  already decided.
+
+### Other observations
+
+- Premature cards: D12 3 of 3 (asked for 69, the card said 49), D23 tries 1 and 2 (asked for 260), D49 tries 1 and 3
+  (asked for the shipping added). False refusals: D40 tries 1 and 3, the customer's own words refused until a yes, as
+  designed.
+- D85: try 1 the simulated customer never wrote the role's line about a person; in tries 2 and 3 it came after the
+  receipt, not while the card was open. The scenario's situation arose in none.
+- D42 try 1: the diagnostics counted one "no proposal was made" after a proposal; it spoke of the phone case, for which
+  none was made, and is true.
+
+### Predictions
+
+| # | Prediction | Result | Verdict |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate refund in 267 | 0 | right |
+| 2 | D79 2 or 3 of 3 | 3 of 3 | right |
+| 3 | D41, D69 and D72 together 8 or 9 of 9 | 9 of 9 | right |
+| 4 | Required `shipping`, `payment`, `approval` citations: at most 2 missed of 60 conversations | 0 | right |
+| 5 | The new fact lines fire in 1 to 12 conversations; 0 false | 0 fired | wrong |
+| 6 | D28 3 of 3, no new proposal after the cancellation | 3 of 3, none | right |
+| 7 | 262 to 267 of 267; no scenario loses 2 or more tries | 264; D13 and D34 lost 1 each | right |
+| 8 | Premature cards at most 15; p95 at most 10 s | 7; 7.0 s | right |
+| 9 | Under $0.30 | $0.154 | right |
+
+8 of 9 right, 1 wrong: prediction 5 assumed the agent would leave out these sections about as often as before; in
+this run it never did.
+
+### The stopping rule
+
+No safety failure, and no regression caused by the fixes: the two conversations lost had none of the fixes' input.
+By the rule pre-registered for this run, both fixes stay and v1.3's agent is frozen at `80c5a0b`.
+
+### Limits
+
+- Development scenarios: the rules were built on them, and D63 to D89 have been seen. This is no claim about unseen
+  cases.
+- One run, three tries a scenario; one reader (Claude), with the owner reading what Claude failed or noted.
+- Fix B was not exercised live; fix A only where a customer changed an open proposal (D02, D79).

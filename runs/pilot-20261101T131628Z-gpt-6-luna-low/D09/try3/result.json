@@ -1,0 +1,227 @@
+{
+  "scenario": "D09",
+  "try": 3,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded d09-o1-u2 for 5990"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal refunded, acceptable ['refunded']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "communication:resolves_ambiguity_first",
+      "status": "pending",
+      "evidence": "pre-check passed: the agent asked and the customer answered before the first proposal"
+    },
+    {
+      "name": "communication:states_correct_amount",
+      "status": "pending",
+      "evidence": "pre-check passed: ['R$ 59,90'] stated"
+    },
+    {
+      "name": "communication:gives_this_receipt",
+      "status": "pending",
+      "evidence": "pre-check passed: the receipt number of this run's refund is given"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "1 refund(s), each confirmed and approved in time"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: ['R-00000001']; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_with_other_units",
+      "status": "passed",
+      "evidence": "every proposal stays within ['d09-o1-u2']"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 7,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    2.398,
+    3.504,
+    2.249
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.0005431200000000011,
+    "simulator": 0.00010850000000000009
+  },
+  "attempts_sent": 9,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hi, I sent back the navy T-shirt. Can I get my money back?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_qWSbySopBj7J6Nh7J53HFRpC",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_qWSbySopBj7J6Nh7J53HFRpC",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"d09-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-09-10T10:00:00+00:00\", \"delivered_at\": \"2026-09-14T14:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"d09-o1-u1\", \"product\": \"Cotton T-shirt, navy, size M\", \"paid_minor\": 5990, \"received_back\": true, \"refunded\": false}, {\"unit_id\": \"d09-o1-u2\", \"product\": \"Cotton T-shirt, navy, size L\", \"paid_minor\": 5990, \"received_back\": true, \"refunded\": false}, {\"unit_id\": \"d09-o1-u3\", \"product\": \"Canvas tote bag\", \"paid_minor\": 3990, \"received_back\": false, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-10-14T14:00:00+00:00\", \"refund_deadline_passed\": false}]}"
+    },
+    {
+      "role": "agent",
+      "text": "I see two returned navy T-shirts in size M and size L. Which one would you like refunded? (refund-policy/v2/return)",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "id": "rs_0eb571cef4687b8e016ae73cf1728087d29cd37ed700bc80f2",
+          "summary": [],
+          "type": "reasoning",
+          "content": [],
+          "encrypted_content": "gAAAAABq5zzy3vF96qTKpysL15NEacPRImWypqu7BWUppkOj4OVl5BWdL_GRiQ4J8AnD5Rg3RGtqK7GtWD3FJPraN0lyy_XojHJ3cqOLJfp_Zn-bTRV27pljhSzkYk1OeusqTOb38a7ocBJjvGCwNNwXHoaSzxowfLqw0HsWQl9f1KDCmpj2G0GCfu7D8aOtd8LOqEx9oYO2WjevW8ivpJk7iXDn2TVOnnKBDdJ59wtMY1WHRP2VWqy3XcoYDzz_ldRNUFGrvh_E6k8U_tMKxDa6Lnk63SI13GrOopFuN4Bql7KgSekMSPULxOwjrPNugZC-CJuFlxRmZj-QaKyUlvuSyFwgtm8tO6WZ06NL5YSPDfayT5x14SgpsWgAr3eOa-sGB2mcBPFQfzXC_enL48jshgk6vVg6r2jrc32NtDOhJ65NfU42YUJomqyg87B74UUEhSS-FfAwNUdTbzvNZ_0W8isyQE7D7SJwSLXzh26lRnMiGXxSPeXyknmKaCOG5KfG2rxISqHAeQMI38DMNQR4pP14ORzrcpwBXMYNDPXVOndyqnFh_pQrobSrYunNxJgi99gR6u4Zoi8gAlyxZHf0yyXL__wnKoACXtOLXzCW_Sc-mx1Z6KrCi_5GkXdtGt_VWicmPkk-S_5lfZCIXJ4jJZefFC4V6-KkK4WaPmT8pjgsyyIvFrLBk2IRGQPWeM8D4B9OVCF_5ourlBpyMbgAfOeQlYmYqsbeLE3bhh5C1JQSv4tS5bE_PlIMfGDPOJwADMn0YBISoEhwP6fLIY83GPPOnijiz73sGACNsSgviGUytosThGKB7WekcywKW9NRbOn2b_2K6qpZb_qnfZ-sdUBGsHSwFI07VWQvg0QhZyzfDmDH9w0IdE8zBx3Gfk3MPTYrH3YjGSF8RD1jA7GLMtDrG2w3OUKwe0GhqokciPkvq-pf7W2RebVFb-JDkbD4gGNb5y0uxfJnmb14C57y9aEyImcjJTAgkLR7mACcasBtGfo00bn7tkXzsdrbUiQ9oPigyGybIeA2K2v_MxPyzNyI0X21seYVYkgkkrcoMRFWXuohr-fVbMU4ViUE2laGX78OIDLHyS_2h3NXGQ_2nCZRfY_HDwLYsEAlqKwCVxxUz29iTReIWk6LJChDVEwv1jT_5XzjNIjJ2uYXHhYfKJILPBTtiArsow1a0XsxVqoldhPoZdpzBe8Om-oxWr7ZLApQ-2rprdUoEizRVHc_hYV--6Gh6WSR_VNKsR54ueqCncxVEcltlK1m9V8PeSDKL-RRYt1u5Wf20Smr-EMAPUMbZCf1j0b3-rg07gDFExTSGTIh-PvHtCk5Wn96lZElt2mGjeeCgoVp95R58s-cWaL9Hh77APxF7W3TRMp6Thr5F0SO42GhmMd0gNncEPE1WlYepS9gkqBLZ9Pvqj3cUJhUuWrI_2AXQqwcJxHsMJtqEnTODrpiC8iV2hVPku9v01XHTQElwaMdr5dszInKB96RfeVm0sY--PpjVwZ5jsuTG0GERHIEuEcgy-9mZ7AjwiVaxBD1Vyc1Trhi8fAP_FhDY3jUAHBN4mOJOf8QJo8TO7Z_3lNCAFQCLBzDAir-pDW__WHzHaiSrvWm1_MSIQ3JxbOZBjcE27H5RGXqS5a87rNPtso="
+        },
+        {
+          "role": "assistant",
+          "content": "I see two returned navy T-shirts in size M and size L. Which one would you like refunded? (refund-policy/v2/return)",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "customer",
+      "text": "The size L one, please."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_HeKH7N24yuoQZmRHpkYRdyR0",
+          "name": "assess_refund",
+          "arguments": "{\"order_id\":\"d09-o1\",\"unit_ids\":[\"d09-o1-u2\"]}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_HeKH7N24yuoQZmRHpkYRdyR0",
+      "name": "assess_refund",
+      "content": "{\"ok\": true, \"outcome\": \"eligible\", \"policy_citations\": [\"refund-policy/v2/amount\"], \"amount_minor\": 5990, \"currency\": \"BRL\", \"order\": {\"order_id\": \"d09-o1\", \"status\": \"delivered\", \"delivered_at\": \"2026-09-14T14:00:00+00:00\", \"refund_deadline\": \"2026-10-14T14:00:00+00:00\", \"payment_records\": 1, \"one_valid_payment\": true}, \"units\": [{\"unit_id\": \"d09-o1-u2\", \"product\": \"Cotton T-shirt, navy, size L\", \"paid_minor\": 5990, \"received_back\": true, \"refunded\": false, \"receipt_number\": null, \"earlier_on_time_proposal\": false}], \"next_step\": \"This assessment does not create or change a proposal. If these are exactly the units the customer asked for, call propose_refund with them; if the customer's words could mean other units too, ask which first.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_PtbKCw5UPGWoexCRcEKDJdnO",
+          "name": "propose_refund",
+          "arguments": "{\"order_id\":\"d09-o1\",\"unit_ids\":[\"d09-o1-u2\"],\"summary_for_staff\":\"Customer requests a refund for the returned navy Cotton T-shirt, size L.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_PtbKCw5UPGWoexCRcEKDJdnO",
+      "name": "propose_refund",
+      "content": "{\"ok\": true, \"proposal_id\": \"prop-8d7516ef59274b04\", \"status\": \"awaiting_customer_confirmation\", \"outcome\": \"eligible\", \"amount_minor\": 5990, \"currency\": \"BRL\", \"policy_citations\": [\"refund-policy/v2/amount\"], \"next_step\": \"The proposal is now on the customer's card, waiting for their button. Tell the customer the amount. They confirm with the button on the proposal card; a typed yes is not a confirmation.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "The refund proposal is for **BRL 59.90**. Please confirm the exact proposal using the button on its card; a reply in chat won’t confirm it. (refund-policy/v2/approval)",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "The refund proposal is for **BRL 59.90**. Please confirm the exact proposal using the button on its card; a reply in chat won’t confirm it. (refund-policy/v2/approval)",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "event",
+      "text": "The customer confirmed request prop-8d7516ef59274b04 and a staff member approved it, so it is ready to be paid.",
+      "notice_id": "notice-dec-133f6668f9874ef9"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_MbCw8TQzYkR4YpB0WTIXlZrz",
+          "name": "execute_refund",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_MbCw8TQzYkR4YpB0WTIXlZrz",
+      "name": "execute_refund",
+      "content": "{\"ok\": true, \"receipt\": {\"receipt_number\": \"R-00000001\", \"operation_id\": \"op-384494ac62724e42\", \"proposal_id\": \"prop-8d7516ef59274b04\", \"amount_minor\": 5990, \"currency\": \"BRL\", \"payment_id\": \"d09-o1-p1\", \"units\": [{\"unit_id\": \"d09-o1-u2\", \"amount_minor\": 5990}], \"committed_at\": \"2026-09-24T10:05:00+00:00\"}, \"next_step\": \"The refund is paid and recorded against the order's original payment. Tell the customer the amount and the receipt number. Explain the test ledger (not a bank transfer, no date) only if the customer asks when or how the money arrives.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Your refund of **BRL 59.90** has been paid to the order’s original payment. Receipt number: **R-00000001**. (refund-policy/v2/payment)",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "Your refund of **BRL 59.90** has been paid to the order’s original payment. Receipt number: **R-00000001**. (refund-policy/v2/payment)",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

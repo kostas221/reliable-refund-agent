@@ -1,0 +1,145 @@
+{
+  "scenario": "D06",
+  "try": 3,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['ineligible', 'none']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v2/return",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: The shoes must reach the shop before a refund can be requested."
+    },
+    {
+      "name": "communication:explains_refusal_reason",
+      "status": "pending",
+      "evidence": "pre-check passed: 2 agent messages"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 3,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    3.119,
+    1.598
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.00022086000000000154,
+    "simulator": 0.0001946999999999999
+  },
+  "attempts_sent": 5,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hi, the running shoes I got are too small. Can I get a refund?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_aLeMMYWfvNvCX6veE6f3nWjx",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_aLeMMYWfvNvCX6veE6f3nWjx",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"d06-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-09-08T08:00:00+00:00\", \"delivered_at\": \"2026-09-12T17:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"d06-o1-u1\", \"product\": \"Trail running shoes\", \"paid_minor\": 25990, \"received_back\": false, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-10-12T17:00:00+00:00\", \"refund_deadline_passed\": false}]}"
+    },
+    {
+      "role": "agent",
+      "text": "Your order shows the trail running shoes haven’t been received back yet. They need to arrive back at the shop before I can request a refund (refund-policy/v2/return). Would you like to send them back?",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "id": "rs_049a6536c065f815016ae73ca048d487d2b019daf9bcf995d0",
+          "summary": [],
+          "type": "reasoning",
+          "content": [],
+          "encrypted_content": "gAAAAABq5zyheD3QcwXmXoB5vbukSk8_YiVwCYoRIpP5r5hENPEAaEKMLAiNVrxN4Ec8nssNAwOEWcuObZbrWG6E5FGzi3l-Yk1Wdf8qtUz7exC8DAsiZSPIFx-WG3r2lRtOYMYOWe9K_4kJnyHT8ZCkwg_m9wZrQ1QMZ0vvOe_pGaklXwE1li5IO13RjsGA-DCslRTcWO06lc7zPQd9uZ0ButQ6rkDZxa_jlJ_dseguYLQ8jACxVU98-im5-KhulOPZcOcHi--dq66RACcNzaQZKwTKIciVgoiagt1rHx01yxqgqV5T26dMLuV7L5djD_TxSGuj16kzLbJLUWnfqqORE1pNiEAuwJ-WxpsH7FZInLzvaOsMflnn8rdK2YIxt9_OGClYBWx3kZvQ3ZwZm-R9jF4lyRUo3ET1BDZJaIhBR-_QA-vWXLznuiDbhrEIZM2SBAX9o8cK2kNoQjqeSBfQlBUuUqHWuCi5S6IrbkXvMmlOh8AJYmPYZgSz9io53yPKC_ji8uu82r5i77MFI9jUulfTHI6YgUaPpUyPu-C9LKsG_77evQJcbRRL9wrTkp9aHvG7lHzFqb1trnmztBQo9V2AYnA5imHkNK-UxHeEVIWhfoyBk1cm6w7pNspM7CKFA7H0aNmokM7McRKHzib9iLoR060NLiGWRjCceKzwK432m1c4kFGxuuLieDoex8_DWUk5XCuQcD5YT3pqxzwC0bMfCojx4dJVEPJAEGg4jCsSOCO61jd1dex8YLb_Fwu2_XlK5zX91g854xQ3g6PZe1-1nbTC1Icnwu1SEkvAEvWCo7a86y1u-iux2Vub86kFuGuU9r8mkzcWc6EKrAcSeMsPcENi71U2DGVHJP827WEYlPPqs1xtHO8Vb74Noc7HbYnGvUshpYwxWcKGgRftpH9P7qLcY4JA9h9kJSSX9SrdGVDpTgFXk3BCY-PAO9YhuzkRHJGzlIg4d0v_Gi-W_SyjiXE-hDTJwAXkLefZo_uYSz8WLnURox1ZvNmwXt9H1ioIq19KeWaYLHIkN0YNoZqrQtKwjUAnkyADtMfnElmCD95WU-u_n4DhJMseCgM0523XdPlA4kIMyAwThzBqWIibqkMUP3JstmwDJVI_NX35kTxSa4iHax8ZFgkvN1P7p3pLzkHs33MFz6Gfwnzwgdy5DGSRPr3zCtnqaPT1iTfbue9KDAcMk5m1RZPVVeRpAGHILq2LHitWA6AP5rrGfLa4kIXKG7hlaBmRbXviMudETgKfeqhNi515XT6QdvPP8hbrPOCNMfCbzJHc-dpKdgl-ZEOwBtxhX-mAljuYtDppsjWEPbx78wXVvvGRJeElVKAp8DAepj46VFsARagvwjc9JoJy5-cXqIIhC90a2dudtZvoXjArpUaF9jiXx3xv_3oekvD8EHexwIZLjpRVwtDvpoLRfjEyGvQmPehH1kHpr8ugl_b8g47PqPCX-C4IPh3dvoOPNLzxiVMSX2yQHQr4F37MrkPqIQnBdSxBUq2LlWprTquDgcAwX14iSOWrjQSRy1G_KcJxzgtNyUjJNmhmKiwKiujkAYXFtZxwca2sJICZ2QozLQ6ibHIv7bjTBbOCGo6dFwpfSEarekZY0DGjXSizzDJPJaSk6vDOMBw0Ivhdg5eu2vm9tsddmk3TW6zYOpzQXu49_fFDL07So9zdZUoXoVwlap53xgDhL2yx4Dz-3uMw1CslWGWTqRB-eNfX5qqC7nZK0LZMfkeptahKi3xl8td5HKLlmJ7EIjfT-_XJwdFHBM0IFH03fTihraCkUWfCkt5s1IY2yE8a3I3h8d0p7yQjucB70f5YZRUxcVBGHp225m0JrN0aNg0IvNJ4IiYWHztZP7UB0FQO8VfcRKxt_5omAzba7fUtHwEhF8ZQl_CsRFAXs45yomVZ-qGqMCEhnfz72c5ArWls3fNuOdUp8w=="
+        },
+        {
+          "role": "assistant",
+          "content": "Your order shows the trail running shoes haven’t been received back yet. They need to arrive back at the shop before I can request a refund (refund-policy/v2/return). Would you like to send them back?",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "customer",
+      "text": "Yes, I’d like to send them back."
+    },
+    {
+      "role": "agent",
+      "text": "Please send the shoes back first. I can request a refund only after the shop’s return records show they’ve arrived (refund-policy/v2/return). The order’s refund deadline is October 12, 2026, at 17:00 UTC; a request after that would be late too (refund-policy/v2/window).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "Please send the shoes back first. I can request a refund only after the shop’s return records show they’ve arrived (refund-policy/v2/return). The order’s refund deadline is October 12, 2026, at 17:00 UTC; a request after that would be late too (refund-policy/v2/window).",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

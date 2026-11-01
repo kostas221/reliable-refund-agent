@@ -305,9 +305,15 @@ deviation): (A) a proposal that replaces the conversation's open one gives `appr
 the money goes, or a cancelled refund card or request, when the answer lacks `shipping`, `payment` or `approval`
 (`agent/facts.py`: the customer's latest message asks, no event since). Failing-first tests, 14 of 14 planted bugs
 (scratchpad `planted_citation_fixes.py`); replay on 5,812 saved answers: 8 lines, all after such a question (the
-first draft gave 32, 22 wrong, and was narrowed). Predictions written ("v1.3, the citation fixes"); next: full suite,
-commit, one confirmation run of all 89 with Luna low; a regression a fix caused reverts it and v1.3 freezes at
-0b79ad2. The author model's
+first draft gave 32, 22 wrong, and was narrowed); committed as 80c5a0b. Their run
+(`runs/pilot-20261101T131628Z-gpt-6-luna-low`, $0.154, results in `docs/pilot/results.md`, "v1.3, the citation
+fixes"): 264/267, pass^3 86/89, 0 unsafe, Claude read all 267; paired +1.1 (95% -0.7 to +3.4); fix A worked (D79 1 to
+3 of 3, the agent cited the section it was given), fix B never fired (D41, D69, D72 cited by the agent itself, 9/9,
+chance); lost D13 try 2 (a false "deadline passed" against `refund_deadline_passed: false`, as on 2026-10-23; repair
+recorded for after the freeze) and D34 try 1 (an unneeded "which order?"), neither touched by the fixes; 8 of 9
+predictions right (5 wrong: no line fired). **v1.3's agent is frozen at 80c5a0b** by the pre-registered rule. Next,
+per the release brief: commit this run; close v1.2 (the owner reads the 73 held-out conversations, then
+`docs/held-out-v1.2/results.md`); then the live-model mode in the app. The author model's
 name and dates are still to be recorded. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
 `runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run

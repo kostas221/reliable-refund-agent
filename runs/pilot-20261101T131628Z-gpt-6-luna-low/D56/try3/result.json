@@ -1,0 +1,152 @@
+{
+  "scenario": "D56",
+  "try": 3,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['none', 'ineligible', 'cancelled']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v2/return",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: The tongs must arrive before they can be refunded."
+    },
+    {
+      "name": "communication:explains_refusal_reason",
+      "status": "pending",
+      "evidence": "pre-check passed: 2 agent messages"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 3,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    4.14,
+    1.876
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.00033244500000001453,
+    "simulator": 0.0001450999999999987
+  },
+  "attempts_sent": 5,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "I've returned the plate and the serving spoon. The wooden tongs are still with me and I'll send them next week. I'd rather get one refund covering all three now."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_FmbN3FQEDxxmTdEqAGMV9Y54",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_FmbN3FQEDxxmTdEqAGMV9Y54",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h60-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-31T10:23:37+00:00\", \"delivered_at\": \"2026-11-02T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h60-o1-u1\", \"product\": \"Ceramic salad plate\", \"paid_minor\": 3600, \"received_back\": true, \"refunded\": false}, {\"unit_id\": \"h60-o1-u2\", \"product\": \"Stainless steel serving spoon\", \"paid_minor\": 3300, \"received_back\": true, \"refunded\": false}, {\"unit_id\": \"h60-o1-u3\", \"product\": \"Wooden salad tongs\", \"paid_minor\": 4000, \"received_back\": false, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-12-02T10:00:00+00:00\", \"refund_deadline_passed\": false}]}"
+    },
+    {
+      "role": "agent",
+      "text": "The shop’s records show the plate and serving spoon have been received back; the wooden tongs haven’t, so they can’t be included in a refund request yet. (refund-policy/v2/return)\n\nOnce the tongs arrive, they can be requested too, provided the proposal is created by the order’s refund deadline, December 2, 2026 at 10:00 UTC. (refund-policy/v2/window) Would you like me to propose a refund for the plate and spoon now, or wait until the tongs arrive?",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "id": "rs_0de665120d99f743016ae7433c508c87d2a64fd0f9c73aa5c3",
+          "summary": [],
+          "type": "reasoning",
+          "content": [],
+          "encrypted_content": "gAAAAABq50M-U4_xA5X9CmAJc25GZJ6VKOu3XpA2lBU49KhxmPEd6jtPy3w_lJk3dcByNC3veRXmocaZJe3iNKQbjRxBxRuoDkkDfc1ASUC8T3LVTtWeyAak__VcMtdDA2PkGKEEX7VRXdo18BNRfwCjlk_6UvDEKJCvA12EHpiguckoKYdhruQ77nNGYjTqE0O9-JHRkC4QhH1jY4SPYavRat_SE46DYZ7tkBGsILnZx4J1OOMe7bLXvaFpJpNUJVXrMoyl68fjMk2pWgFmko3zKNQrMIL4gnlXeH2TzcfCOmjotBydHywIcQDI_F4RUcIavYKrV33SNr6OlI-MmTXM5murPaWA3fyUKLcgxT-CRAeN1Djk-RNI0AF7_lFJ0ysYb-0Vv6JVVkTP_CQy_aaZhT3WWenpIBdhidKOQvIHDqsbVzR_7qsCg-JwancT_69Ierme6Ln1jKwnx-keTUjzx7noisquNcTHe-VFrhnu7iu6bIlxmig3b17aHqQS8IsP1AVcjdnLsA0KDhQsZne-hMOX4ij1TL_8XQngGsqDqO0Qf2YRSUEi2e4hPhjV3IOy2Xpx3WiqID5S5onkvaq6bgR4jxx8-NHQ6_attZYm-hPR5vJ2qLbjRgIZFPLmRU1CT9_2mY6ui4WS37WKiN6rPtvyhuZRMxsANmzWaEJ_JtqoMZEXGy719PIg1cw9nbM_bjNIvk_wO6aH4mgsy-8pl3EhMBS4lg0OL9k4egGoXqeZQqrrHJjtmS4HgDA9s4bijMzUIsrBINQ4N48t653bwFWat1KNCbS8f4onRkZMO6EclB_jGoimQMGLWIqLoceaPkByk1Q8L555Ft3kaVt8S84NxEfmPS7PBSOlcushacJ8BDIuOKr65-MM43CW0iWTr6nz5EB4qkEZe85LIGy-9ajFvwdJPG8sQJROgOaT-WSU0dRY7hZpAHnqCa_0XJgyhZDC8-XeIRS3LN4FVaAAjwL1WhTi7kRhAjCcwhaASkEO1JC7ZJIyeoO19PMhPvLM7Bl1_s4DYFNqd91FzvEZDcBViRPPyWUQGuQBOnxC03yjq4gCRBnOlXy7iQL0i4I36ANGPVcD9je5LGVzgO03-g4N_Mi0wU0BV9VCOHNhF4Q5o3x-Mf1VEb8UeYWMBAgikFmdSwc9aFVqtlDdl0G-Z7wvtHddgR6M6BBJxNctWAtFxYmdReJDlaug3JeU_8zYCHjGjABQ82Wfd2yUnNtc1vpBTJdNoSnOLcrOlzMquWWSsmI4UdOY8n5hL8R6Nk9Hx3-ovBbDbkswaJob6YTtTMWl1STqTQPXiqCdRYckhVefkTphi-yBoHOB5SbkH0G08KexHvs65k02gaG33EssMTxxjbrHkERNPKDHgHCONEgBmz581qMkC8QZsP19__YfLwp7UmyCec1aI1-nvuPdzOMbFqS3HNGQvGkM_r8Ge3tXeg25UiFTDoZ_e2JA8CnyD-pZWWNMTnKCBu6B90ZSg3Su9r-h7q3KZqNm_3RuJdgaAQs2vUsqTn_gaAMmCKBTW-ItkaJJYFUJ1sd4b35rOGpuWqa1Wxi-BQw4O3BBe2TtkWJY-p0YIfKzVfaiJ2tStLfhQD89dKxKECLDAzn7KLReBfKknhFiOx8xZi2-14YphucsxdZpHlntBtN-YOO5dXuPoAdV6REtE-OrQgeauYJOYvnIS0krB0NUGmqXnC5wrcsx2RKCqJCSZ8MGAL3uCKF9KWZWCIhcP7g1RafpoTcjJ1kH83oQ-FrXoWOkg1B_KMMcjcmp-wTXPYnWsnI4zFRitzJZMJnfySKMv9kvhNuGjDjWje8N70PgoOOBhIn6tA3bYyqOI-XUENGElil9O6-3xagL4j5vC3zl-4VSjHOQr3FMwjhqJ64B3VyAjU7optnNm9Jk8K69-H0MQuinWr3OvT3Pr8-TBe6rp6XctW4BLYRN2hgzmTsJ-MoZpa-l4SpxDFUHnIeyWx12A7MYxMalM59mEj8Lv514IfHBSs16N62sDIjDGjXAawOjx0-9YQJHHykQqllO16EpCAmXiddCHjGKmk2d4HNJL67NvsCErYFcrF49y07EO2l7abGgS23XKhNk5GpuT55k5QJJMNGtkKqWuw_dKFAGlJrtj8tsGHpu4p9PhfgPqezpcpjzN3-dH3y0ZwS4aggDefwRMSBVMLZ7ttRlecpNWplISbUlaC0KNKfMc4F0Jvi23bP_ifUjk2RCAsOPW2tLvYg07tdef-p8WLPfFfac8TRAdGneC5EBCfOT71TZNp1nhqxl0TBPMgw9rRol8Vj6xRiOssvn1BBoXswAkwuxjlrfIXk0i5FTR7hHl1ge8D9rnrEo8aYVUpg3FdUpfD5CHumhnDtSWJiaIV2EneKr1SZw1YA45ReMZsXwN2bwUtuwfx7zqJv-FUZ0wEjzTRPArDepdhIrZKAS6w6wwvzG7fiZHVNaqkdoq30vhUi3BOUZ4WMAk-QkamtRtNzaySv6sAas9hJVIUL7iEYLHH9i3bqjqSnQeyvRTJ5jmq1XO_21dydkx-pokj4UOtFCOTizswAjgn9_Agd0RX-ifj3srcn_iGV-aCOA3JjJRzTsea7dg-HG4LxpczMqE2lFBKv_LI16cBhZwTkUzFC5ROZcHP1lSe1B1vs9tPTYeiuTE-Hqv70ln3YXP9u5yzZQtVrfxpu5r3QLZ60duvXqJhd0JHwsnSkogUDJbnB4D17n72M3MOIuFOK_VE_LJUzKRNrFb9WGlju0Fn5OUwMmtYrZshf2yNgfp9KkuMIVXb2QT72eW6lg8c9abLKwypFL5frdDYNwRF0pt8jPt9fRZu1aKfjnizyXbd1BRdTQh2pdHtbmTHH_z4OG06XMa9n1IIavpWZZfHHSVR7iJRcZEzpmPup29q88m0n_-GlkeVE8q0KMG0K-6gDKIZlOC2KV_dImuNH1pl8VtIJys8WP5r4az9VFNZO3wRk92ERUaCPQWn_5Y3V7JdVwIZHDRRHevWtFAW1xl6h16ciRpJH3KJwAO8rc7aC7Np_h8GbForI5Wf2XogNUjHz3Gn6ynTsyEC95pBRU4dQ16wsqmBoxeWSf2pCAHL5JskAninryzCkqUItHLYuFzXVjqbHIR8BwWkjK50MT2oxCyG66kCXGlAu8rdSp2a6GtJfx5A=="
+        },
+        {
+          "role": "assistant",
+          "content": "The shop’s records show the plate and serving spoon have been received back; the wooden tongs haven’t, so they can’t be included in a refund request yet. (refund-policy/v2/return)\n\nOnce the tongs arrive, they can be requested too, provided the proposal is created by the order’s refund deadline, December 2, 2026 at 10:00 UTC. (refund-policy/v2/window) Would you like me to propose a refund for the plate and spoon now, or wait until the tongs arrive?",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "customer",
+      "text": "Please wait until the tongs arrive. I want one refund covering all three products."
+    },
+    {
+      "role": "agent",
+      "text": "Understood—I won’t propose a refund now. Once the tongs arrive, ask me to request one refund for all three products. The tongs must be received back and the proposal created by December 2, 2026 at 10:00 UTC. (refund-policy/v2/return) (refund-policy/v2/window)",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "id": "rs_0de665120d99f743016ae74340b01887d29bab0443f0dd387d",
+          "summary": [],
+          "type": "reasoning",
+          "content": [],
+          "encrypted_content": "gAAAAABq50NB0nDKCGifGY68XCZXkw7iN3sJNPlV5zEaTC-s0N5jwCR4v9nIkAN99jRyO1kVqQ8MfjGS_maiDs_SJhKHJPZ71jv3zbI_Egau3vc51tx8uVXxPNGwlRkzapasanDi_7-u6kXQ-ff7GYIFl4FCWuaYtKdw0z2J_XHIJLdmR_rZ0ovcUiHAkFR1uepGSpNFKPutW5pBbJ42mWK49Ni7WKXkUHTH0eEVkSfsNv9YQtm-uG0Crob_DokGRbFihIjVRnImdH3jFGPhf_YhDc3T9bf6BbzclBekYXF2wUIgkV3t_U93od3qYGCdEwJlSGp_2DWKSEdPdko_xwKiQCT33gMs6MuHoaqQMzb9T5vA1OfK84xWn--KpjaIzz2-LAEryXge3ziXplDzGJu_MTRxTz23gVPFy3AwcLBLhW_0RaeSkwqCG79QgEefbYtKb4_sNZ-6Vl4l2hb8cfdIjAmTVFFOAcm3rdDRFVWvH0oGEIvrCleQEZAcsMSU5bw-CGjyfhxpb3xKfnFMy5uV18CJVv2OFTALRbLcNB9jeaig9sJ44dPpjc80sVNiRcXksKFDWinShKXUxpMtsPJAIj5XYWVNGbQeSoGqSp1K9R8ZB1bOMK0Ok7MeTVBjht9678ay6EH4llpQ6QmAGaBxEO8fYqR4DLLFwRvikoE_sOh0FlPhpSLmhOXwMZvYM49BqI9Zhty5laqNI9tQ4JADuhZEiZCsf2hE13pDcb9e41fm6bgL27joO2yW8dFEktIbdovRyWoef1PiFQwkTgdYRiXpYDpGprKceJcflANM-mMssH0vY0up-m3Fd7DzWQnePZcS9dycvkf9TineBULP3UvAdHnMIloohHzvJuF9zH-3MCndbHzQK7YsvTGugrofQsvO_NuZPcYTrjhfCvNcgzPr2Dye231xjMoLsXGUi-ZaHe2VFL3bnQB8YPhH4RLRpUsBPBcuz590ZLEvWXFdBP_zufSbH6ycgBc1vlD64EqSRpVnDwkFVFNWPaD2-3Owc5ecYW2UCdv6_NrPnwSlT8fpdgbGdRuJHQDTI4bG4Iijao46PeJi4NreiPWexh3zs2-oi5mF1ybgjKl8XKe-SDg75CoKMB0L-tIvRUrX8tdW5398w5hmK-Cqxw8wwzLba_ndujiodT3sgCC7yEp05UtS9wPxBnCRZA1tnA69TyyrpU3Fp3j1a7_Wg4Dq99sMFaZycvsNvvhg1sgadkoFZgc_pUkOe0ls9Y-iJjNmgbitwCei2Pt-soysksRo_5Z5DOHY1hBPUqC5KkHpBxomVAUqbI_HSVzgWcIW8oddd7z8qhbo9CS1NdCBofc-de8wlOV4LDhdxrqM4PYKoAQa1C3ONLMBf4iPglIQIiMxpDHBBsuQ7tYMZyD9WyTET0M0GeEgc6NLDjoUhmWa_MCEOMOVooqhfQUboY-1hJSO0jpslXthm43aLN-VrnrWXqrg1aBUjShwB9Qgj7MiVZoLiMPVE9A_RZdEhsWFefm90wwXVez4JTwoAFYoEPhd364vUd7c2pc8AsEW8STl-JtmeZVGRoNwQfZuIqQGiQ3fK0vct2lAS4vFOKxT4uR_euTRUI3MNzKDzxit_tHSB6tcZEi3w-Nrs-ysRHNLbcATESqOvlj5oBk="
+        },
+        {
+          "role": "assistant",
+          "content": "Understood—I won’t propose a refund now. Once the tongs arrive, ask me to request one refund for all three products. The tongs must be received back and the proposal created by December 2, 2026 at 10:00 UTC. (refund-policy/v2/return) (refund-policy/v2/window)",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

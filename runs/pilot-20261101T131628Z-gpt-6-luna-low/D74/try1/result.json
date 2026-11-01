@@ -1,0 +1,216 @@
+{
+  "scenario": "D74",
+  "try": 1,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded h245-o1-u1 for 1799, h245-o1-u2 for 1299"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal refunded, acceptable ['refunded']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v2/eligible-orders",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: The replacement lid remains in a shipped, undelivered order and cannot be refunded through this process."
+    },
+    {
+      "name": "communication:states_correct_amount",
+      "status": "pending",
+      "evidence": "pre-check passed: ['R$ 30,98'] stated"
+    },
+    {
+      "name": "communication:gives_this_receipt",
+      "status": "pending",
+      "evidence": "pre-check passed: the receipt number of this run's refund is given"
+    },
+    {
+      "name": "communication:proposes_without_asking",
+      "status": "pending",
+      "evidence": "pre-check passed: no question that may ask which items was answered before the first proposal"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "1 refund(s), each confirmed and approved in time"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: ['R-00000001']; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_with_other_units",
+      "status": "passed",
+      "evidence": "every proposal stays within ['h245-o1-u1', 'h245-o1-u2']"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 6,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    7.348,
+    2.235
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.0006251500000000187,
+    "simulator": 8.069999999999952e-05
+  },
+  "attempts_sent": 7,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Refund the felt bin and wicker basket in my delivered order; I kept its crate. The replacement lid in my other order is on its way—can it be refunded already?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_T0wAigzMHKswu2IoMjxpl5np",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_T0wAigzMHKswu2IoMjxpl5np",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h245-o2\", \"status\": \"shipped\", \"purchased_at\": \"2026-11-07T10:00:00+00:00\", \"delivered_at\": null, \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h245-o2-u4\", \"product\": \"Replacement lid\", \"paid_minor\": 7990, \"received_back\": false, \"refunded\": false}], \"requests\": []}, {\"order_id\": \"h245-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-27T02:27:37+00:00\", \"delivered_at\": \"2026-10-31T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h245-o1-u1\", \"product\": \"Felt storage bin\", \"paid_minor\": 1799, \"received_back\": true, \"refunded\": false}, {\"unit_id\": \"h245-o1-u2\", \"product\": \"Wicker storage basket\", \"paid_minor\": 1299, \"received_back\": true, \"refunded\": false}, {\"unit_id\": \"h245-o1-u3\", \"product\": \"Stacking crate\", \"paid_minor\": 1299, \"received_back\": false, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-11-30T10:00:00+00:00\", \"refund_deadline_passed\": false}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_eqZoVh415E1TfLg24c2SbrFf",
+          "name": "assess_refund",
+          "arguments": "{\"order_id\":\"h245-o1\",\"unit_ids\":[\"h245-o1-u1\",\"h245-o1-u2\"]}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_eqZoVh415E1TfLg24c2SbrFf",
+      "name": "assess_refund",
+      "content": "{\"ok\": true, \"outcome\": \"eligible\", \"policy_citations\": [\"refund-policy/v2/amount\"], \"amount_minor\": 3098, \"currency\": \"BRL\", \"order\": {\"order_id\": \"h245-o1\", \"status\": \"delivered\", \"delivered_at\": \"2026-10-31T10:00:00+00:00\", \"refund_deadline\": \"2026-11-30T10:00:00+00:00\", \"payment_records\": 1, \"one_valid_payment\": true}, \"units\": [{\"unit_id\": \"h245-o1-u1\", \"product\": \"Felt storage bin\", \"paid_minor\": 1799, \"received_back\": true, \"refunded\": false, \"receipt_number\": null, \"earlier_on_time_proposal\": false}, {\"unit_id\": \"h245-o1-u2\", \"product\": \"Wicker storage basket\", \"paid_minor\": 1299, \"received_back\": true, \"refunded\": false, \"receipt_number\": null, \"earlier_on_time_proposal\": false}], \"next_step\": \"This assessment does not create or change a proposal. If these are exactly the units the customer asked for, call propose_refund with them; if the customer's words could mean other units too, ask which first.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_1r0JksAAtgPVPDFhcaLKW0VW",
+          "name": "propose_refund",
+          "arguments": "{\"order_id\":\"h245-o1\",\"unit_ids\":[\"h245-o1-u1\",\"h245-o1-u2\"],\"summary_for_staff\":\"Customer requests a refund for the felt storage bin and wicker storage basket; says they kept the crate.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_1r0JksAAtgPVPDFhcaLKW0VW",
+      "name": "propose_refund",
+      "content": "{\"ok\": true, \"proposal_id\": \"prop-67f559d27f3c4003\", \"status\": \"awaiting_customer_confirmation\", \"outcome\": \"eligible\", \"amount_minor\": 3098, \"currency\": \"BRL\", \"policy_citations\": [\"refund-policy/v2/amount\"], \"next_step\": \"The proposal is now on the customer's card, waiting for their button. Tell the customer the amount. They confirm with the button on the proposal card; a typed yes is not a confirmation.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Your refund proposal for the felt storage bin and wicker storage basket is **BRL 30.98**. The shop’s records show both were received back; the crate was not, so it isn’t included (refund-policy/v2/return). The refund amount is based on what you paid for those two items; shipping isn’t included (refund-policy/v2/amount).\n\nTo continue, confirm the exact proposal using the button on its card. A message in chat won’t confirm it (refund-policy/v2/approval).\n\nThe replacement lid is in an order that’s still on its way, so it can’t be refunded through this process yet; it must be delivered and received back first (refund-policy/v2/eligible-orders) (refund-policy/v2/return).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "Your refund proposal for the felt storage bin and wicker storage basket is **BRL 30.98**. The shop’s records show both were received back; the crate was not, so it isn’t included (refund-policy/v2/return). The refund amount is based on what you paid for those two items; shipping isn’t included (refund-policy/v2/amount).\n\nTo continue, confirm the exact proposal using the button on its card. A message in chat won’t confirm it (refund-policy/v2/approval).\n\nThe replacement lid is in an order that’s still on its way, so it can’t be refunded through this process yet; it must be delivered and received back first (refund-policy/v2/eligible-orders) (refund-policy/v2/return).",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "event",
+      "text": "The customer confirmed request prop-67f559d27f3c4003 and a staff member approved it, so it is ready to be paid.",
+      "notice_id": "notice-dec-65bea4d3ed7e4fa0"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_tyr6rcgXUAkrsqX8WpU6MSOy",
+          "name": "execute_refund",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": [
+        {
+          "id": "rs_009f619ffff17c1f016ae7458783dc87d2abf096411a69a354",
+          "summary": [],
+          "type": "reasoning",
+          "content": [],
+          "encrypted_content": "gAAAAABq50WHZowiItFLbrWgWyeAc494fOvNPF0WhbVh_ZEaLydvHUv0Nx3AXNNC8RKMpKNIak68XDm3Qu8eGRhc2xLDzmmItnd6H7gcvYNxcS0g8LO-gtEmdlafdFDOi9ZuZC-uLfCjB0wWfF85jqm1DwQjYEV2mnxQf8Qu_9RQNFxu78PKqPhXtznrJVLR0QgKt8cNwkqGnpmsAARwKU0CbQwDUOOZmSc8ujquSIs1yLxrLMhORvYed-5PMXeb4_z-jwIX3por3IqzhFv5pTuOeMNr6_XBFcxOUzTmSgULVisiGLrUINYeP0_m2cCwRylGxLGJO40pzJcD1RlCYFjTRHWVhsHqSZYRDp-llX-lQfC8jxWJpJU6Rwbrd2bYO1F5HLpwFyNJpEAHuJuvpNgi3hffk5Hl86kV9vs-QPUM9Bk1FzceZo9Yyl-C7KpNGmK0_pDwAma1oeohSl_Yt8V-YVcQo-qk749sYnTQDrv7GgfumDMCMOi4s_4OhfQ0EaESfX1hxar3Pe4kCWddMV3WyjJZj-xZnb8s-Jfvug4iCKwzOijhRXALjCUleusrbVC2vQL1S_T4yGnoTZuvtczsL80Ikd36mnQnYYlFDOOa-l64v29wz_TG0iX27FTRlIzePSACNP_cPT__CwzIc-kWQ8G2Qf92NfZGLQhRtd4wiiDIqo-USXbnaOdlo_X5Dvc4SAEJc4Sly06YwBi6t_M9JTNuodQppUYbBxiccCZB-oiapDGYCRNpZgZvy49yJyI9y-3-JAL04W2sbyKIvK-EcA3M-Ysyhk1FLfgA6v1dDfFnnHZ-EI_gw9eS8cQy9jAkhUcAP5g7ohcAfXEeM-gANdF9W-CgayORCEGtKAVe6iPMnM08EfAYteRdyifCmqZnAOxgojLUKfCPOan2FJBK2PSlXeJ6F8tmJmlmYVaoGiYqLuLzfjLEy9HyWyIP0zGvVB4yndmNs-2J8nEY1vfsuqYEeIE9v0XLTa-6jvNPvQmNWRtiqX8yvLRN_777YkP_FoDQyWWnOgO45gBztCf4aOtzHROxyqbQlpr5j3uwWKVSTdTRgOdG9Htxtw0CsKOsJeVhI7E9cya6VgyFXwlgciYqJnqrXyEuz7zf2fH_dxjss_7n6NO_5VgZ2owUQiuqHUysjLQS-pjIF1xyHRDN-FxWmIjiYfgsWuBH_02g-KKBT-Z9rWrne-WSSRigOcIPKmsMIB4OrFZNCWLJPq_5luzvEQSvVjXseMqIet2z2x2V60gFxhDhre_H_B36ZwmLd5Bx0hccTpxu49UOe7CBE9jgQpT40G5hwWUt9D1g0Xska1SLfjvailNMbHFsdsqluK8-I9zLUoHYUw3Kxuwdv5b8bMd_JE7jB0ggNvmBcoENiHvRv82BvjylxHSlg3UoJnqw9zdO5jqGrvrLHnLXj6YNxDv8cjOXuDK71Us4wNhZZffDxtzRhAZaqDK4nuG3go6SJynSTQ9VQsRPBQ-lRR2hfHRjVrI0v-BPfMAMevq82lnXt9g="
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "call_id": "call_tyr6rcgXUAkrsqX8WpU6MSOy",
+      "name": "execute_refund",
+      "content": "{\"ok\": true, \"receipt\": {\"receipt_number\": \"R-00000001\", \"operation_id\": \"op-fcf3bdc596e84862\", \"proposal_id\": \"prop-67f559d27f3c4003\", \"amount_minor\": 3098, \"currency\": \"BRL\", \"payment_id\": \"h245-o1-p1\", \"units\": [{\"unit_id\": \"h245-o1-u1\", \"amount_minor\": 1799}, {\"unit_id\": \"h245-o1-u2\", \"amount_minor\": 1299}], \"committed_at\": \"2026-11-16T10:04:00+00:00\"}, \"next_step\": \"The refund is paid and recorded against the order's original payment. Tell the customer the amount and the receipt number. Explain the test ledger (not a bank transfer, no date) only if the customer asks when or how the money arrives.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "The **BRL 30.98** refund has been paid and recorded against your order’s original payment. Receipt number: **R-00000001**.",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "The **BRL 30.98** refund has been paid and recorded against your order’s original payment. Receipt number: **R-00000001**.",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}
