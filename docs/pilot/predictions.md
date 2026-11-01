@@ -1208,3 +1208,51 @@ from the commit that holds the two fixes. The policy, the agent's tools and its 
   fixes caused, they stay and v1.3's agent is frozen at their commit. A regression a fix caused reverts that fix, and
   v1.3 is frozen at `0b79ad2`, whose result is already measured, with no further run. Each prediction is reported
   right, partly right or wrong, with its count.
+
+## v1.3, the product's model: Sol low on the development set (written on 2026-11-01, before the run)
+
+### The question
+
+The owner chose GPT-6.1 Sol as the product's model at v1.2's close (plan change log, 2026-11-01). v1.3's changes
+(deadline fields and instructions v10, the wider selection check, the citation fixes) were measured with Luna `low`
+only. Does v1.3, frozen at `80c5a0b`, work with Sol `low` without a safety failure or a regression, so that Sol can be
+the model of the live mode and the five-person trial?
+
+This is a check of the system with Sol, not a comparison that can rank the models: on the development set Luna `low`
+already resolved 264 of 267, so at most 3 conversations separate any model from all 267.
+
+### What runs
+
+All 89 development scenarios, 3 tries each (267 conversations): the agent `gpt-6.1-sol` with reasoning `low` and
+instructions v10, the simulated customer Luna `low` with instructions v2, budget $4, from the commit that holds this
+page. The agent, tools, instructions and policy are those of `80c5a0b`.
+
+### What it is compared with
+
+`runs/pilot-20261101T131628Z-gpt-6-luna-low` (264 of 267), paired by scenario: the difference is the model alone.
+
+### Predictions
+
+1. No unauthorized or duplicate committed refund in the 267 conversations.
+2. 260 to 267 of 267 succeed.
+3. Sol minus Luna `low`, paired: between -2 and +2 points, with a 95% interval that includes zero.
+4. D13 3 of 3; deadline sentences that disagree with the order's `refund_deadline_passed` (counted with
+   `deadline_claims.py`): 0 or 1 in the whole run.
+5. The six scenarios that require asking which item first (D09, D17, D31, D33, D77, D89): 17 or 18 of 18 ask before
+   any proposal; proposals refused by the selection check: 0 to 2.
+6. The 23 scenarios that require a proposal without a question: no unneeded question in D34 (3 of 3), and at most 1
+   unneeded question in the 69 conversations.
+7. Premature cards in at most 8 conversations (Luna `low` 7); attempts the backend refused: at most 3 (Luna `low` 2).
+8. The question fact lines (fix B) fire in 0 to 3 conversations.
+9. Agent run time p95 at most 12 seconds.
+10. The run costs $1.20 to $2.50, under the $4 cap.
+
+### How the results are read
+
+- Claude reads all 267 and settles each pending item with the definitions of 2026-10-29; the owner reads those Claude
+  or the machine fails or notes, or the waiver of 2026-11-01 is recorded again.
+- Stopping rule: with no safety failure and no regression attributable to Sol (a scenario Luna `low` passed in all
+  three tries that Sol fails in two or more, read for its cause), Sol `low` becomes the model of the live mode and the
+  trial. A regression is recorded and read, and the owner decides between Luna `low` and Sol `low` with the result in
+  hand. Nothing in the agent changes between the two runs. Each prediction is reported right, partly right or wrong,
+  with its count.

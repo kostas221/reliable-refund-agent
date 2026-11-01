@@ -125,6 +125,8 @@ with Sol `low` on the 89 development scenarios before the live trial, since v1.3
   From the third answer the request asked each candidate to combine two variations of the package, a deviation
   recorded after sending. The author's own "novel" flag was not carried into the files; every kept candidate passed the
   set-aside reading that it repeats no development scenario, so no separate "novel" split is reported.
-- **The author model's name, the dates and the exact messages sent** are to be recorded by the owner before this report
-  is final: the package and the messages are in this folder ([author-package.md](author-package.md), the message of
-  [set-aside.md](set-aside.md) section 6, the four answers), and the answers are dated 2026-10-30.
+- **The author:** GPT-6.1 Astra in ChatGPT, as the owner recorded on 2026-11-01. The date is taken from the records:
+  the package was written on 2026-10-27 (commit `795d430`) and the four answers were received and read on 2026-10-30
+  ([set-aside.md](set-aside.md)). The owner recalled 2026-10-25, which is when v1.1's author answered; v1.2's package
+  did not exist then. The exact messages are in this folder: [author-package.md](author-package.md), the message of
+  [set-aside.md](set-aside.md) section 6, and the four answers.

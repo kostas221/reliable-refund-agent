@@ -326,9 +326,13 @@ decided after the model choice, correcting the answer before the customer sees i
 **v1.2 is closed** (`docs/held-out-v1.2/results.md`): the owner waived the reading of the 73 (a recorded deviation);
 Claude's second check confirmed 68 and added `explains_refusal_reason` to 5 H255 conversations already failed (no
 outcome change); A 50/57, 16/19, both targets met, 0 unsafe in 162; B 54/57; no difference shown (+7.0, 95% +0.0 to
-+19.3); the pre-registered rule chooses Luna, the $1 criterion Sol; predictions 5 right, 3 partly, 2 wrong. Still to
-record by the owner: the author model's name, dates and messages. Next: the owner chooses the product's model; then
-the live-model mode in the app with the added budget criteria. The author model's
++19.3); the pre-registered rule chooses Luna, the $1 criterion Sol; predictions 5 right, 3 partly, 2 wrong; committed.
+The author: GPT-6.1 Astra in ChatGPT (the owner), dated 2026-10-30 from the records (the owner recalled 2026-10-25,
+v1.1's date). **The owner chose Sol low as the product's model** (plan change log, 2026-11-01); its v1.3 confirmation
+run on all 89 (budget $4, predictions "v1.3, the product's model") checks the system with Sol and cannot rank models
+(Luna low 264/267 on development). A Sonnet comparison needs new unseen scenarios and an Anthropic adapter: after the
+release unless the owner decides otherwise. Next: that run, then the live-model mode with the added budget criteria.
+The author model's
 name and dates are still to be recorded. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
 `runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run
