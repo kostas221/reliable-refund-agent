@@ -12,6 +12,11 @@ one in any configuration but A, so configuration C cannot be chosen or reached o
 
 A refusal by a domain service becomes an HTTP error that names the check. Anything that belongs to another customer
 is "not found", so its existence is not revealed.
+
+The mode door says, to anyone at the screen, whether the agent is the script of mock mode or a live model, that
+payments are simulated, and, in live mode, the session's budget and whether the agent is paused (refund_agent/api/
+live.py): a call stopped by the budget or the provider's credit is answered 503 agent_paused, and the customer's
+message stays stored.
 """
 
 # No `from __future__ import annotations` here: FastAPI reads the parameter types of the routes, and the session
@@ -30,6 +35,7 @@ from sqlalchemy import Engine, text
 
 from refund_agent import reads
 from refund_agent.agent import notices
+from refund_agent.agent.costs import Budget, BudgetExceeded
 from refund_agent.agent.graph import Agent, AgentBusy, AgentLoopError
 from refund_agent.agent.model import ModelError
 from refund_agent.api import auth
@@ -83,20 +89,27 @@ def create_app(
     secure_cookies: bool = True,
     agent: Agent | None = None,
     deliver_every_s: float | None = None,
+    budget: Budget | None = None,
 ) -> FastAPI:
     """engine: the refund_app role. clock: the business time given to the services. wall_clock: real time, for
     sessions. secure_cookies: False only for a local demo over plain HTTP. agent: the agent behind the chat door,
     always in configuration A; without one the chat door answers 503. deliver_every_s: when set, pending notices to
     the agent are delivered when the server starts and then this often, so a decision stored just before a stop is
-    still delivered (tests leave it unset and deliver explicitly)."""
+    still delivered (tests leave it unset and deliver explicitly). budget: the live model's one budget, shown by the
+    mode door; None in mock mode."""
     if agent is not None and agent.configuration != "A":
         raise ValueError("the lab configuration is never served over HTTP (plan section 10.5)")
     log = logging.getLogger("refund_agent.api")
+    paused_logged: list[str] = []  # the latest pause written to the log, so a pause is logged once, not every round
 
     def deliver(conversation_id: str | None = None) -> None:
         """Hand the stored notices to the agent. The decisions are already stored, whatever happens here."""
         try:
             notices.deliver_pending(engine, agent, clock, conversation_id)
+        except BudgetExceeded as stop:  # paused: the notice stays pending, uncounted, until the owner resumes
+            if paused_logged[-1:] != [str(stop)]:
+                log.warning("the agent is paused; staff decisions wait for it: %s", stop)
+                paused_logged.append(str(stop))
         except Exception:
             log.exception("pending notices could not be delivered; they are tried again later")
 
@@ -170,6 +183,33 @@ def create_app(
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         return {"status": "ok"}
+
+    @app.get("/api/mode")
+    def mode() -> dict:
+        """What drives the agent and what a payment is, for the banner of every screen, signed in or not."""
+        name = getattr(getattr(agent, "model", None), "name", None)
+        kind = None if agent is None else ("scripted" if name == "scripted" else "model")
+        with engine.connect() as conn:
+            waiting = conn.execute(
+                text(
+                    "SELECT count(*) FROM agent_notices "
+                    "WHERE delivered_at IS NULL AND decision IN ('approved', 'rejected')"
+                )
+            ).scalar_one()
+        return {
+            "agent": kind,
+            "model": name if kind == "model" else None,
+            "payments": "simulated",
+            "budget": None
+            if budget is None
+            else {
+                "limit_usd": round(budget.limit_usd, 4),
+                "spent_usd": round(budget.spent_usd, 4),
+                "left_usd": round(budget.left_usd, 4),
+            },
+            "paused": None if budget is None else budget.last_stop,
+            "decisions_waiting": waiting,
+        }
 
     @app.post("/api/session")
     def sign_in(body: SignInBody, response: Response) -> dict:
@@ -267,6 +307,9 @@ def create_app(
             added = agent.receive(conversation_id, body.text)
         except AgentBusy as busy:
             raise HTTPException(409, "the agent is still answering the previous message") from busy
+        except BudgetExceeded as stop:  # the message is stored; the agent answers it after the owner resumes
+            log.warning("the agent is paused in %s: %s", conversation_id, stop)
+            raise HTTPException(503, "agent_paused") from stop
         except (ModelError, AgentLoopError) as failure:
             log.warning("the agent could not answer in %s: %s", conversation_id, failure)
             raise HTTPException(503, "the agent could not answer; please try again") from failure

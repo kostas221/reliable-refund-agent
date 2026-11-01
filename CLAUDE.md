@@ -339,8 +339,19 @@ count from `runs/pilot-20261101T154122Z-gpt-6.1-sol-low` (D51-D78 voided, `voide
 267; process faults 0/0/0 (Luna low 7/1/2), 0 false deadline claims in 52; paired against Luna low +0.7 (95% +0.0 to
 +1.9), 2 better, 0 worse; 10 of 10 predictions right. Stopping rule held: **Sol low is the model of the live mode and
 the trial**, agent unchanged at 80c5a0b. To watch: D81 tries 2-3, a new card at once after a button cancellation and a
-typed yes (nothing paid). Runner fixes recorded for later: stop on the provider's no-credit refusal; `--resume` for
-the pilot runner. Next: the live-model mode with the added budget criteria. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
+typed yes (nothing paid). The live-model mode written (plan change log, 2026-11-01; not yet tried with the real
+model): `python -m refund_agent.api --live --budget-usd X --prices-checked DATE` (mock stays the default, Sol low
+unless named, the owner starts each paid session); one `Budget` for the whole server with a lock and per-attempt
+holds (`agent/costs.py`), spend kept in `model_spend` (migration 0010) so `--keep` goes on from it, a stop by the
+budget or the provider's credit is a pause (503 `agent_paused`, decisions stay pending uncounted, `GET /api/mode`
+and a banner on every screen), resumed by `--keep` with a larger budget; `--keep` also retries decisions whose
+delivery failed three times; `OutOfCredit` stops the runners at the provider's no-credit refusal; requests logged
+to `runs/live-*/` (git-ignored); planted bugs in scratchpad `planted_live_mode.py`. Deadline claims: no repair
+before the trial (Sol 0 of 52), each trial session checked. Sonnet comparison stays after the release (the owner
+asked; reasons in the plan entry). `--resume` for the pilot runner still for later. 2669 tests (browser included)
+and 54 screen tests pass, 26 of 26 planted bugs caught. Next: the owner's first paid live session (three parts on
+D01, under $0.10; question and 6 predictions in `docs/pilot/predictions.md`, "Live mode: the first paid session"),
+read by Claude from the database and the logs; then the handoff checks and the trial. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
 `runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run
 (`user-review/`), 7 of the comparison

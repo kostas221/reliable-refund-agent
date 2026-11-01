@@ -14,7 +14,7 @@ from openai.types.responses import (
 )
 
 from refund_agent.agent import openai_adapter
-from refund_agent.agent.costs import Budget, BudgetExceeded, cost_usd, estimated_tokens
+from refund_agent.agent.costs import Budget, BudgetExceeded, OutOfCredit, cost_usd, estimated_tokens
 from refund_agent.agent.model import ModelError
 from refund_agent.agent.openai_adapter import OpenAIResponses, parse, to_input
 from refund_agent.agent.tools import tool_definitions
@@ -379,3 +379,52 @@ def test_a_refused_request_keeps_the_providers_request_id():
     with pytest.raises(ModelError) as refused:
         OpenAIResponses("gpt-6-luna", "low", client=denied).respond("", [], TOOLS)
     assert (refused.value.kind, refused.value.detail) == ("bad_request", "403: status 403 (request req_403)")
+
+
+# An empty account (Sol confirmation run of 2026-11-01: the runner went on after it and recorded tries that tested
+# nothing)
+
+
+def no_credit():
+    """The provider's answer recorded on 2026-11-01, as the SDK builds it from the body's "error" object."""
+    request = httpx2.Request("POST", "https://api.openai.com/v1/responses")
+    body = {"message": "No credits remaining.", "type": "insufficient_quota", "code": "credit_balance_exhausted"}
+    return openai.RateLimitError("Error code: 429", response=httpx2.Response(429, request=request), body=body)
+
+
+def test_no_credit_stops_at_once_and_is_never_retried():
+    client = FakeClient(no_credit(), FakeResponse([message("Hello!")]))
+    budget = Budget(limit_usd=1.0)
+    with pytest.raises(OutOfCredit, match="no credit left"):
+        OpenAIResponses("gpt-6-luna", "low", client=client, budget=budget).respond("", HI, TOOLS)
+    assert len(client.requests) == 1  # a plain rate limit is retried; this is not
+    assert (budget.spent_usd, budget.held_usd, budget.requests) == (0, 0, 1)
+    assert "no credit left" in budget.last_stop
+
+
+def test_a_plain_rate_limit_is_not_taken_for_an_empty_account():
+    client = FakeClient(http_error(openai.RateLimitError, 429), FakeResponse([message("Hello!")]))
+    assert OpenAIResponses("gpt-6-luna", "low", client=client, retries=3).respond("", HI, TOOLS).text == "Hello!"
+
+
+def test_an_unexpected_failure_counts_its_worst_case_and_frees_what_it_held():
+    client = FakeClient(ValueError("something the SDK did not expect"))
+    budget = Budget(limit_usd=1.0)
+    adapter = OpenAIResponses("gpt-6-luna", "low", client=client, budget=budget)
+    worst = adapter.worst_case_usd(adapter.request("", HI, TOOLS))
+    with pytest.raises(ValueError):
+        adapter.respond("", HI, TOOLS)
+    assert budget.spent_usd == pytest.approx(worst) and budget.uncertain_usd == pytest.approx(worst)
+    assert budget.held_usd == 0
+
+
+def test_the_request_log_names_a_refusal_for_credit_apart_from_a_budget_stop(tmp_path):
+    from refund_agent.agent.model import RecordingAdapter
+
+    log = tmp_path / "requests.jsonl"
+    recorded = RecordingAdapter(OpenAIResponses("gpt-6-luna", "low", client=FakeClient(no_credit())), log)
+    with pytest.raises(OutOfCredit):
+        recorded.respond("", HI, TOOLS)
+    (stopped,) = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+    assert stopped["error"]["kind"] == "no_credit"
+    assert [a["outcome"] for a in stopped["attempts"]] == ["no_credit"]

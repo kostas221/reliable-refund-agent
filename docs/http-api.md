@@ -37,12 +37,13 @@ The backend takes the actor from the session and from the door, never from a req
 | `POST /api/proposals/{id}/confirmation` | customer who owns it | `decision`: confirmed or declined | The confirm button of the proposal card |
 | `POST /api/proposals/{id}/cancellation` | customer who owns it | - | Cancel before execution |
 | `POST /api/conversations/{id}/handoff` | customer who owns it | - | "Talk to a person": the conversation becomes human_controlled |
-| `POST /api/conversations/{id}/messages` | customer who owns it | `text`, 1 to 2000 characters | The chat: the agent answers. 409 while it still answers an earlier message, 503 if the model fails (the message is kept). After a handoff the message is recorded for the person and the model is not asked. |
+| `POST /api/conversations/{id}/messages` | customer who owns it | `text`, 1 to 2000 characters | The chat: the agent answers. 409 while it still answers an earlier message, 503 if the model fails (the message is kept), 503 `agent_paused` in live mode when the session's budget or the provider's credit stopped the call (the message is kept and answered after the owner resumes). After a handoff the message is recorded for the person and the model is not asked. |
 | `GET /api/staff/queue` | staff | - | Proposals awaiting approval and open handoffs |
 | `GET /api/staff/proposals/{id}`, `GET /api/staff/conversations/{id}` | staff | - | One proposal, or one conversation with its history: the audit events of the conversation and its proposals |
 | `POST /api/staff/proposals/{id}/decision` | staff | `decision`: approved or rejected; `reason`: required to reject, refused with an approval (422 `valid_values`) | Approve or reject; the policy still applies. After the answer is sent, the agent is told, and pays (if approved) or tells the customer, with the reason |
 | `POST /api/staff/handoffs/{id}/take`, `POST /api/staff/conversations/{id}/takeover` | staff | - | Take a handoff, or take over a conversation |
 | `GET /api/health` | anyone | - | The database answers |
+| `GET /api/mode` | anyone | - | What answers in the chat (`agent`: `scripted` in mock mode, `model` in live mode, with `model` named), that `payments` are `simulated`, and in live mode the session's `budget` (limit, spent, left), why the agent is `paused` (or null) and how many staff `decisions_waiting` for it. Every screen shows it in a banner. |
 
 **What is missing on purpose:** no door proposes or executes a refund. Those are tools of the agent, which runs
 inside the backend in the customer's session; the chat door only passes the customer's text on. The agent is built
@@ -90,5 +91,12 @@ cannot change users or sessions beyond signing out.
   seconds, so a server that stops in between loses nothing; the agent applies each notice once. The customer's
   cancellation stores and delivers one the same way, but it starts no answer: the agent reads it with the customer's
   next message.
-- In the local demo the agent is the scripted model of mock mode: it plays the chosen scenario's careful agent,
-  whatever is typed.
+- In the local demo the agent is, by default, the scripted model of mock mode: it plays the chosen scenario's careful
+  agent, whatever is typed. With `--live` it is the evaluated agent on a paid model (GPT-6.1 Sol, reasoning low),
+  started by the owner with a budget for the whole server (`refund_agent/api/live.py`): every model call, those a
+  customer's message starts and those a staff decision starts, draws on that one budget, and what was spent is kept
+  in the database (`model_spend`), so a restart on the same database goes on from there. When the budget or the
+  provider's credit stops a call, the agent is paused: messages, cards and staff decisions are kept, and the owner
+  resumes by starting the server again on the same database (`--keep`) with a larger budget. A restart also gives a
+  staff decision whose delivery failed three times new attempts. One server process only: the budget's lock is in
+  that process.

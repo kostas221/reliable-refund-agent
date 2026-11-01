@@ -178,7 +178,7 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
                 result = outcome.result
                 if result.stopped_by_budget:
                     print(
-                        f"{scenario_id} try {attempt}  STOPPED by the budget before a request: "
+                        f"{scenario_id} try {attempt}  STOPPED (the budget or the provider's credit): "
                         f"{result.stopped_by_budget}. Its result is saved, judged on what was done; nothing later ran."
                     )
                     return 2

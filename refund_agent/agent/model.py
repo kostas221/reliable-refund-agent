@@ -24,7 +24,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
-from refund_agent.agent.costs import BudgetExceeded
+from refund_agent.agent.costs import BudgetExceeded, OutOfCredit
 from refund_agent.policy import REPO_ROOT, Policy
 from refund_agent.scenarios import format_brl
 
@@ -226,7 +226,8 @@ class RecordingAdapter:
             self._write(self._attempts(record))
             raise
         except BudgetExceeded as stop:  # a stop is logged too, with what was tried before it
-            record["error"] = {"kind": "budget_exceeded", "retryable": False, "detail": str(stop)}
+            kind = "no_credit" if isinstance(stop, OutOfCredit) else "budget_exceeded"
+            record["error"] = {"kind": kind, "retryable": False, "detail": str(stop)}
             self._write(self._attempts(record))
             raise
         record["answer"] = {

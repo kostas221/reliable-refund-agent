@@ -169,3 +169,13 @@ export interface HistoryEvent {
 export interface StaffConversation extends Conversation {
   history: HistoryEvent[];
 }
+
+/** GET /api/mode: what drives the agent and what a payment is, shown on every screen. */
+export interface Mode {
+  agent: "scripted" | "model" | null; // null: no agent behind the chat
+  model: string | null; // the live model, e.g. "gpt-6.1-sol/low"
+  payments: "simulated";
+  budget: { limit_usd: number; spent_usd: number; left_usd: number } | null; // live mode only
+  paused: string | null; // why the latest model call was stopped (the budget or the provider's credit)
+  decisions_waiting: number; // staff decisions the agent has not been told of yet
+}

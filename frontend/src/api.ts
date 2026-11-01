@@ -6,6 +6,7 @@
 import type {
   Conversation,
   ConversationListItem,
+  Mode,
   Order,
   ProposalStatus,
   Session,
@@ -61,6 +62,10 @@ export function describe(failure: Failure): string {
     case "refused":
       return failure.explanation || "This is not allowed.";
     case "unavailable":
+      // A paused live session: retrying cannot help until the session's owner starts it again.
+      if (failure.detail === "agent_paused") {
+        return "The assistant is paused: this session's model budget is used up. Your message is kept and will be answered when the session's owner starts it again.";
+      }
       return "The assistant could not answer just now. Your message is kept; please try again.";
     case "server":
       return "Something went wrong on our side. Please try again.";
@@ -136,6 +141,7 @@ const at = encodeURIComponent;
 type Decided = { proposal_id: string; status: ProposalStatus };
 
 export const api = {
+  mode: () => call<Mode>("GET", "/api/mode"),
   session: () => call<Session>("GET", "/api/session").then(remember),
   signIn: (email: string, password: string) =>
     call<Session>("POST", "/api/session", { email, password }).then(remember),

@@ -107,6 +107,18 @@ Open http://localhost:5173 and sign in as the customer or the staff member the s
 `refund_agent/api/__main__.py`. `--scenario D04` loads another development scenario. More in
 [docs/screens.md](docs/screens.md).
 
+Live mode puts the evaluated agent (GPT-6.1 Sol, reasoning low) behind the same screens. It costs money, so it starts
+only with a budget for the whole server and the date you checked the model's prices, and it needs `OPENAI_API_KEY` in
+`.env`:
+
+```bash
+uv run --env-file .env python -m refund_agent.api --live --budget-usd 1 --prices-checked 2026-11-01
+```
+
+A banner on every screen says which mode is running, that payments are simulated, and what was spent. When the budget
+runs out, the agent pauses and nothing is lost; start the server again with `--keep` and a larger budget to go on.
+Details: [refund_agent/api/live.py](refund_agent/api/live.py).
+
 The tests, about 750 of them, run on the local database:
 
 ```bash

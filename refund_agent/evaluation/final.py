@@ -264,7 +264,10 @@ def paid_run(args: argparse.Namespace, scenarios: dict, commits: dict) -> int:
                     return 3
                 result = outcome.result
                 if result.stopped_by_budget:
-                    print(f"{line}  STOPPED by the budget: {result.stopped_by_budget}. Saved; nothing later ran.")
+                    print(
+                        f"{line}  STOPPED (the budget or the provider's credit): {result.stopped_by_budget}. "
+                        "Saved; nothing later ran."
+                    )
                     return 2
                 failed = result.verdict.names("failed")
                 errors = [e for e in (result.system_error, result.simulator_error) if e]

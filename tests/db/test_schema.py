@@ -67,6 +67,10 @@ def test_every_fixture_loads_under_all_constraints(db, scenario_id):
         ("DELETE FROM agent_notices", "permission denied"),
         ("UPDATE agent_notices SET decision = 'approved'", "permission denied"),
         ("UPDATE agent_notices SET proposal_id = 'd03-r1'", "permission denied"),
+        # What the live model cost: added and read, never lowered or removed, so a restart cannot reset it.
+        ("DELETE FROM model_spend", "permission denied"),
+        ("UPDATE model_spend SET usd = 0", "permission denied"),
+        ("INSERT INTO model_spend (id, at, role, usd, uncertain) VALUES ('x', now(), 'agent', -1, false)", "usd"),
         # A rejection carries its reason for the customer and an approval none; neither changes afterwards.
         (
             "INSERT INTO staff_decisions (id, proposal_id, staff_id, decision, content_hash, decided_at) "

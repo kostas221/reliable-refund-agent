@@ -1256,3 +1256,62 @@ page. The agent, tools, instructions and policy are those of `80c5a0b`.
   trial. A regression is recorded and read, and the owner decides between Luna `low` and Sol `low` with the result in
   hand. Nothing in the agent changes between the two runs. Each prediction is reported right, partly right or wrong,
   with its count.
+
+## Live mode: the first paid session (written on 2026-11-01, before it)
+
+### The question
+
+Does the live mode work with the real model as the free tests say it does with a scripted one? The session checks
+four things:
+
+- One refund goes through both screens and is paid once.
+- The banner's spending matches what was recorded.
+- A budget too small for the next request pauses the agent without losing anything.
+- A restart with a larger budget picks up where the session stopped.
+
+This is a check of the application, not an evaluation of the agent. The agent was measured on the development
+scenarios with Sol `low` (266 of 267).
+
+### What the owner does
+
+All three parts use scenario D01, Ana's mug. Part 1 creates a new demo database; parts 2 and 3 keep it (`--keep`).
+
+1. **One refund, budget $0.50.** Start the server with
+   `uv run --env-file .env python -m refund_agent.api --live --budget-usd 0.50 --prices-checked 2026-11-01`, and the
+   screens with `cd frontend && npm run dev`. Then:
+   - as the customer (`ana.lima@example.test`), ask for the mug's refund and confirm the card;
+   - as the staff member (`rui.costa@shop.example.test`), approve it;
+   - read the receipt and the banner.
+
+   Stop the server with Ctrl+C.
+2. **A pause, budget $0.05.** Start again with `--live --keep --budget-usd 0.05`. Part 1 spent about $0.01, and one
+   request can cost up to about $0.09 (its worst case), so there is no room for one. As the customer, write "Thank
+   you, is everything done?". Read the message the screen shows and the banner. Stop the server.
+3. **The restart, budget $0.50.** Start again with `--live --keep --budget-usd 0.50`. As the customer, write "Hello
+   again". Read the answers and the banner.
+
+The three parts cost under $0.10 in all.
+
+### Predictions
+
+1. Part 1: one receipt; the agent's last message names it; the card says refunded.
+2. Part 1 costs $0.004 to $0.03 (D01 cost $0.0055 to $0.015 per conversation in the Sol confirmation run).
+3. After each part, three records agree to $0.0001: the spending the mode door reports, the sum of `model_spend`, and
+   the sum of the attempts in that session's request log. Claude checks this afterwards, free, from the database and
+   the logs.
+4. Part 2:
+   - the server prints, as already spent, what part 1 spent;
+   - the message gets the paused text, not "please try again";
+   - the banner says paused;
+   - no request is sent: the log records the stop with no attempt.
+5. Part 3:
+   - the paused message is answered first, then "Hello again";
+   - there is still one receipt;
+   - the banner is no longer paused.
+6. The server log shows no error other than the pause's warning.
+
+### How it is read
+
+Claude reads the database, the two request logs and the server's output, and reports each prediction as right,
+partly right or wrong. A failure of predictions 1, 3, 4 or 5 is a defect of the live mode. It is fixed with a
+failing-first test before the handoff checks and the trial.

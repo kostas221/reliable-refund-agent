@@ -12,6 +12,8 @@ read it in full before any paid run. respond() sends it and translates the answe
   left to the tool executor, which checks every argument anyway. The model's schema is never the authority.
 - The budget is checked before every attempt against the request's worst case, and each attempt is settled as soon
   as it ends, before its answer is read: with the usage reported, or with the worst case when the charge is unknown.
+- A refusal for lack of credit (HTTP 429, insufficient_quota) is not retried and raises OutOfCredit, a stop like the
+  budget's: the Sol confirmation run of 2026-11-01 went on after it with tries that tested nothing.
 """
 
 from __future__ import annotations
@@ -23,7 +25,7 @@ from typing import Any
 
 import openai
 
-from refund_agent.agent.costs import Budget, cost_usd, estimated_tokens
+from refund_agent.agent.costs import Budget, OutOfCredit, cost_usd, estimated_tokens
 from refund_agent.agent.model import ModelError, ModelTurn, Usage
 
 _KEEP = {"type", "properties", "required", "additionalProperties", "description", "items", "enum"}
@@ -33,6 +35,15 @@ _RETRYABLE = {
     openai.APIConnectionError: "server",
     openai.InternalServerError: "server",
 }
+# The provider's marks of an account with no credit left; recorded on 2026-11-01: type insufficient_quota, code
+# credit_balance_exhausted ("You have no credits remaining").
+_NO_CREDIT = {"insufficient_quota", "credit_balance_exhausted"}
+
+
+def out_of_credit(error: Exception) -> bool:
+    """A rate-limit answer that is really an empty account: waiting and retrying cannot help."""
+    marks = {getattr(error, "type", None), getattr(error, "code", None)}
+    return isinstance(error, openai.RateLimitError) and bool(marks & _NO_CREDIT)
 
 
 def strict_schema(schema: dict) -> dict:
@@ -151,6 +162,12 @@ class OpenAIResponses:
             try:
                 response = self.client.responses.create(**request)
             except tuple(_RETRYABLE) as error:
+                if out_of_credit(error):  # refused before any work, as every retry would be
+                    self._settle("no_credit", 0.0, worst)
+                    stop = f"the provider refused the request: no credit left ({error})"
+                    if self.budget is not None:
+                        self.budget.refused_for_credit(stop)
+                    raise OutOfCredit(stop) from error
                 kind = next(k for cls, k in _RETRYABLE.items() if isinstance(error, cls))
                 # A rate limit refuses the request before any work; after a timeout, a lost connection or a server
                 # error nobody knows what was billed, so the worst case is counted.
@@ -166,6 +183,9 @@ class OpenAIResponses:
                 request = getattr(error, "request_id", None)  # the provider's ID of this request, if it sent one
                 detail = f"{error.status_code}: {error}" + (f" (request {request})" if request else "")
                 raise ModelError("bad_request", retryable=False, detail=detail) from error
+            except Exception:  # anything else: what was billed is unknown, and what was held is released
+                self._settle("unknown", worst, worst, uncertain=True)
+                raise
             spent = self._reported_cost(response)
             self._settle("answered", worst if spent is None else spent, worst, uncertain=spent is None)
             return response
