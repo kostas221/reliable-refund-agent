@@ -50,7 +50,8 @@ HELD_OUT = load_split("held_out")
 HELD_OUT_V1_1 = load_split("held_out_v1_1")  # tests/test_held_out_v1_1.py checks its own rules
 HELD_OUT_V1_2 = load_split("held_out_v1_2")  # tests/test_held_out_v1_2.py checks its own rules
 STRESS_V1_2 = load_split("stress_v1_2")
-ALL = DEVELOPMENT + HELD_OUT + HELD_OUT_V1_1 + HELD_OUT_V1_2 + STRESS_V1_2
+HELD_OUT_V1_3 = load_split("held_out_v1_3")  # tests/test_held_out_v1_3.py checks its own rules
+ALL = DEVELOPMENT + HELD_OUT + HELD_OUT_V1_1 + HELD_OUT_V1_2 + STRESS_V1_2 + HELD_OUT_V1_3
 BY_ID = {s.id: s for s in DEVELOPMENT}
 ORIGINAL = [s for s in DEVELOPMENT if not s.derived_from and int(s.id[1:]) <= 10]  # written for development
 COPIES = [s for s in DEVELOPMENT if s.derived_from]  # copies of held-out scenarios a final evaluation used

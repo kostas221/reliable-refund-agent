@@ -49,7 +49,7 @@ from refund_agent.evaluation.evaluator import (
     exposure,
 )
 from refund_agent.evaluation.runner import tool_texts
-from refund_agent.scenarios import Scenario, format_brl, load_split
+from refund_agent.scenarios import SPLIT_DIRS, Scenario, format_brl, load_split
 
 AUDIT = "audit.toml"
 FIELDS = {"read": bool, "failed": list, "simulator_fault": bool, "process": list, "note": str}
@@ -205,7 +205,7 @@ def _questions_rechecked(items: tuple[Item, ...], messages: list[dict]) -> tuple
 def conversations(run: Path) -> list[Conversation]:
     scenarios = {
         s.id: s
-        for split in ("development", "held_out", "held_out_v1_1", "held_out_v1_2", "stress_v1_2")
+        for split in SPLIT_DIRS  # every set, so a run of any of them can be read
         for s in load_split(split)
     }
     found = []

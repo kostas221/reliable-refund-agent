@@ -71,6 +71,14 @@ release brief's remaining work changes neither.
 
 ## 4. Conversion, freeze of the set, predictions and one run (draft)
 
+**Update, 2026-11-03, the conversion:** the 39 selected candidates are converted to `scenarios/held-out-v1.3/` (split
+`held_out_v1_3`) by `scripts/convert_held_out_v1_3.py`. The orders are drawn by `uv run python -m refund_agent.olist
+v1.3`, with the author's ties, as `data/olist/subset-v1.3.json`. The conversion is recorded in
+[conversion-log.md](conversion-log.md), and the choices that need the owner are in
+[decision-notes.md](decision-notes.md). The free checks pass: the fidelity tests, the policy checks against the code,
+a correct mocked conversation in all 39 while wrong ones fail, and 12 of 12 planted file errors caught. The set is not
+frozen until the owner approves it.
+
 As in v1.2's protocol, sections 4 to 7:
 
 - the files are converted with a conversion log;

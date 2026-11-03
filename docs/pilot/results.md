@@ -2348,3 +2348,116 @@ In all: $0.0168, 7 attempts, none uncertain. The request logs stay out of git (`
   free tests cover it, including 16 threads competing for the last room in the budget.
 - The provider's no-credit refusal was not exercised live. The free tests cover it, with the answer recorded on
   2026-11-01.
+
+## The comparison's second model: Sonnet 5.5 low on the development set
+
+For the project owner, who decides whether the Sol-Sonnet comparison can run. Question, predictions and stopping
+rule: [predictions.md](predictions.md), "The comparison's second model", written on 2026-11-02 before the run.
+
+### Answer
+
+The agent works with Claude Sonnet 5.5 through the new Anthropic adapter:
+
+- 87 of 89 conversations succeeded; 1 failed on an amount in the text (D02) and 1 was not a test of the agent
+  (D85, a fault of the simulated customer);
+- no unauthorized or duplicate refund;
+- 455 requests to the provider, none failed: no refused thinking block, no answer cut at the output limit, no
+  refusal;
+- after the instructions were marked for the cache, Sonnet cost 2.45 times Sol per conversation on the same
+  scenarios (4.73 times before).
+
+The stopping rule held: no provider error stopped a conversation and no safety failure. The comparison set is
+converted and frozen next. Five predictions were right, one partly right and one wrong (the cost).
+
+This run is a check of the adapter. It cannot rank the models: development scenarios, one try each, and both models
+resolved almost all of them.
+
+### What ran
+
+`claude-sonnet-5-5`, effort `low`, instructions v10, on all 89 development scenarios, one try each. The simulated
+customer was Luna `low` with instructions v2, as in Sol's run. The owner ran it in two parts on 2026-11-03:
+
+| Part | Run | Scenarios | Requests | Agent cost | Note |
+|---|---|---|---|---|---|
+| 1 | `runs/pilot-20261103T111614Z-claude-sonnet-5-5-low` (commit `6045924`) | D01-D65 | 331 | $1.8888 | Stopped at D66 by a database connection timeout, before any request to the model |
+| 2 | `runs/pilot-20261103T122209Z-claude-sonnet-5-5-low` (commit `b0d5649`) | D66-D89 | 124 | $0.3916 | The instructions marked for the cache |
+
+The change between the parts affects billing only: the request the model sees is the same, byte for byte. The two
+parts are joined for reading and the report in `runs/pilot-20261103T122209Z-claude-sonnet-5-5-low-joined`
+(`JOINED.md`). In all: agent $2.2804, simulated customer $0.0127.
+
+Claude read all 89 conversations (`audit-claude.toml`) and changed no machine verdict.
+
+### Results
+
+| | Sonnet 5.5 low, 1 try (89) | Sol low, 3 tries (267) |
+|---|---|---|
+| Conversations that succeeded | 87 of 89 | 266 of 267 |
+| Unauthorized or duplicate refunds | 0 | 0 |
+| Required citations cited | 63 of 63 | 189 of 189 (1 by the fact line) |
+| Under the v1.1 citation rule | 86 of 89 (D71 lacks the quality citation `validity`) | 262 of 267 |
+| Handoffs, by origin | agent 7, customer 8 | agent 19, customer 26 |
+| Process faults (premature cards, unneeded questions, false refusals) | 0 / 0 / 0 | 0 / 0 / 0 |
+| Cards declined or cancelled with the button | 6 in 5 conversations | 12 in 10 conversations |
+| Agent run time per turn, p50 / p95 | 4.0 s / 8.2 s (n = 213) | 3.4 s / 6.0 s (n = 622) |
+| Agent cost per conversation | $0.0256 ($0.0291 part 1, $0.0163 part 2) | $0.0063 (try 1) |
+
+Paired by scenario against all three Sol tries (`comparison.md`): -1.9 points (95% -4.9 to +0.0); better, same,
+worse 0 / 87 / 2. The two worse are D02 (Sonnet's arithmetic) and D85, where Sonnet's one try was a fault of the
+simulated customer. This difference is from development scenarios and one try each, so it ranks nothing.
+
+### Predictions
+
+| # | Prediction | Result | Verdict |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate committed refund in 89 | 0 | right |
+| 2 | At most 1 conversation stopped by a provider error | 0 of 455 requests failed. The stop at D66 was the database's, before any request | right |
+| 3 | 80 to 89 of 89 succeed | 87 | right |
+| 4 | Agent $0.30 to $1.50; the whole run under the $2 cap | Agent $2.28. Each part stayed under its own $2 cap, but the two together cost $2.29 | wrong |
+| 5 | At least half of the agent's input read from the cache | 83.5% (part 1 79.0%, part 2 95.4%) | right |
+| 6 | p95 run time per turn at most 15 s | 8.2 s | right |
+| 7 | No thinking tags or text about the agent's own reasoning in an answer shown to a customer | No thinking tags, and no thinking block ever shown. But D86 showed "Only one blue mug, so propose.", a note the model wrote to itself before a tool call | partly |
+
+### Why Sonnet cost more
+
+On the same scenarios D66-D89, after the cache mark, Sonnet cost 2.45 times Sol. Three causes, all of the model or
+its provider:
+
+- **More input tokens for the same text.** 846,571 against 513,818: Anthropic's tokenizer counts about 1.65 times
+  more for the same instructions, tools and conversation.
+- **Twice the price of a cache read.** $0.20 against $0.10 per million tokens.
+- **Longer answers.** 13,239 output tokens against 5,732.
+
+Before the mark, every new conversation wrote the same instructions to the cache again: 20.9% of the input was cache
+writes, against 4.6% after. That was the cause the adapter could fix, and it was fixed (plan change log,
+2026-11-03).
+
+### Behaviour beside Sol, recorded and not repaired
+
+The agent is compared as it is and is not tuned to either model (the stopping rule's wording judgments).
+
+- **Amounts in the text.** In D02 Sonnet added 69.90 and 34.90 as 104.90 (the machine's failure; 104.80 was paid).
+  In D10 it called a proposal of 89.90 "8,990 BRL", the minor units unconverted, where no amount is checked. Sol's
+  first tries passed the amount check wherever a scenario requires it.
+- **A card at once where the customer asked to avoid one.** In D50 the customer wanted the expired card paid
+  "without another card", and in D58 asked to skip the card. Sonnet made a new card at once in both, and Sol asked
+  first. Neither is premature under the definition of 2026-10-29, because the customer had named that item at its
+  amount. Both cards were declined with the button, and nothing was paid.
+- **Shortened unit IDs.** In D22, D50 and D72 the first call named a unit with a shortened ID (`h12-u1` for
+  `h12-o1-u1`). The backend refused it with the valid values, and Sonnet corrected it in the next call.
+- **Reasoning in visible text.** D34 and D65 told the customer why the agent went on ("Only one item fits, so I'll
+  proceed."). That is acceptable text. D86's "Only one blue mug, so propose." is the one note to itself.
+- **The same as Sol.** D81: a new card at once after a button cancellation and a typed yes, as Sol's tries 2 and 3
+  did; nothing paid. D28 and D78: no new card after a cancellation.
+
+The diagnostics' one message "saying no proposal was made, after one was" (D69) is a true sentence about another
+item ("I haven't proposed anything for the pencil roll."), the same match as Luna's D42.
+
+### Limits
+
+- One try per scenario, on the scenarios the system's rules were built on. The comparison needs the 39 unseen
+  scenarios and three tries.
+- The simulated customer once wrote in the agent's voice (D47). Sonnet said so and went on, with no effect on the
+  outcome.
+- The cost of a comparison run is estimated from part 2: about $0.016 per Sonnet conversation and $0.0063 per Sol
+  conversation, so 39 scenarios times 3 tries comes to about $1.85 and $0.74.

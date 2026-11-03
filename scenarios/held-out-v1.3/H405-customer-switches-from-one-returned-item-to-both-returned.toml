@@ -1,0 +1,104 @@
+# Customer switches from one returned item to both returned items using cards.other = wait after asking about shipping.
+# The author's candidate H405 (docs/held-out-v1.3/author-output.md, line 292), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order a8a42525a528f4f3b6c343d8cfa0a374 (data/olist/subset-v1.3.json): 3 item(s), credit_card 198.13 in 8 instalment(s).
+id = "H405"
+title = "Customer switches from one returned item to both returned items using cards.other = wait after asking about shipping"
+split = "held_out_v1_3"
+category = "eligible"
+template = "customer-switches-from-one-returned-item-to-both-returned"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h405-o1"]
+
+[[fixture.customers]]
+id = "h405-camila"
+name = "Camila Vasconcelos"
+email = "camila.vasconcelos@example.test"
+
+[[fixture.staff]]
+id = "h405-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h405-o1"
+customer = "h405-camila"
+status = "delivered"
+purchased_at = 2026-10-25T18:12:54Z
+delivered_at = 2026-11-06T10:00:00Z  # delivered 10 days before now
+payments = [{ method = "credit_card", amount_minor = 19813, installments = 8 }]  # 5300 + shipping 1281 + 5320 + shipping 1281 + 5350 + shipping 1281
+olist_order = "a8a42525a528f4f3b6c343d8cfa0a374"
+
+[[fixture.orders.units]]
+id = "h405-o1-u1"
+product = "Bamboo bath mat"
+price_minor = 5300
+paid_minor = 5300
+shipping_minor = 1281
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h405-o1-u2"
+product = "Cotton hand towel"
+price_minor = 5320
+paid_minor = 5320
+shipping_minor = 1281
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 2
+
+[[fixture.orders.units]]
+id = "h405-o1-u3"
+product = "Ceramic soap dispenser"
+price_minor = 5350
+paid_minor = 5350
+shipping_minor = 1281
+olist_item = 3
+
+[customer]
+id = "h405-camila"
+goal = "Start by asking to refund only the bamboo bath mat, then once that card appears, ask how shipping charges are treated in refunds and ask to replace the proposal so it includes both the bamboo bath mat and the cotton hand towel."
+opening_message = "Hi, please create a refund proposal for the bamboo bath mat from my order."
+facts = [
+    { text = "Once the proposal for the bamboo bath mat is shown, you want to add the cotton hand towel as well and want to know if shipping charges are automatically included in item refunds.", reveal = "upfront" },
+]
+behaviour = [
+    "Do not ask for shipping to be refunded; only ask what the policy says about shipping charges.",
+    "Wait for the new proposal covering both u1 and u2, confirm it, decline any human handoff, and finish after receiving the receipt.",
+]
+confirms = { units = ["h405-o1-u1", "h405-o1-u2"], amount_minor = 10620 }  # paid(u1) + paid(u2)
+cards = { other = "wait", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h405-o1-u1"]
+decision = "eligible"
+amount_minor = 5300
+
+[[policy_checks]]
+units = ["h405-o1-u1", "h405-o1-u2"]
+decision = "eligible"
+amount_minor = 10620
+
+[[policy_checks]]
+units = ["h405-o1-u3"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = ["h405-o1-u1", "h405-o1-u2"]
+refund_amount_minor = 10620  # paid(u1) + paid(u2)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/shipping", "refund-policy/v2/approval"]
+quality_cites = ["refund-policy/v2/amount"]
+communication = ["states_correct_amount", "gives_this_receipt"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/shipping" = "Shipping charges are not part of the automatic refund amount."
+"refund-policy/v2/approval" = "Adding the second item requires a new proposal, a new confirmation, and a new staff approval."

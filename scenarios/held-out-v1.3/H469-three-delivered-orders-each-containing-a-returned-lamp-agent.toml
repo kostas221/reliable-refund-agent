@@ -1,0 +1,131 @@
+# Three delivered orders each containing a returned lamp: agent must resolve ambiguity across three orders, then answer a voucher payment question and complete the refund.
+# The author's candidate H469 (docs/held-out-v1.3/author-output-2.md, line 518), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 5a87e8c67abd6328a86c6165a91a547d (data/olist/subset-v1.3.json): 1 item(s), credit_card 71.85 in 5 instalment(s).
+# Olist order 5f6499a6a16dcde4cd6fc183a2b26046 (data/olist/subset-v1.3.json): 1 item(s), voucher 58.37 in 1 instalment(s).
+# Olist order d61c57ca1a55ced6197d4f0c6da594e8 (data/olist/subset-v1.3.json): 1 item(s), credit_card 982.63 in 9 instalment(s).
+id = "H469"
+title = "Three delivered orders each containing a returned lamp: agent must resolve ambiguity across three orders, then answer a voucher payment question and complete the refund"
+split = "held_out_v1_3"
+category = "clarification_handoff"
+template = "three-delivered-orders-each-containing-a-returned-lamp-agent"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h469-o1", "h469-o2", "h469-o3"]
+
+[[fixture.customers]]
+id = "h469-carla"
+name = "Carla Mattos"
+email = "carla.mattos@example.test"
+
+[[fixture.staff]]
+id = "h469-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h469-o1"
+customer = "h469-carla"
+status = "delivered"
+purchased_at = 2026-10-12T12:05:15Z
+delivered_at = 2026-10-25T10:00:00Z  # delivered 22 days before now
+payments = [{ method = "credit_card", amount_minor = 7185, installments = 5 }]  # 5900 + shipping 1285
+olist_order = "5a87e8c67abd6328a86c6165a91a547d"
+
+[[fixture.orders.units]]
+id = "h469-o1-u1"
+product = "Ceramic bedside lamp"
+price_minor = 5900
+paid_minor = 5900
+shipping_minor = 1285
+received_back_at = 2026-11-08T10:00:00Z  # received back 8 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "h469-o2"
+customer = "h469-carla"
+status = "delivered"
+purchased_at = 2026-10-28T08:48:07Z
+delivered_at = 2026-10-31T10:00:00Z  # delivered 16 days before now
+payments = [{ method = "voucher", amount_minor = 5837, installments = 1 }]  # 4890 + shipping 947
+olist_order = "5f6499a6a16dcde4cd6fc183a2b26046"
+
+[[fixture.orders.units]]
+id = "h469-o2-u2"
+product = "Brass floor lamp"
+price_minor = 4890
+paid_minor = 4890
+shipping_minor = 947
+received_back_at = 2026-11-07T10:00:00Z  # received back 9 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "h469-o3"
+customer = "h469-carla"
+status = "delivered"
+purchased_at = 2026-10-07T05:11:28Z
+delivered_at = 2026-11-07T10:00:00Z  # delivered 9 days before now
+payments = [{ method = "credit_card", amount_minor = 98263, installments = 9 }]  # 94990 + shipping 3273
+olist_order = "d61c57ca1a55ced6197d4f0c6da594e8"
+
+[[fixture.orders.units]]
+id = "h469-o3-u3"
+product = "Industrial desk lamp"
+price_minor = 94990
+paid_minor = 94990
+shipping_minor = 3273
+received_back_at = 2026-11-14T10:00:00Z  # received back 2 days before now
+olist_item = 1
+
+[[fixture.past_proposals]]
+id = "h469-p1"
+units = ["h469-o2-u2"]
+created_at = 2026-11-11T10:00:00Z  # 5 days before now
+status = "expired"
+
+[customer]
+id = "h469-carla"
+goal = "Ask to refund 'the lamp I returned', clarify when asked that you mean the brass floor lamp from the order paid with a voucher, ask why your earlier proposal for it expired and whether voucher refunds happen automatically, and complete the refund."
+opening_message = "Hi, I'd like to get a refund for the lamp I returned."
+facts = [
+    { text = "You have three orders with returned lamps, and you only want to refund the brass floor lamp (u2) from the order delivered 16 days ago.", reveal = "when_asked" },
+]
+behaviour = [
+    "When the agent asks which returned lamp you want to refund, specify the brass floor lamp (u2) and ask why its earlier proposal expired and whether a single voucher payment is refunded automatically.",
+    "Confirm the new proposal for u2, decline any human handoff, and finish once you get the receipt.",
+]
+confirms = { units = ["h469-o2-u2"], amount_minor = 4890 }  # paid(u2)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h469-o2-u2"]
+decision = "eligible"
+amount_minor = 4890
+
+[[policy_checks]]
+units = ["h469-o1-u1"]
+decision = "eligible"
+amount_minor = 5900
+
+[[policy_checks]]
+units = ["h469-o3-u3"]
+decision = "eligible"
+amount_minor = 94990
+
+[expected]
+refunded_units = ["h469-o2-u2"]
+refund_amount_minor = 4890  # paid(u2)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/validity", "refund-policy/v2/payment"]
+quality_cites = []
+communication = ["resolves_ambiguity_first", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/validity" = "A proposal expires 72 hours after creation if not paid, requiring a new proposal."
+"refund-policy/v2/payment" = "An order with a single valid voucher payment record is refunded automatically back to that voucher."

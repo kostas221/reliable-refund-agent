@@ -29,7 +29,7 @@ from refund_agent.evaluation.audit import AUDIT, CORRECTED, PROCESS, Audited, ap
 from refund_agent.evaluation.diagnostics import CHECKS_ACTED, PROCESS_SIGNALS, REPEATED_SELECTION
 from refund_agent.evaluation.sets import SETS, UNNAMED
 from refund_agent.policy import REPO_ROOT
-from refund_agent.scenarios import Scenario, load_split, policy_for
+from refund_agent.scenarios import SPLIT_DIRS, Scenario, load_split, policy_for
 
 CLAUDE = "audit-claude.toml"
 SEED, DRAWS = 20261019, 10_000
@@ -244,7 +244,7 @@ def compare(base: dict, other: dict) -> dict:
 def build(run: Path) -> dict:
     scenarios = {
         s.id: s
-        for split in ("development", "held_out", "held_out_v1_1", "held_out_v1_2", "stress_v1_2")
+        for split in SPLIT_DIRS  # every set, so a run of any of them can be read
         for s in load_split(split)
     }
     folders = {p.name: p for p in sorted(run.iterdir()) if p.is_dir() and (p / "manifest.json").exists()}
@@ -549,7 +549,7 @@ def compare_runs(new: Path, bases: list[Path]) -> dict:
     runs/final-.../A or a pilot run."""
     scenarios = {
         s.id: s
-        for split in ("development", "held_out", "held_out_v1_1", "held_out_v1_2", "stress_v1_2")
+        for split in SPLIT_DIRS  # every set, so a run of any of them can be read
         for s in load_split(split)
     }
     earlier: dict[str, float] = {}

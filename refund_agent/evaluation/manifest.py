@@ -39,6 +39,8 @@ RUN_FILES = (
     "scenarios/held-out-v1.2/FROZEN",
     "scenarios/stress-v1.2/*.toml",
     "scenarios/stress-v1.2/FROZEN",
+    "scenarios/held-out-v1.3/*.toml",
+    "scenarios/held-out-v1.3/FROZEN",
     "migrations/sql/*.sql",
     "migrations/versions/*.py",
     "migrations/env.py",

@@ -1,0 +1,137 @@
+# Three delivered orders: customer keeps initial two-unit card open to narrow refund to a single unit.
+# The author's candidate H401 (docs/held-out-v1.3/author-output.md, line 1), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order e810b951987f209ae0bc4bd6279c837e (data/olist/subset-v1.3.json): 1 item(s), credit_card 98.61 in 4 instalment(s).
+# Olist order 3ffd7375839be4547d1c419c90403c27 (data/olist/subset-v1.3.json): 2 item(s), credit_card 59.50 in 5 instalment(s).
+# Olist order 55fb38301e16de4684bb543bf4512b12 (data/olist/subset-v1.3.json): 1 item(s), credit_card 194.01 in 10 instalment(s).
+id = "H401"
+title = "Three delivered orders: customer keeps initial two-unit card open to narrow refund to a single unit"
+split = "held_out_v1_3"
+category = "eligible"
+template = "three-delivered-orders-customer-keeps-initial-two-unit-card"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h401-o1", "h401-o2", "h401-o3"]
+
+[[fixture.customers]]
+id = "h401-renata"
+name = "Renata Figueiredo"
+email = "renata.figueiredo@example.test"
+
+[[fixture.staff]]
+id = "h401-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h401-o1"
+customer = "h401-renata"
+status = "delivered"
+purchased_at = 2026-10-13T18:31:19Z
+delivered_at = 2026-10-22T10:00:00Z  # delivered 25 days before now
+payments = [{ method = "credit_card", amount_minor = 9861, installments = 4 }]  # 8500 + shipping 1361
+olist_order = "e810b951987f209ae0bc4bd6279c837e"
+
+[[fixture.orders.units]]
+id = "h401-o1-u1"
+product = "Wooden salad bowl"
+price_minor = 8500
+paid_minor = 8500
+shipping_minor = 1361
+received_back_at = 2026-11-06T10:00:00Z  # received back 10 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "h401-o2"
+customer = "h401-renata"
+status = "delivered"
+purchased_at = 2026-10-16T12:16:39Z
+delivered_at = 2026-11-01T10:00:00Z  # delivered 15 days before now
+payments = [{ method = "credit_card", amount_minor = 5950, installments = 5 }]  # 1790 + shipping 1185 + 1790 + shipping 1185
+olist_order = "3ffd7375839be4547d1c419c90403c27"
+
+[[fixture.orders.units]]
+id = "h401-o2-u2"
+product = "Stainless chef knife"
+price_minor = 1790
+paid_minor = 1790
+shipping_minor = 1185
+received_back_at = 2026-11-11T10:00:00Z  # received back 5 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h401-o2-u3"
+product = "Silicone cutting board"
+price_minor = 1790
+paid_minor = 1790
+shipping_minor = 1185
+received_back_at = 2026-11-11T10:00:00Z  # received back 5 days before now
+olist_item = 2
+
+[[fixture.orders]]
+id = "h401-o3"
+customer = "h401-renata"
+status = "delivered"
+purchased_at = 2026-10-27T02:34:29Z
+delivered_at = 2026-11-08T10:00:00Z  # delivered 8 days before now
+payments = [{ method = "credit_card", amount_minor = 19401, installments = 10 }]  # 16799 + shipping 2602
+olist_order = "55fb38301e16de4684bb543bf4512b12"
+
+[[fixture.orders.units]]
+id = "h401-o3-u4"
+product = "Cast iron skillet"
+price_minor = 16799
+paid_minor = 16799
+shipping_minor = 2602
+olist_item = 1
+
+[customer]
+id = "h401-renata"
+goal = "First ask to refund both returned kitchen items from your middle order (the chef knife and the cutting board), then once the proposal card appears, change your mind and ask for a new proposal for only the chef knife."
+opening_message = "Hi, I want a refund for both the stainless chef knife and the silicone cutting board from my order delivered 15 days ago."
+facts = [
+    { text = "After the first proposal card for both items is created, you decide you only want to refund the stainless chef knife and want to know if changing items requires a new proposal.", reveal = "upfront" },
+]
+behaviour = [
+    "Wait for the agent to propose both u2 and u3, then ask to change the proposal to only the stainless chef knife (u2) and ask how changing a proposal works.",
+    "Confirm the new proposal for u2 only, decline any offer of a human agent, and end once you receive the receipt.",
+]
+confirms = { units = ["h401-o2-u2"], amount_minor = 1790 }  # paid(u2)
+cards = { other = "wait", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h401-o2-u2", "h401-o2-u3"]
+decision = "eligible"
+amount_minor = 3580
+
+[[policy_checks]]
+units = ["h401-o2-u2"]
+decision = "eligible"
+amount_minor = 1790
+
+[[policy_checks]]
+units = ["h401-o1-u1"]
+decision = "eligible"
+amount_minor = 8500
+
+[[policy_checks]]
+units = ["h401-o3-u4"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = ["h401-o2-u2"]
+refund_amount_minor = 1790  # paid(u2)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/approval"]
+quality_cites = ["refund-policy/v2/window", "refund-policy/v2/return"]
+communication = ["states_correct_amount", "gives_this_receipt"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/approval" = "Changing the items in a proposal requires creating a new proposal, a new customer confirmation, and a new staff approval."

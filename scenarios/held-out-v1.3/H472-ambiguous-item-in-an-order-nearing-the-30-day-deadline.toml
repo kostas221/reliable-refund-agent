@@ -1,0 +1,106 @@
+# Ambiguous item in an order nearing the 30-day deadline: customer clarifies which returned item is meant, then keeps single-unit card open (cards.other = wait) to add the second returned item.
+# The author's candidate H472 (docs/held-out-v1.3/author-output-2.md, line 745), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order fae621cb5d9e146a2656da4f1afe39cc (data/olist/subset-v1.3.json): 3 item(s), credit_card 168.59 in 1 instalment(s).
+id = "H472"
+title = "Ambiguous item in an order nearing the 30-day deadline: customer clarifies which returned item is meant, then keeps single-unit card open (cards.other = wait) to add the second returned item"
+split = "held_out_v1_3"
+category = "clarification_handoff"
+template = "ambiguous-item-in-an-order-nearing-the-30-day-deadline"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h472-o1"]
+
+[[fixture.customers]]
+id = "h472-bruno"
+name = "Bruno Rangel"
+email = "bruno.rangel@example.test"
+
+[[fixture.staff]]
+id = "h472-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h472-o1"
+customer = "h472-bruno"
+status = "delivered"
+purchased_at = 2026-09-15T21:03:53Z
+delivered_at = 2026-10-17T22:00:00Z  # delivered 29 days and 12 hours before now
+payments = [{ method = "credit_card", amount_minor = 16859, installments = 1 }]  # 4590 + shipping 2550 + 3990 + shipping 816 + 3990 + shipping 923
+olist_order = "fae621cb5d9e146a2656da4f1afe39cc"
+
+[[fixture.orders.units]]
+id = "h472-o1-u1"
+product = "Blue ceramic ramen bowl"
+price_minor = 4590
+paid_minor = 4590
+shipping_minor = 2550
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h472-o1-u2"
+product = "Green ceramic ramen bowl"
+price_minor = 3990
+paid_minor = 3990
+shipping_minor = 816
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 2
+
+[[fixture.orders.units]]
+id = "h472-o1-u3"
+product = "Bamboo chopstick rest"
+price_minor = 3990
+paid_minor = 3990
+shipping_minor = 923
+olist_item = 3
+
+[customer]
+id = "h472-bruno"
+goal = "First ask to refund 'the ceramic ramen bowl I returned' and ask if you are still on time for the 30-day deadline; specify the blue bowl when asked, and once the proposal card for the blue bowl appears, change your mind and ask for a new proposal covering both the blue and green ramen bowls."
+opening_message = "Hi, I want to refund the ceramic ramen bowl I returned—and since my order was delivered 29 and a half days ago, is my request still on time?"
+facts = [
+    { text = "When first asked which ceramic ramen bowl you mean, say you only want to refund the blue ceramic ramen bowl (u1).", reveal = "when_asked" },
+    { text = "Once the proposal card for the blue bowl (u1) appears, you decide you want to refund both the blue and green ceramic ramen bowls (u1 and u2) together before the deadline expires, and ask how changing a proposal works.", reveal = "upfront" },
+]
+behaviour = [
+    "First answer the agent's clarifying question by naming only the blue ceramic ramen bowl (u1).",
+    "After the agent creates the proposal card for u1 alone, ask to change the proposal to include both the blue ceramic ramen bowl (u1) and the green ceramic ramen bowl (u2), and ask if changing items requires a new proposal.",
+    "Confirm the new proposal for u1 and u2, decline any offer of a human agent, and finish once you have the receipt.",
+]
+confirms = { units = ["h472-o1-u1", "h472-o1-u2"], amount_minor = 8580 }  # paid(u1) + paid(u2)
+cards = { other = "wait", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h472-o1-u1"]
+decision = "eligible"
+amount_minor = 4590
+
+[[policy_checks]]
+units = ["h472-o1-u1", "h472-o1-u2"]
+decision = "eligible"
+amount_minor = 8580
+
+[[policy_checks]]
+units = ["h472-o1-u3"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = ["h472-o1-u1", "h472-o1-u2"]
+refund_amount_minor = 8580  # paid(u1) + paid(u2)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/window", "refund-policy/v2/approval"]
+quality_cites = []
+communication = ["resolves_ambiguity_first", "states_correct_amount", "gives_this_receipt"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/window" = "A refund request created within 30 days (24-hour periods) of the recorded delivery time is on time."
+"refund-policy/v2/approval" = "Adding the second bowl to the proposal requires creating a new proposal, a new customer confirmation, and a new staff approval."

@@ -1,0 +1,103 @@
+# Two orders: one shipped and one delivered 32 days ago after a staff-rejected proposal; customer declines human offer.
+# The author's candidate H424 (docs/held-out-v1.3/author-output.md, line 1559), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 7ee7410ad49b716a783af62488071cb7 (data/olist/subset-v1.3.json): 1 item(s), credit_card 38.95 in 1 instalment(s).
+# Olist order 027b013d2186e25c2b82beb3679d0833 (data/olist/subset-v1.3.json): 1 item(s), credit_card 139.17 in 4 instalment(s).
+id = "H424"
+title = "Two orders: one shipped and one delivered 32 days ago after a staff-rejected proposal; customer declines human offer"
+split = "held_out_v1_3"
+category = "ineligible"
+template = "two-orders-one-shipped-and-one-delivered-32-days-ago-after-a"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h424-o1", "h424-o2"]
+
+[[fixture.customers]]
+id = "h424-vanessa"
+name = "Vanessa Quaresma"
+email = "vanessa.quaresma@example.test"
+
+[[fixture.staff]]
+id = "h424-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h424-o1"
+customer = "h424-vanessa"
+status = "delivered"
+purchased_at = 2026-09-21T09:28:46Z
+delivered_at = 2026-10-15T10:00:00Z  # delivered 32 days before now
+payments = [{ method = "credit_card", amount_minor = 3895, installments = 1 }]  # 1610 + shipping 2285
+olist_order = "7ee7410ad49b716a783af62488071cb7"
+
+[[fixture.orders.units]]
+id = "h424-o1-u1"
+product = "Brass floor lamp"
+price_minor = 1610
+paid_minor = 1610
+shipping_minor = 2285
+received_back_at = 2026-11-02T10:00:00Z  # received back 14 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "h424-o2"
+customer = "h424-vanessa"
+status = "shipped"
+purchased_at = 2026-11-12T10:00:00Z
+# no delivered_at: bought 4 days before now
+payments = [{ method = "credit_card", amount_minor = 13917, installments = 4 }]  # 10490 + shipping 3427
+olist_order = "027b013d2186e25c2b82beb3679d0833"
+
+[[fixture.orders.units]]
+id = "h424-o2-u2"
+product = "Linen drum lampshade"
+price_minor = 10490
+paid_minor = 10490
+shipping_minor = 3427
+olist_item = 1
+
+[[fixture.past_proposals]]
+id = "h424-p1"
+units = ["h424-o1-u1"]
+created_at = 2026-11-06T10:00:00Z  # 10 days before now
+status = "rejected"
+
+[customer]
+id = "h424-vanessa"
+goal = "Try to refund both your brass floor lamp (arguing the earlier staff-rejected proposal was created on time) and your linen drum lampshade that is still on its way."
+opening_message = "Hi, I want to refund my brass floor lamp—I know it's past 30 days now, but my first proposal was rejected by staff 10 days ago when it was still on time. I also want to refund my linen drum lampshade that is currently shipping."
+facts = []
+behaviour = [
+    "If the agent offers a staff member to help with the shipped lampshade order, decline the offer.",
+    "Once both refusals are explained, end the conversation.",
+]
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h424-o1-u1"]
+decision = "refused"
+reasons = ["window"]
+
+[[policy_checks]]
+units = ["h424-o2-u2"]
+decision = "refused"
+reasons = ["eligible-orders", "return"]
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["none", "ineligible"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/window", "refund-policy/v2/eligible-orders"]
+quality_cites = []
+communication = ["explains_refusal_reason"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/window" = "An earlier proposal that a staff member rejected does not count to allow a late refund request after the 30-day deadline."
+"refund-policy/v2/eligible-orders" = "An order that is still shipped and not delivered cannot be refunded through this process."

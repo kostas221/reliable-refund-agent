@@ -368,8 +368,24 @@ check of the adapter (predictions in `docs/pilot/predictions.md`, "The compariso
 timeout (environment), 0 provider errors in 331 requests, 64 of 65 without a machine failure (D02: Sonnet said
 104,90 for 104,80); the agent cost 4.6 times Sol a conversation, mostly cache writes of the shared instructions in
 every conversation: the instructions are now marked for the cache (cost only, tested). Runners print each line at
-once (Git Bash). Next: D66-D89 with the cache mark, then Claude reads all 89 and grades the predictions; then the 39
-converted and frozen, targets and predictions, the comparison run (Sol and Sonnet together); then the handoff checks
+once (Git Bash). Part 2 (`runs/pilot-20261103T122209Z-claude-sonnet-5-5-low`, D66-D89 with the cache mark, $0.395),
+joined in `...-joined` (results in `docs/pilot/results.md`, "The comparison's second model"): 87/89 (D02 the amount
+in the text, D85 a simulator fault), 0 unsafe, 0 provider errors in 455 requests, p95 8.2 s; agent $2.28, after the
+mark 2.45 times Sol a conversation on the same scenarios (4.73 before; the rest is the model's: 1.65 times the input
+tokens, twice the cache-read price, longer answers); 5 of 7 predictions right, 1 partly (D86 showed a note to
+itself), 1 wrong (cost). Recorded, not repaired: amount slips (D02, D10 "8,990 BRL"), a card at once where the
+customer asked to avoid one (D50, D58; Sol asked first), shortened unit IDs refused and corrected (D22, D50, D72).
+Stopping rule held. The 39 converted (2026-11-03, plan change log): `scenarios/held-out-v1.3/` (split
+`held_out_v1_3`) by `scripts/convert_held_out_v1_3.py`, each block checked against the selection manifest's SHA-256;
+Olist orders by `uv run python -m refund_agent.olist v1.3` (`draw_tied`: up to four orders, the author's ties), 63
+orders in `data/olist/subset-v1.3.json`; `conversion-log.md`; four decisions for the owner in `decision-notes.md`
+(H421's card-and-boleto payment split from a real card payment, no Olist order has the pair; H422's "Siliconeoven"
+kept; file names cut at 60 characters for the Windows path limit; author unit labels such as "(u2)" in 19 roles, a
+limit). Free checks: 205 fidelity tests, policy checks agree with the code, a correct mocked conversation passes in all
+39 and wrong ones fail (`tests/acceptance/test_held_out_v1_3_mock.py`), 12 of 12 planted file errors (scratchpad
+`planted_v13_files.py`); the set lookups read every split from `SPLIT_DIRS`. Not frozen. Next: the owner approves the
+files and the decisions, the freeze, targets, predictions, decision rule, the simulator choice, the final runner's
+two configurations (Sol low, Sonnet low) with a budget cap, and the comparison run (about $2.60); then the handoff checks
 and the five-person trial. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
 `runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run

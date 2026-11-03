@@ -1,0 +1,120 @@
+# Three orders: one refused as late, one refused as unreturned, and one delivered order the customer says never arrived requiring staff handoff.
+# The author's candidate H464 (docs/held-out-v1.3/author-output-2.md, line 194), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 33168d284b0de378e726ed35e42c16d8 (data/olist/subset-v1.3.json): 1 item(s), credit_card 76.17 in 3 instalment(s).
+# Olist order ca6a7dfbbaebac08df32693f6e6c95a1 (data/olist/subset-v1.3.json): 1 item(s), credit_card 73.61 in 4 instalment(s).
+# Olist order d6d672062a715f1a2bd844d2797c1dcd (data/olist/subset-v1.3.json): 1 item(s), credit_card 96.22 in 1 instalment(s).
+id = "H464"
+title = "Three orders: one refused as late, one refused as unreturned, and one delivered order the customer says never arrived requiring staff handoff"
+split = "held_out_v1_3"
+category = "clarification_handoff"
+template = "three-orders-one-refused-as-late-one-refused-as-unreturned"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h464-o1", "h464-o2", "h464-o3"]
+
+[[fixture.customers]]
+id = "h464-jessica"
+name = "Jessica Valadares"
+email = "jessica.valadares@example.test"
+
+[[fixture.staff]]
+id = "h464-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h464-o1"
+customer = "h464-jessica"
+status = "delivered"
+purchased_at = 2026-09-29T06:18:25Z
+delivered_at = 2026-10-12T10:00:00Z  # delivered 35 days before now
+payments = [{ method = "credit_card", amount_minor = 7617, installments = 3 }]  # 5999 + shipping 1618
+olist_order = "33168d284b0de378e726ed35e42c16d8"
+
+[[fixture.orders.units]]
+id = "h464-o1-u1"
+product = "Wicker storage basket"
+price_minor = 5999
+paid_minor = 5999
+shipping_minor = 1618
+received_back_at = 2026-11-06T10:00:00Z  # received back 10 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "h464-o2"
+customer = "h464-jessica"
+status = "delivered"
+purchased_at = 2026-10-17T07:18:31Z
+delivered_at = 2026-11-05T10:00:00Z  # delivered 11 days before now
+payments = [{ method = "credit_card", amount_minor = 7361, installments = 4 }]  # 3990 + shipping 3371
+olist_order = "ca6a7dfbbaebac08df32693f6e6c95a1"
+
+[[fixture.orders.units]]
+id = "h464-o2-u2"
+product = "Linen laundry liner"
+price_minor = 3990
+paid_minor = 3990
+shipping_minor = 3371
+olist_item = 1
+
+[[fixture.orders]]
+id = "h464-o3"
+customer = "h464-jessica"
+status = "delivered"
+purchased_at = 2026-10-25T09:58:27Z
+delivered_at = 2026-11-10T10:00:00Z  # delivered 6 days before now
+payments = [{ method = "credit_card", amount_minor = 9622, installments = 1 }]  # 7990 + shipping 1632
+olist_order = "d6d672062a715f1a2bd844d2797c1dcd"
+
+[[fixture.orders.units]]
+id = "h464-o3-u3"
+product = "Cedar coat hangers"
+price_minor = 7990
+paid_minor = 7990
+shipping_minor = 1632
+olist_item = 1
+
+[customer]
+id = "h464-jessica"
+goal = "Ask about all three of your orders at once: request a refund for your wicker storage basket delivered 35 days ago, request a refund for your linen laundry liner that you plan to mail back next week, and report that your cedar coat hangers order marked delivered 6 days ago never arrived at your house."
+opening_message = "Hi! I need help with my three orders: I want a refund for my wicker storage basket, a refund for my linen laundry liner (which I'll mail back next week), and also my cedar coat hangers order says delivered 6 days ago but the package never arrived!"
+facts = []
+behaviour = [
+    "Accept the refusals for the wicker storage basket and the linen laundry liner, and accept the handoff to a staff member for the cedar coat hangers order that never arrived.",
+]
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h464-o1-u1"]
+decision = "refused"
+reasons = ["window"]
+
+[[policy_checks]]
+units = ["h464-o2-u2"]
+decision = "refused"
+reasons = ["return"]
+
+[[policy_checks]]
+units = ["h464-o3-u3"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["none", "ineligible"]
+handoff = "required"
+handoff_origins = ["agent", "customer"]
+cites = ["refund-policy/v2/window", "refund-policy/v2/return", "refund-policy/v2/eligible-orders"]
+quality_cites = []
+communication = ["explains_refusal_reason", "announces_handoff"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/window" = "The wicker storage basket order was delivered more than 30 days ago, so a refund request for it is past the 30-day limit."
+"refund-policy/v2/return" = "The linen laundry liner must be received back by the shop before it can be refunded."
+"refund-policy/v2/eligible-orders" = "Because the cedar coat hangers order is recorded as delivered but you state it never arrived, a staff member takes the case."

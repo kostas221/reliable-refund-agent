@@ -1,0 +1,90 @@
+# Customer asks whether typing cancel in chat cancels a card, keeps wrong single-unit card open, then switches to the other returned unit.
+# The author's candidate H410 (docs/held-out-v1.3/author-output.md, line 652), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 635d6eda3af27d4cdcee17a82b7aca92 (data/olist/subset-v1.3.json): 2 item(s), credit_card 121.02 in 1 instalment(s).
+id = "H410"
+title = "Customer asks whether typing cancel in chat cancels a card, keeps wrong single-unit card open, then switches to the other returned unit"
+split = "held_out_v1_3"
+category = "eligible"
+template = "customer-asks-whether-typing-cancel-in-chat-cancels-a-card"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h410-o1"]
+
+[[fixture.customers]]
+id = "h410-rafael"
+name = "Rafael Toledo"
+email = "rafael.toledo@example.test"
+
+[[fixture.staff]]
+id = "h410-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h410-o1"
+customer = "h410-rafael"
+status = "delivered"
+purchased_at = 2026-10-24T09:15:47Z
+delivered_at = 2026-10-31T10:00:00Z  # delivered 16 days before now
+payments = [{ method = "credit_card", amount_minor = 12102, installments = 1 }]  # 4890 + shipping 1366 + 4190 + shipping 1656
+olist_order = "635d6eda3af27d4cdcee17a82b7aca92"
+
+[[fixture.orders.units]]
+id = "h410-o1-u1"
+product = "Silk sleep mask"
+price_minor = 4890
+paid_minor = 4890
+shipping_minor = 1366
+received_back_at = 2026-11-10T10:00:00Z  # received back 6 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h410-o1-u2"
+product = "Lavender pillow spray"
+price_minor = 4190
+paid_minor = 4190
+shipping_minor = 1656
+received_back_at = 2026-11-10T10:00:00Z  # received back 6 days before now
+olist_item = 2
+
+[customer]
+id = "h410-rafael"
+goal = "First ask to refund the silk sleep mask, then once the proposal card appears, ask if typing 'cancel' in the chat cancels it and ask the agent to replace it with a proposal for the lavender pillow spray instead."
+opening_message = "Please start a refund for the silk sleep mask."
+facts = [
+    { text = "Once the proposal card for the silk sleep mask is created, you realize you want to keep the mask refund for later and instead refund only the lavender pillow spray now.", reveal = "upfront" },
+]
+behaviour = [
+    "After the first card appears, ask whether typing 'cancel' in chat cancels a card, and ask the agent to create a new proposal for only the lavender pillow spray (u2).",
+    "Confirm the proposal for u2, decline any human handoff, and finish once the receipt is given.",
+]
+confirms = { units = ["h410-o1-u2"], amount_minor = 4190 }  # paid(u2)
+cards = { other = "wait", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h410-o1-u1"]
+decision = "eligible"
+amount_minor = 4890
+
+[[policy_checks]]
+units = ["h410-o1-u2"]
+decision = "eligible"
+amount_minor = 4190
+
+[expected]
+refunded_units = ["h410-o1-u2"]
+refund_amount_minor = 4190  # paid(u2)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/approval"]
+quality_cites = []
+communication = ["states_correct_amount", "gives_this_receipt"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/approval" = "A message in the chat does not cancel or confirm a proposal, and changing to a different item requires a new proposal, confirmation, and approval."

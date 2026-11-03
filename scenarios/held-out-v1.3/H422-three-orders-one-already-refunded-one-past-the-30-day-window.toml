@@ -1,0 +1,126 @@
+# Three orders: one already refunded, one past the 30-day window, one not returned yet.
+# The author's candidate H422 (docs/held-out-v1.3/author-output.md, line 1426), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 54f3086920092b6c1d80c5db5361e937 (data/olist/subset-v1.3.json): 1 item(s), credit_card 212.73 in 3 instalment(s).
+# Olist order 2e43aadcfcd100bf85414cc4a0b6f3af (data/olist/subset-v1.3.json): 1 item(s), credit_card 310.20 in 8 instalment(s).
+# Olist order cb43135710027c5812dd0fe65691c636 (data/olist/subset-v1.3.json): 1 item(s), credit_card 27.29 in 1 instalment(s).
+id = "H422"
+title = "Three orders: one already refunded, one past the 30-day window, one not returned yet"
+split = "held_out_v1_3"
+category = "ineligible"
+template = "three-orders-one-already-refunded-one-past-the-30-day-window"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h422-o1", "h422-o2", "h422-o3"]
+
+[[fixture.customers]]
+id = "h422-sergio"
+name = "Sergio Batalha"
+email = "sergio.batalha@example.test"
+
+[[fixture.staff]]
+id = "h422-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h422-o1"
+customer = "h422-sergio"
+status = "delivered"
+purchased_at = 2026-10-22T01:29:23Z
+delivered_at = 2026-10-29T10:00:00Z  # delivered 18 days before now
+payments = [{ method = "credit_card", amount_minor = 21273, installments = 3 }]  # 19350 + shipping 1923
+olist_order = "54f3086920092b6c1d80c5db5361e937"
+
+[[fixture.orders.units]]
+id = "h422-o1-u1"
+product = "Bamboo cutting board"
+price_minor = 19350
+paid_minor = 19350
+shipping_minor = 1923
+received_back_at = 2026-11-06T10:00:00Z  # received back 10 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "h422-o2"
+customer = "h422-sergio"
+status = "delivered"
+purchased_at = 2026-10-03T15:48:54Z
+delivered_at = 2026-10-09T10:00:00Z  # delivered 38 days before now
+payments = [{ method = "credit_card", amount_minor = 31020, installments = 8 }]  # 24990 + shipping 6030
+olist_order = "2e43aadcfcd100bf85414cc4a0b6f3af"
+
+[[fixture.orders.units]]
+id = "h422-o2-u2"
+product = "Stoneware baking dish"
+price_minor = 24990
+paid_minor = 24990
+shipping_minor = 6030
+received_back_at = 2026-11-10T10:00:00Z  # received back 6 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "h422-o3"
+customer = "h422-sergio"
+status = "delivered"
+purchased_at = 2026-11-04T16:50:59Z
+delivered_at = 2026-11-10T10:00:00Z  # delivered 6 days before now
+payments = [{ method = "credit_card", amount_minor = 2729, installments = 1 }]  # 1990 + shipping 739
+olist_order = "cb43135710027c5812dd0fe65691c636"
+
+[[fixture.orders.units]]
+id = "h422-o3-u3"
+product = "Siliconeoven mitts"
+price_minor = 1990
+paid_minor = 1990
+shipping_minor = 739
+olist_item = 1
+
+[[fixture.past_refunds]]
+units = ["h422-o1-u1"]
+committed_at = 2026-11-08T10:00:00Z  # 8 days before now
+receipt_number = "R-H422-0001"
+
+[customer]
+id = "h422-sergio"
+goal = "Ask to get refunds on all three of your orders: the bamboo cutting board (and ask for its receipt if already refunded), the stoneware baking dish, and the silicone oven mitts you plan to mail back tomorrow."
+opening_message = "Hi, can you refund my three orders—the bamboo cutting board, the stoneware baking dish, and the silicone oven mitts (which I'm packing to mail tomorrow)? If the cutting board was already paid, what was its receipt?"
+facts = []
+behaviour = [
+    "Accept the explanations for all three orders, decline any offer of a human agent, and finish once you have the reasons and the earlier receipt.",
+]
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h422-o1-u1"]
+decision = "refused"
+reasons = ["remaining"]
+
+[[policy_checks]]
+units = ["h422-o2-u2"]
+decision = "refused"
+reasons = ["window"]
+
+[[policy_checks]]
+units = ["h422-o3-u3"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["none", "ineligible"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/remaining", "refund-policy/v2/window", "refund-policy/v2/return"]
+quality_cites = []
+communication = ["explains_refusal_reason"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/remaining" = "The bamboo cutting board was already refunded once and cannot be refunded again, and its receipt is provided."
+"refund-policy/v2/window" = "The stoneware baking dish order was delivered more than 30 days ago, so it is past the 30-day time limit."
+"refund-policy/v2/return" = "The silicone oven mitts have not been received back yet and must arrive before a refund can be requested."

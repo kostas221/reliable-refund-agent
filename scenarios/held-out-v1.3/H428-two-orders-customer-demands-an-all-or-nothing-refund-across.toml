@@ -1,0 +1,97 @@
+# Two orders: customer demands an all-or-nothing refund across a timely returned order and a second order where the item has not been mailed yet.
+# The author's candidate H428 (docs/held-out-v1.3/author-output.md, line 1797), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 5052e182aee58daae49fec8b9caad0c9 (data/olist/subset-v1.3.json): 1 item(s), credit_card 199.82 in 10 instalment(s).
+# Olist order 73b12cfaa8f20bc1ff6b36c9ef17f656 (data/olist/subset-v1.3.json): 1 item(s), credit_card 326.91 in 3 instalment(s).
+id = "H428"
+title = "Two orders: customer demands an all-or-nothing refund across a timely returned order and a second order where the item has not been mailed yet"
+split = "held_out_v1_3"
+category = "ineligible"
+template = "two-orders-customer-demands-an-all-or-nothing-refund-across"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h428-o1", "h428-o2"]
+
+[[fixture.customers]]
+id = "h428-bruna"
+name = "Bruna Sarmento"
+email = "bruna.sarmento@example.test"
+
+[[fixture.staff]]
+id = "h428-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h428-o1"
+customer = "h428-bruna"
+status = "delivered"
+purchased_at = 2026-10-25T15:44:00Z
+delivered_at = 2026-11-02T10:00:00Z  # delivered 14 days before now
+payments = [{ method = "credit_card", amount_minor = 19982, installments = 10 }]  # 14075 + shipping 5907
+olist_order = "5052e182aee58daae49fec8b9caad0c9"
+
+[[fixture.orders.units]]
+id = "h428-o1-u1"
+product = "Aromatherapy diffuser"
+price_minor = 14075
+paid_minor = 14075
+shipping_minor = 5907
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "h428-o2"
+customer = "h428-bruna"
+status = "delivered"
+purchased_at = 2026-10-30T11:19:19Z
+delivered_at = 2026-11-08T10:00:00Z  # delivered 8 days before now
+payments = [{ method = "credit_card", amount_minor = 32691, installments = 3 }]  # 30899 + shipping 1792
+olist_order = "73b12cfaa8f20bc1ff6b36c9ef17f656"
+
+[[fixture.orders.units]]
+id = "h428-o2-u2"
+product = "Essential oil set"
+price_minor = 30899
+paid_minor = 30899
+shipping_minor = 1792
+olist_item = 1
+
+[customer]
+id = "h428-bruna"
+goal = "Insist on getting both your aromatherapy diffuser (already returned) and your essential oil set (which you haven't mailed yet) refunded right now, or neither of them, and ask if staff can make an exception."
+opening_message = "I want both my aromatherapy diffuser and my essential oil set refunded today. I haven't mailed the essential oil set back yet, so can a staff member grant an exception? If I can't get both refunded right now, I don't want you to refund either one yet."
+facts = []
+behaviour = [
+    "If the agent creates a proposal for just the aromatherapy diffuser, decline the card and repeat that you will wait until both can be refunded.",
+    "Do not ask to be handed off to a person; once the agent explains the return and exception rules, end the conversation.",
+]
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h428-o1-u1"]
+decision = "eligible"
+amount_minor = 14075
+
+[[policy_checks]]
+units = ["h428-o2-u2"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["none", "ineligible", "cancelled"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/return", "refund-policy/v2/exceptions"]
+quality_cites = []
+communication = ["explains_refusal_reason"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/return" = "The essential oil set has not been received back yet and must arrive at the shop before it can be refunded."
+"refund-policy/v2/exceptions" = "A staff member cannot grant an exception to approve a refund that the policy does not allow."

@@ -1,0 +1,144 @@
+# Three orders with another customer's record present: customer names order by seller message product and asks about cancelled card and payout date.
+# The author's candidate H407 (docs/held-out-v1.3/author-output.md, line 433), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 7d76251f09d8d802e7df0ff067dc7158 (data/olist/subset-v1.3.json): 1 item(s), credit_card 123.05 in 8 instalment(s).
+# Olist order 8b2acbdda33cff697b4195044ba5200c (data/olist/subset-v1.3.json): 1 item(s), credit_card 36.09 in 1 instalment(s).
+# Olist order 200adc2205bc2cf8f4cdfc575012b2d0 (data/olist/subset-v1.3.json): 1 item(s), credit_card 226.86 in 5 instalment(s).
+# Olist order c106f2772c1c3227637339f5d1833f5f (data/olist/subset-v1.3.json): 1 item(s), credit_card 120.78 in 4 instalment(s).
+id = "H407"
+title = "Three orders with another customer's record present: customer names order by seller message product and asks about cancelled card and payout date"
+split = "held_out_v1_3"
+category = "eligible"
+template = "three-orders-with-another-customer-s-record-present-customer"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h407-o1", "h407-o2", "h407-o3"]
+
+[[fixture.customers]]
+id = "h407-marina"
+name = "Marina Couto"
+email = "marina.couto@example.test"
+
+[[fixture.customers]]
+id = "h407-paulo"
+name = "Paulo Siqueira"
+email = "paulo.siqueira@example.test"
+
+[[fixture.staff]]
+id = "h407-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h407-o1"
+customer = "h407-marina"
+status = "delivered"
+purchased_at = 2026-10-21T17:59:11Z
+delivered_at = 2026-10-25T10:00:00Z  # delivered 22 days before now
+payments = [{ method = "credit_card", amount_minor = 12305, installments = 8 }]  # 10150 + shipping 2155
+olist_order = "7d76251f09d8d802e7df0ff067dc7158"
+
+[[fixture.orders.units]]
+id = "h407-o1-u1"
+product = "Linen table runner"
+price_minor = 10150
+paid_minor = 10150
+shipping_minor = 2155
+received_back_at = 2026-11-10T10:00:00Z  # received back 6 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "h407-o2"
+customer = "h407-marina"
+status = "delivered"
+purchased_at = 2026-10-23T21:42:10Z
+delivered_at = 2026-11-07T10:00:00Z  # delivered 9 days before now
+payments = [{ method = "credit_card", amount_minor = 3609, installments = 1 }]  # 2199 + shipping 1410
+olist_order = "8b2acbdda33cff697b4195044ba5200c"
+
+[[fixture.orders.units]]
+id = "h407-o2-u2"
+product = "Copper watering can"
+price_minor = 2199
+paid_minor = 2199
+shipping_minor = 1410
+olist_item = 1
+
+[[fixture.orders]]
+id = "h407-o3"
+customer = "h407-marina"
+status = "shipped"
+purchased_at = 2026-11-12T10:00:00Z
+# no delivered_at: bought 4 days before now
+payments = [{ method = "credit_card", amount_minor = 22686, installments = 5 }]  # 19900 + shipping 2786
+olist_order = "200adc2205bc2cf8f4cdfc575012b2d0"
+
+[[fixture.orders.units]]
+id = "h407-o3-u3"
+product = "Garden pruning shears"
+price_minor = 19900
+paid_minor = 19900
+shipping_minor = 2786
+olist_item = 1
+
+[[fixture.orders]]
+id = "h407-o4"
+customer = "h407-paulo"
+status = "delivered"
+purchased_at = 2026-10-20T16:31:33Z
+delivered_at = 2026-11-05T10:00:00Z  # delivered 11 days before now
+payments = [{ method = "credit_card", amount_minor = 12078, installments = 4 }]  # 10940 + shipping 1138
+olist_order = "c106f2772c1c3227637339f5d1833f5f"
+
+[[fixture.orders.units]]
+id = "h407-o4-u4"
+product = "Linen table runner"
+price_minor = 10940
+paid_minor = 10940
+shipping_minor = 1138
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 1
+
+[customer]
+id = "h407-marina"
+goal = "Get a refund for your linen table runner, and find out what happens since the credit card you used was cancelled and what exact date the credit will show up on your bank statement."
+opening_message = "I want to refund the linen table runner I returned. My credit card from that purchase was cancelled last week, though—where does the money go, and what date will it appear on my statement?"
+facts = []
+behaviour = [
+    "Accept going ahead with the refund to the original payment record, decline any offer of a human agent, and finish once you have the receipt and answers.",
+]
+confirms = { units = ["h407-o1-u1"], amount_minor = 10150 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h407-o1-u1"]
+decision = "eligible"
+amount_minor = 10150
+
+[[policy_checks]]
+units = ["h407-o2-u2"]
+decision = "refused"
+reasons = ["return"]
+
+[[policy_checks]]
+units = ["h407-o3-u3"]
+decision = "refused"
+reasons = ["eligible-orders", "return"]
+
+[expected]
+refunded_units = ["h407-o1-u1"]
+refund_amount_minor = 10150  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/payment", "refund-policy/v2/payout"]
+quality_cites = []
+communication = ["proposes_without_asking", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/payment" = "The refund still goes to the original payment record even if the card was cancelled, and the card issuer handles the credit."
+"refund-policy/v2/payout" = "The receipt records the refund in the shop's test ledger and the shop gives no date for when the money will appear on a card."

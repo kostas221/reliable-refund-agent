@@ -1,0 +1,99 @@
+# Past-deadline order with an earlier on-time invalidated proposal requires staff handoff and forbids simple late refusal.
+# The author's candidate H461 (docs/held-out-v1.3/author-output-2.md, line 1), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 26bfc6c6251ef7eda55f7bc7f11e9647 (data/olist/subset-v1.3.json): 2 item(s), credit_card 264.66 in 1 instalment(s).
+id = "H461"
+title = "Past-deadline order with an earlier on-time invalidated proposal requires staff handoff and forbids simple late refusal"
+split = "held_out_v1_3"
+category = "clarification_handoff"
+template = "past-deadline-order-with-an-earlier-on-time-invalidated"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h461-o1"]
+
+[[fixture.customers]]
+id = "h461-roberto"
+name = "Roberto Saldanha"
+email = "roberto.saldanha@example.test"
+
+[[fixture.staff]]
+id = "h461-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h461-o1"
+customer = "h461-roberto"
+status = "delivered"
+purchased_at = 2026-09-29T01:21:18Z
+delivered_at = 2026-10-13T10:00:00Z  # delivered 34 days before now
+payments = [{ method = "credit_card", amount_minor = 26466, installments = 1 }]  # 4633 + shipping 1756 + 14933 + shipping 5144
+olist_order = "26bfc6c6251ef7eda55f7bc7f11e9647"
+
+[[fixture.orders.units]]
+id = "h461-o1-u1"
+product = "Ceramic soup tureen"
+price_minor = 4633
+paid_minor = 4633
+shipping_minor = 1756
+received_back_at = 2026-10-27T10:00:00Z  # received back 20 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h461-o1-u2"
+product = "Porcelain gravy boat"
+price_minor = 14933
+paid_minor = 14933
+shipping_minor = 5144
+received_back_at = 2026-10-29T10:00:00Z  # received back 18 days before now
+olist_item = 2
+
+[[fixture.past_refunds]]
+units = ["h461-o1-u1"]
+committed_at = 2026-10-31T10:00:00Z  # 16 days before now
+receipt_number = "R-H461-0001"
+
+[[fixture.past_proposals]]
+id = "h461-p1"
+units = ["h461-o1-u2"]
+created_at = 2026-11-04T10:00:00Z  # 12 days before now
+status = "invalidated"
+
+[customer]
+id = "h461-roberto"
+goal = "Ask to refund your porcelain gravy boat (whose earlier on-time proposal stopped being valid when the order record changed) even though it is now 34 days after delivery, and also ask for the receipt of your already-refunded ceramic soup tureen."
+opening_message = "Hi, I want to refund the porcelain gravy boat from my order delivered 34 days ago—my first proposal for it was made on time 12 days ago before it stopped being valid due to an order update. Could you also give me the receipt number for the ceramic soup tureen that was already refunded?"
+facts = []
+behaviour = [
+    "Accept the receipt for the soup tureen and the announcement that a staff member is taking over the gravy boat request, and end the conversation.",
+]
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h461-o1-u2"]
+decision = "needs_person"
+reasons = ["window"]
+earlier_request_on_time = true
+
+[[policy_checks]]
+units = ["h461-o1-u1"]
+decision = "refused"
+reasons = ["window", "remaining"]
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["none", "ineligible"]
+handoff = "required"
+handoff_origins = ["agent"]
+cites = ["refund-policy/v2/window", "refund-policy/v2/remaining"]
+quality_cites = ["refund-policy/v2/validity"]
+communication = ["announces_handoff"]
+forbidden = ["refused_as_simply_late"]
+
+[expected.obligations]
+"refund-policy/v2/window" = "Because an earlier proposal for the porcelain gravy boat was created in time and stopped being valid before payment, the late request is not refused for being past 30 days and a staff member takes the case."
+"refund-policy/v2/remaining" = "The ceramic soup tureen was already refunded once and its existing receipt is reported."

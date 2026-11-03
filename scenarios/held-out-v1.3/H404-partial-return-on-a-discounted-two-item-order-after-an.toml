@@ -1,0 +1,102 @@
+# Partial return on a discounted two-item order after an earlier invalidated proposal, plus a question about exceptions.
+# The author's candidate H404 (docs/held-out-v1.3/author-output.md, line 225), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 257c6a3b68f7f459fa6818454d997e39 (data/olist/subset-v1.3.json): 2 item(s), credit_card 71.99 in 1 instalment(s).
+id = "H404"
+title = "Partial return on a discounted two-item order after an earlier invalidated proposal, plus a question about exceptions"
+split = "held_out_v1_3"
+category = "eligible"
+template = "partial-return-on-a-discounted-two-item-order-after-an"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h404-o1"]
+
+[[fixture.customers]]
+id = "h404-thiago"
+name = "Thiago Barreto"
+email = "thiago.barreto@example.test"
+
+[[fixture.staff]]
+id = "h404-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h404-o1"
+customer = "h404-thiago"
+status = "delivered"
+purchased_at = 2026-10-30T06:46:33Z
+delivered_at = 2026-11-02T10:00:00Z  # delivered 14 days before now
+payments = [{ method = "credit_card", amount_minor = 7199, installments = 1 }]  # 2490 + shipping 573 + 2990 + shipping 1146
+olist_order = "257c6a3b68f7f459fa6818454d997e39"
+
+[[fixture.orders.units]]
+id = "h404-o1-u1"
+product = "Merino wool beanie"
+price_minor = 2988  # listed 20% above what was paid
+paid_minor = 2490
+shipping_minor = 573
+received_back_at = 2026-11-11T10:00:00Z  # received back 5 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h404-o1-u2"
+product = "Leather winter gloves"
+price_minor = 3588  # listed 20% above what was paid
+paid_minor = 2990
+shipping_minor = 1146
+olist_item = 2
+
+[[fixture.past_proposals]]
+id = "h404-p1"
+units = ["h404-o1-u1"]
+created_at = 2026-11-13T10:00:00Z  # 3 days before now
+status = "invalidated"
+
+[customer]
+id = "h404-thiago"
+goal = "Get a refund for your merino wool beanie after your earlier proposal became invalid, and ask if a staff member can make a special exception to refund the leather winter gloves before you mail them back."
+opening_message = "My previous proposal for the merino wool beanie stopped being valid when the order record was updated. Can we redo the beanie refund, and can a staff member grant an exception so I get refunded for the leather winter gloves before I ship them back?"
+facts = [
+    { text = "You have not mailed the leather winter gloves yet; they are still at home.", reveal = "upfront" },
+]
+behaviour = [
+    "Accept the refusal for the unreturned gloves without asking to be transferred to a human, and confirm the proposal for the beanie.",
+    "End once you get the receipt for the beanie.",
+]
+confirms = { units = ["h404-o1-u1"], amount_minor = 2490 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h404-o1-u1"]
+decision = "eligible"
+amount_minor = 2490
+
+[[policy_checks]]
+units = ["h404-o1-u2"]
+decision = "refused"
+reasons = ["return"]
+
+[[policy_checks]]
+units = ["h404-o1-u1", "h404-o1-u2"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = ["h404-o1-u1"]
+refund_amount_minor = 2490  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/return", "refund-policy/v2/exceptions", "refund-policy/v2/validity"]
+quality_cites = ["refund-policy/v2/amount"]
+communication = ["explains_refusal_reason", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/return" = "The leather winter gloves have not been received back by the shop, so they cannot be refunded yet."
+"refund-policy/v2/exceptions" = "A staff member cannot approve an exception to a rule of this policy."
+"refund-policy/v2/validity" = "Because the earlier proposal stopped being valid when the order changed, a new proposal is needed."

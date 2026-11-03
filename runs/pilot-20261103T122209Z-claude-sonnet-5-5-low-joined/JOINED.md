@@ -1,0 +1,3 @@
+# Joined run: Sonnet 5.5 low, the adapter's check on all 89 development scenarios
+
+Copies of D01-D65 from `runs/pilot-20261103T111614Z-claude-sonnet-5-5-low` and D66-D89 from `runs/pilot-20261103T122209Z-claude-sonnet-5-5-low`, 1 try each, the same settings and predictions. The first run stopped at D66 on a database connection timeout, before any request of D66. Between the two, the adapter marked the instructions for the prompt cache, which changes what is billed and not what the model sees (files that differ: refund_agent/agent/anthropic_adapter.py). The audit and the report are made here; the two source folders keep the originals.

@@ -1,0 +1,93 @@
+# Discounted multi-item order where one unit was already refunded: customer asks if remaining unit gets the full discount recalculated and asks for earlier receipt.
+# The author's candidate H412 (docs/held-out-v1.3/author-output.md, line 791), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 3f331b00c595c7954cd8f704b2f74056 (data/olist/subset-v1.3.json): 2 item(s), credit_card 159.02 in 4 instalment(s).
+id = "H412"
+title = "Discounted multi-item order where one unit was already refunded: customer asks if remaining unit gets the full discount recalculated and asks for earlier receipt"
+split = "held_out_v1_3"
+category = "eligible"
+template = "discounted-multi-item-order-where-one-unit-was-already"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h412-o1"]
+
+[[fixture.customers]]
+id = "h412-gustavo"
+name = "Gustavo Neves"
+email = "gustavo.neves@example.test"
+
+[[fixture.staff]]
+id = "h412-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h412-o1"
+customer = "h412-gustavo"
+status = "delivered"
+purchased_at = 2026-10-24T04:29:54Z
+delivered_at = 2026-10-30T10:00:00Z  # delivered 17 days before now
+payments = [{ method = "credit_card", amount_minor = 15902, installments = 4 }]  # 5990 + shipping 1961 + 5990 + shipping 1961
+olist_order = "3f331b00c595c7954cd8f704b2f74056"
+
+[[fixture.orders.units]]
+id = "h412-o1-u1"
+product = "Wool cardigan"
+price_minor = 7787  # listed 30% above what was paid
+paid_minor = 5990
+shipping_minor = 1961
+received_back_at = 2026-11-07T10:00:00Z  # received back 9 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h412-o1-u2"
+product = "Cotton chino pants"
+price_minor = 7787  # listed 30% above what was paid
+paid_minor = 5990
+shipping_minor = 1961
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 2
+
+[[fixture.past_refunds]]
+units = ["h412-o1-u1"]
+committed_at = 2026-11-09T10:00:00Z  # 7 days before now
+receipt_number = "R-H412-0001"
+
+[customer]
+id = "h412-gustavo"
+goal = "Get a refund for your cotton chino pants, ask for the receipt number of your earlier wool cardigan refund, and ask if the discount share on the pants gets recalculated now that the cardigan was refunded."
+opening_message = "Hi! I want to refund the cotton chino pants I returned. Could you also give me the receipt for my earlier wool cardigan refund, and tell me if the discount on the pants gets recalculated now?"
+facts = []
+behaviour = [
+    "Confirm the proposal for the cotton chino pants, decline any offer of a human agent, and end once you have the new receipt and answers.",
+]
+confirms = { units = ["h412-o1-u2"], amount_minor = 5990 }  # paid(u2)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h412-o1-u2"]
+decision = "eligible"
+amount_minor = 5990
+
+[[policy_checks]]
+units = ["h412-o1-u1"]
+decision = "refused"
+reasons = ["remaining"]
+
+[expected]
+refunded_units = ["h412-o1-u2"]
+refund_amount_minor = 5990  # paid(u2)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/amount", "refund-policy/v2/remaining"]
+quality_cites = []
+communication = ["proposes_without_asking", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/amount" = "Discount shares are fixed when the order is recorded and never recalculated, so the pants are refunded for what was paid for them."
+"refund-policy/v2/remaining" = "The wool cardigan was already refunded once and its existing receipt is provided."

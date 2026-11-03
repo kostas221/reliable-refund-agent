@@ -1,0 +1,121 @@
+# Three orders: carrier tracking looks stuck on a returned item, customer also asks about an unreturned item in a second order and a shipped third order.
+# The author's candidate H411 (docs/held-out-v1.3/author-output.md, line 712), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order de3fec33d957ed53eb71e2b49fc215c7 (data/olist/subset-v1.3.json): 1 item(s), credit_card 80.88 in 1 instalment(s).
+# Olist order 9a8eefb69c5d2e80ef6ff433bece816d (data/olist/subset-v1.3.json): 1 item(s), credit_card 26.77 in 2 instalment(s).
+# Olist order 3bce97659e11778172e62ac0b440cb6c (data/olist/subset-v1.3.json): 1 item(s), credit_card 139.93 in 4 instalment(s).
+id = "H411"
+title = "Three orders: carrier tracking looks stuck on a returned item, customer also asks about an unreturned item in a second order and a shipped third order"
+split = "held_out_v1_3"
+category = "eligible"
+template = "three-orders-carrier-tracking-looks-stuck-on-a-returned-item"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h411-o1", "h411-o2", "h411-o3"]
+
+[[fixture.customers]]
+id = "h411-juliana"
+name = "Juliana Prado"
+email = "juliana.prado@example.test"
+
+[[fixture.staff]]
+id = "h411-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h411-o1"
+customer = "h411-juliana"
+status = "delivered"
+purchased_at = 2026-10-27T18:24:08Z
+delivered_at = 2026-11-03T10:00:00Z  # delivered 13 days before now
+payments = [{ method = "credit_card", amount_minor = 8088, installments = 1 }]  # 6890 + shipping 1198
+olist_order = "de3fec33d957ed53eb71e2b49fc215c7"
+
+[[fixture.orders.units]]
+id = "h411-o1-u1"
+product = "Insulated travel mug"
+price_minor = 6890
+paid_minor = 6890
+shipping_minor = 1198
+received_back_at = 2026-11-14T10:00:00Z  # received back 2 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "h411-o2"
+customer = "h411-juliana"
+status = "delivered"
+purchased_at = 2026-11-03T22:20:33Z
+delivered_at = 2026-11-09T10:00:00Z  # delivered 7 days before now
+payments = [{ method = "credit_card", amount_minor = 2677, installments = 2 }]  # 1899 + shipping 778
+olist_order = "9a8eefb69c5d2e80ef6ff433bece816d"
+
+[[fixture.orders.units]]
+id = "h411-o2-u2"
+product = "French press coffee maker"
+price_minor = 1899
+paid_minor = 1899
+shipping_minor = 778
+olist_item = 1
+
+[[fixture.orders]]
+id = "h411-o3"
+customer = "h411-juliana"
+status = "shipped"
+purchased_at = 2026-11-13T10:00:00Z
+# no delivered_at: bought 3 days before now
+payments = [{ method = "credit_card", amount_minor = 13993, installments = 4 }]  # 11990 + shipping 2003
+olist_order = "3bce97659e11778172e62ac0b440cb6c"
+
+[[fixture.orders.units]]
+id = "h411-o3-u3"
+product = "Coffee bean grinder"
+price_minor = 11990
+paid_minor = 11990
+shipping_minor = 2003
+olist_item = 1
+
+[customer]
+id = "h411-juliana"
+goal = "Refund your insulated travel mug even though your carrier tracking link looks stuck, and ask whether you can also get refunded now for the French press you haven't mailed yet and the coffee grinder that is still shipping."
+opening_message = "My carrier link still says my insulated travel mug is in transit, so I'm not sure if your warehouse got it. Also, can I get a refund now for my French press that I'll mail next week and my coffee bean grinder that's currently shipping?"
+facts = []
+behaviour = [
+    "When the agent explains that the travel mug was received back according to shop records while the other two cannot be refunded now, accept that and confirm the travel mug refund.",
+    "Decline any offer of a staff member for the shipped grinder and end after getting the receipt.",
+]
+confirms = { units = ["h411-o1-u1"], amount_minor = 6890 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h411-o1-u1"]
+decision = "eligible"
+amount_minor = 6890
+
+[[policy_checks]]
+units = ["h411-o2-u2"]
+decision = "refused"
+reasons = ["return"]
+
+[[policy_checks]]
+units = ["h411-o3-u3"]
+decision = "refused"
+reasons = ["eligible-orders", "return"]
+
+[expected]
+refunded_units = ["h411-o1-u1"]
+refund_amount_minor = 6890  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/return", "refund-policy/v2/eligible-orders"]
+quality_cites = []
+communication = ["proposes_without_asking", "explains_refusal_reason", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/return" = "The shop uses its own return records—which show the insulated travel mug arrived—while the French press must arrive back before it can be refunded."
+"refund-policy/v2/eligible-orders" = "The coffee bean grinder order is still shipped and not delivered, so it cannot be refunded through this process."

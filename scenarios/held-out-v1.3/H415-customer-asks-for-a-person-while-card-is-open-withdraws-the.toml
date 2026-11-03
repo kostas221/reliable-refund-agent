@@ -1,0 +1,98 @@
+# Customer asks for a person while card is open, withdraws the request before handoff, then asks if receipt is a bank transfer.
+# The author's candidate H415 (docs/held-out-v1.3/author-output.md, line 987), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 0eb943e25686a73425894fcc95e842e3 (data/olist/subset-v1.3.json): 3 item(s), credit_card 205.42 in 10 instalment(s).
+id = "H415"
+title = "Customer asks for a person while card is open, withdraws the request before handoff, then asks if receipt is a bank transfer"
+split = "held_out_v1_3"
+category = "eligible"
+template = "customer-asks-for-a-person-while-card-is-open-withdraws-the"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h415-o1"]
+
+[[fixture.customers]]
+id = "h415-lucas"
+name = "Lucas Furtado"
+email = "lucas.furtado@example.test"
+
+[[fixture.staff]]
+id = "h415-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h415-o1"
+customer = "h415-lucas"
+status = "delivered"
+purchased_at = 2026-11-02T19:51:35Z
+delivered_at = 2026-11-08T10:00:00Z  # delivered 8 days before now
+payments = [{ method = "credit_card", amount_minor = 20542, installments = 10 }]  # 4900 + shipping 3868 + 5500 + shipping 387 + 5500 + shipping 387
+olist_order = "0eb943e25686a73425894fcc95e842e3"
+
+[[fixture.orders.units]]
+id = "h415-o1-u1"
+product = "Yoga mat"
+price_minor = 4900
+paid_minor = 4900
+shipping_minor = 3868
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h415-o1-u2"
+product = "Foam roller"
+price_minor = 5500
+paid_minor = 5500
+shipping_minor = 387
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 2
+
+[[fixture.orders.units]]
+id = "h415-o1-u3"
+product = "Resistance band set"
+price_minor = 5500
+paid_minor = 5500
+shipping_minor = 387
+olist_item = 3
+
+[customer]
+id = "h415-lucas"
+goal = "Ask to refund both the yoga mat and the foam roller, briefly mention wanting a human and immediately take it back in your reply, and ask whether the final receipt means a real bank transfer was executed."
+opening_message = "Hi, please propose a refund for my returned yoga mat and foam roller."
+facts = [
+    { text = "After the proposal is made, you briefly think about asking for a person but immediately decide against it in the same breath, and you want to know if the receipt is a real bank transfer.", reveal = "upfront" },
+]
+behaviour = [
+    "Confirm the proposal for u1 and u2, and ask if the receipt is a real bank transfer or a test ledger entry (mentioning 'I was going to ask for a person, but actually don't transfer me, just answer here').",
+    "End once you have the receipt and the explanation of what the receipt represents.",
+]
+confirms = { units = ["h415-o1-u1", "h415-o1-u2"], amount_minor = 10400 }  # paid(u1) + paid(u2)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h415-o1-u1", "h415-o1-u2"]
+decision = "eligible"
+amount_minor = 10400
+
+[[policy_checks]]
+units = ["h415-o1-u3"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = ["h415-o1-u1", "h415-o1-u2"]
+refund_amount_minor = 10400  # paid(u1) + paid(u2)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/payout"]
+quality_cites = []
+communication = ["proposes_without_asking", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/payout" = "In this demonstration, a receipt records the refund in the shop's test ledger and is not a bank transfer."

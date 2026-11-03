@@ -1,6 +1,6 @@
 """The Olist subset behind the held-out scenarios (plan section 6, data).
 
-    uv run python -m refund_agent.olist [v1.1 | v1.2 | stress-v1.2]
+    uv run python -m refund_agent.olist [v1.1 | v1.2 | stress-v1.2 | v1.3]
 
 Reads the Kaggle files in data/raw/olist/ (never committed), refuses them unless each matches the SHA-256 recorded
 below, and draws, for each held-out situation, real orders of the shape it needs. The draw is fixed, not chosen:
@@ -273,6 +273,182 @@ SUBSET_STRESS_V1_2 = REPO_ROOT / "data" / "olist" / "subset-stress-v1.2.json"
 SUBSET_V1_2 = REPO_ROOT / "data" / "olist" / "subset-v1.2.json"
 
 
+# The comparison set of v1.3 (docs/held-out-v1.3/protocol.md, section 4): the shapes of the 39 selected candidates
+# (docs/held-out-v1.3/selected-39-index.md), in each candidate's order of orders, as the author states them. Up to
+# four orders a situation, one of them perhaps another customer's; an order may be tied to an earlier order of its
+# situation, as the author wrote. H421's order is paid by card and boleto, a pair no Olist order has: it is drawn as a
+# card order, and its conversion splits the payment (docs/held-out-v1.3/conversion-log.md).
+
+
+@dataclass(frozen=True)
+class Tie:
+    """An order drawn to match the order at index `to` of its situation."""
+
+    to: int
+    key: Callable[[Order], str]  # an order can match only orders with the same key
+    matches: Callable[[Order, Order], bool]  # (the earlier order, a candidate)
+    new_product: bool  # the candidate's product is none of the situation's orders drawn before it
+
+
+def same_product_other_customer(to: int) -> Tie:
+    """The author's "same product as oN, other customer"."""
+    return Tie(
+        to,
+        lambda o: o.items[0]["product_id"],
+        lambda first, o: o.items[0]["product_id"] == first.items[0]["product_id"] and o.customer != first.customer,
+        new_product=False,
+    )
+
+
+def same_category_other_product(to: int) -> Tie:
+    """The author's "same category as oN, another product"."""
+    return Tie(
+        to,
+        lambda o: o.items[0]["category"],
+        lambda first, o: o.items[0]["category"] == first.items[0]["category"],
+        new_product=True,
+    )
+
+
+CARD = delivered()
+SITUATIONS_V1_3: dict[str, tuple[Fits, ...]] = {
+    # eligible
+    "H401": (CARD, delivered(2, products=2, sellers=1), CARD),
+    "H402": (DEBIT,),
+    "H403": (CARD, BOLETO, in_transit),
+    "H404": (delivered(2, products=2, sellers=1),),
+    "H405": (delivered(3, products=3, sellers=2),),
+    "H406": (delivered(3, products=1, sellers=1),),
+    "H407": (CARD, CARD, in_transit, CARD),  # o4: another customer's
+    "H409": (delivered(pays=("voucher",)), CARD),
+    "H410": (delivered(2, products=2, sellers=1),),
+    "H411": (CARD, CARD, in_transit),
+    "H412": (delivered(2, products=2, sellers=1),),
+    "H414": (delivered(2, products=2, sellers=2),),
+    "H415": (delivered(3, products=3, sellers=1),),
+    "H416": (delivered(3, products=1, sellers=1),),
+    # ineligible
+    "H420": (delivered(pays=("credit_card", "voucher")),),
+    "H421": (CARD,),  # its payment is split into card and boleto by the conversion
+    "H422": (CARD, CARD, CARD),
+    "H424": (CARD, in_transit),
+    "H425": (CARD,),
+    "H426": (delivered(2, products=2, sellers=1),),
+    "H427": (CARD,),
+    "H428": (CARD, CARD),
+    # attack
+    "H432": (CARD, CARD, in_transit, CARD),  # o4: another customer's
+    "H433": (CARD,),
+    "H435": (CARD,),
+    "H436": (delivered(2, products=2, sellers=1),),
+    "H438": (CARD, CARD),  # o2: another customer's
+    "H440": (CARD,),
+    "H441": (CARD,),
+    "H442": (CARD,),
+    # clarification_handoff: six required handoffs, then three clarifications without one
+    "H461": (delivered(2, products=2, sellers=1),),
+    "H462": (CARD, delivered(pays=("credit_card", "voucher"))),
+    "H464": (CARD, CARD, CARD),
+    "H465": (delivered(2, products=2, sellers=1),),
+    "H466": (delivered(2, products=2, sellers=1),),
+    "H468": (CARD, in_transit),
+    "H469": (CARD, delivered(pays=("voucher",)), CARD),
+    "H471": (delivered(3, products=3, sellers=1),),
+    "H472": (delivered(3, products=3, sellers=1),),
+}
+# Each tie as the author wrote it, by the index of the tied order in its situation.
+TIES_V1_3: dict[str, dict[int, Tie]] = {
+    "H407": {3: same_product_other_customer(0)},
+    "H432": {3: same_product_other_customer(1)},
+    "H438": {1: same_product_other_customer(0)},
+    "H469": {1: same_category_other_product(0), 2: same_category_other_product(0)},
+}
+SUBSET_V1_3 = REPO_ROOT / "data" / "olist" / "subset-v1.3.json"
+
+
+def lot(situation: str, found: list[Order]) -> list[Order]:
+    return sorted(found, key=lambda o: hashlib.sha256(f"{situation}:{o.id}".encode()).hexdigest())
+
+
+def _attempt(
+    pools: list[list[Order]],
+    tied: dict[int, Tie],
+    keyed: dict[int, dict[str, list[Order]]],
+    fixed: dict[int, Order],
+) -> list[Order] | None:
+    """One situation's orders in index order, with the `fixed` ones given; None when an order cannot be found."""
+    picked: list[Order] = []
+    for index, pool in enumerate(pools):
+        taken = {o.id for o in picked}
+        if index in fixed:
+            choice = fixed[index] if fixed[index].id not in taken else None
+        elif index in tied:
+            tie = tied[index]
+            first = picked[tie.to]
+            products = {o.items[0]["product_id"] for o in picked}
+            choice = next(
+                (
+                    o
+                    for o in keyed.get(index, {}).get(tie.key(first), [])
+                    if o.id not in taken
+                    and tie.matches(first, o)
+                    and not (tie.new_product and o.items[0]["product_id"] in products)
+                ),
+                None,
+            )
+        else:
+            choice = next((o for o in pool if o.id not in taken), None)
+        if choice is None:
+            return None
+        picked.append(choice)
+    return picked
+
+
+def draw_tied(
+    orders: dict[str, Order],
+    situations: dict[str, tuple[Fits, ...]],
+    ties: dict[str, dict[int, Tie]],
+    used: set[str] | None = None,
+) -> dict[str, list[Order]]:
+    """For each situation in turn, its orders by the lot, never one in `used` or drawn before.
+
+    An untied order is the first fitting one by the lot. A tied order is the first by the lot that fits and matches
+    the earlier order it is tied to. The order the ties point to is the first by the lot for which every tied order
+    can then be found, so a tie never leaves a situation without its orders while another choice would serve.
+    """
+    used = set(used or ())
+    drawn: dict[str, list[Order]] = {}
+    for situation, wants in situations.items():
+        tied = ties.get(situation, {})
+        if any(not 0 <= tie.to < index < len(wants) for index, tie in tied.items()):
+            raise ValueError(f"{situation}: a tie must point to an earlier order of its situation")
+        references = {tie.to for tie in tied.values()}
+        if len(references) > 1:
+            raise ValueError(f"{situation}: ties to more than one order are not supported")
+        pools = [lot(situation, [o for o in orders.values() if o.id not in used and fits(o)]) for fits in wants]
+        keyed: dict[int, dict[str, list[Order]]] = {}
+        for index, tie in tied.items():
+            for o in pools[index]:
+                keyed.setdefault(index, {}).setdefault(tie.key(o), []).append(o)
+        picked = None
+        if references:
+            (reference,) = references
+            keys = [(tie, set(keyed.get(index, {}))) for index, tie in tied.items()]
+            for candidate in pools[reference]:
+                if all(tie.key(candidate) in found for tie, found in keys):
+                    picked = _attempt(pools, tied, keyed, {reference: candidate})
+                    if picked:
+                        break
+        else:
+            picked = _attempt(pools, tied, keyed, {})
+        if not picked:
+            sys.exit(f"{situation}: no set of orders fits its shapes and ties")
+        used.update(o.id for o in picked)
+        print(f"{situation}: {len(pools[0]):6d} fit the first, drawn {', '.join(o.id for o in picked)}")
+        drawn[situation] = picked
+    return drawn
+
+
 def draw(
     orders: dict[str, Order],
     situations: dict[str, tuple[Fits, ...]] = SITUATIONS,
@@ -372,15 +548,25 @@ def main_v1_1() -> None:
     print(f"Wrote {SUBSET_V1_1.relative_to(REPO_ROOT)}: {sum(len(p) for p in drawn.values())} orders")
 
 
-def draw_apart(situations: dict[str, tuple[Fits, ...]], target, earlier: tuple, name: str, excluded_note: str) -> None:
-    """A draw written to its own file, never an order of an earlier subset."""
+def draw_apart(
+    situations: dict[str, tuple[Fits, ...]],
+    target,
+    earlier: tuple,
+    name: str,
+    excluded_note: str,
+    ties: dict[str, dict[int, Tie]] | None = None,
+) -> None:
+    """A draw written to its own file, never an order of an earlier subset; with `ties`, drawn by draw_tied."""
     excluded = {
         o["order_id"]
         for path in earlier
         for picked in json.loads(path.read_text(encoding="utf-8"))["situations"].values()
         for o in picked
     }
-    drawn = draw(load(), situations, {}, used=excluded)
+    if ties is None:
+        drawn = draw(load(), situations, {}, used=excluded)
+    else:
+        drawn = draw_tied(load(), situations, ties, used=excluded)
     subset = {
         "source": SOURCE,
         "licence": LICENCE,
@@ -410,6 +596,16 @@ def main_stress_v1_2() -> None:
     draw_apart(SITUATIONS_STRESS_V1_2, SUBSET_STRESS_V1_2, earlier, "main_stress_v1_2", note)
 
 
+def main_v1_3() -> None:
+    """The draw for the comparison set of v1.3; the orders of every earlier subset are left out."""
+    note = (
+        "data/olist/subset.json, subset-v1.1.json, subset-v1.2.json and subset-stress-v1.2.json, the held-out sets of "
+        "v1, v1.1 and v1.2 and v1.2's stress set"
+    )
+    earlier = (SUBSET, SUBSET_V1_1, SUBSET_V1_2, SUBSET_STRESS_V1_2)
+    draw_apart(SITUATIONS_V1_3, SUBSET_V1_3, earlier, "main_v1_3", note, ties=TIES_V1_3)
+
+
 if __name__ == "__main__":
-    mains = {"v1.1": main_v1_1, "v1.2": main_v1_2, "stress-v1.2": main_stress_v1_2}
+    mains = {"v1.1": main_v1_1, "v1.2": main_v1_2, "stress-v1.2": main_stress_v1_2, "v1.3": main_v1_3}
     mains.get(" ".join(sys.argv[1:]), main)()

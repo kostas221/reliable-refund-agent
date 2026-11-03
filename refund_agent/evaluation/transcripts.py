@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 from refund_agent.evaluation.customers import simulator_instructions
-from refund_agent.scenarios import Scenario, load_split
+from refund_agent.scenarios import SPLIT_DIRS, Scenario, load_split
 
 _ANSWER_KEYS = ("ok", "refused", "error", "status", "outcome", "amount_minor", "policy_citations", "explanation")
 
@@ -124,7 +124,7 @@ def render_run(folder: Path) -> str:
     ]
     scenarios = {
         s.id: s
-        for split in ("development", "held_out", "held_out_v1_1", "held_out_v1_2", "stress_v1_2")
+        for split in SPLIT_DIRS  # every set, so a run of any of them can be read
         for s in load_split(split)
     }
     shown: set[str] = set()

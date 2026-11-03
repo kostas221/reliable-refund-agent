@@ -32,15 +32,17 @@ SCENARIOS_DIR = REPO_ROOT / "scenarios"
 # held_out_v1_2: the 19 scenarios of the final evaluation of v1.2 (docs/held-out-v1.2/set-aside.md, section 9.2);
 # stress_v1_2: scenarios Claude wrote, knowing the system, for situations no other set holds, run with them and
 # reported apart (plan change log, 2026-10-30). Both are frozen and copy real Olist orders, like a held-out set.
+# held_out_v1_3: the 39 scenarios of the comparison of two agent models (docs/held-out-v1.3/protocol.md).
 SPLIT_DIRS = {
     "development": SCENARIOS_DIR / "development",
     "held_out": SCENARIOS_DIR / "held-out",
     "held_out_v1_1": SCENARIOS_DIR / "held-out-v1.1",
     "held_out_v1_2": SCENARIOS_DIR / "held-out-v1.2",
     "stress_v1_2": SCENARIOS_DIR / "stress-v1.2",
+    "held_out_v1_3": SCENARIOS_DIR / "held-out-v1.3",
 }
-Split = Literal["development", "held_out", "held_out_v1_1", "held_out_v1_2", "stress_v1_2"]
-HELD_OUT_SPLITS = ("held_out", "held_out_v1_1", "held_out_v1_2", "stress_v1_2")
+Split = Literal["development", "held_out", "held_out_v1_1", "held_out_v1_2", "stress_v1_2", "held_out_v1_3"]
+HELD_OUT_SPLITS = ("held_out", "held_out_v1_1", "held_out_v1_2", "stress_v1_2", "held_out_v1_3")
 ID_PREFIX = {"development": "D", "stress_v1_2": "S"}  # every other split: H
 RENDERED_PATH = REPO_ROOT / "docs" / "development-scenarios.md"
 

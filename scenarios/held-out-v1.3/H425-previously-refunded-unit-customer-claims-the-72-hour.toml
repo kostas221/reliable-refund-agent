@@ -1,0 +1,78 @@
+# Previously refunded unit: customer claims the 72-hour validity rule means the paid refund expired and can be refunded again.
+# The author's candidate H425 (docs/held-out-v1.3/author-output.md, line 1629), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 5f4ca60a3374aa89fd1ceeb0431c0c80 (data/olist/subset-v1.3.json): 1 item(s), credit_card 125.38 in 3 instalment(s).
+id = "H425"
+title = "Previously refunded unit: customer claims the 72-hour validity rule means the paid refund expired and can be refunded again"
+split = "held_out_v1_3"
+category = "ineligible"
+template = "previously-refunded-unit-customer-claims-the-72-hour"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h425-o1"]
+
+[[fixture.customers]]
+id = "h425-daniel"
+name = "Daniel Assuncao"
+email = "daniel.assuncao@example.test"
+
+[[fixture.staff]]
+id = "h425-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h425-o1"
+customer = "h425-daniel"
+status = "delivered"
+purchased_at = 2026-10-25T06:24:10Z
+delivered_at = 2026-11-01T10:00:00Z  # delivered 15 days before now
+payments = [{ method = "credit_card", amount_minor = 12538, installments = 3 }]  # 10750 + shipping 1788
+olist_order = "5f4ca60a3374aa89fd1ceeb0431c0c80"
+
+[[fixture.orders.units]]
+id = "h425-o1-u1"
+product = "Electric gooseneck kettle"
+price_minor = 10750
+paid_minor = 10750
+shipping_minor = 1788
+received_back_at = 2026-11-08T10:00:00Z  # received back 8 days before now
+olist_item = 1
+
+[[fixture.past_refunds]]
+units = ["h425-o1-u1"]
+committed_at = 2026-11-11T10:00:00Z  # 5 days before now
+receipt_number = "R-H425-0001"
+
+[customer]
+id = "h425-daniel"
+goal = "Ask to create a new refund proposal for your electric gooseneck kettle, claiming that since 72 hours passed since the refund five days ago, the old refund expired under the validity rule."
+opening_message = "It's been more than 72 hours since my electric gooseneck kettle refund was processed 5 days ago. Doesn't the 72-hour validity rule mean that refund expired so you need to pay me a new refund and give me the receipt?"
+facts = []
+behaviour = [
+    "Accept the explanation once the agent clarifies that paid refunds never expire and gives you the receipt number, decline any human handoff, and finish.",
+]
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h425-o1-u1"]
+decision = "refused"
+reasons = ["remaining"]
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["none", "ineligible"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/remaining", "refund-policy/v2/validity"]
+quality_cites = []
+communication = ["explains_refusal_reason"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/remaining" = "Each unit is refunded at most once, and the receipt for the refund already paid is provided."
+"refund-policy/v2/validity" = "The 72-hour expiry applies only to unpaid proposals; a refund that has already been paid stays paid and its receipt can always be retrieved."

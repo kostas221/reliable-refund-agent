@@ -1,0 +1,97 @@
+# Two orders: customer withdraws an initial request for a person, asks about voucher payment, and refunds one returned discounted unit.
+# The author's candidate H409 (docs/held-out-v1.3/author-output.md, line 587), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 5308a8e3331c9fab38efdb6a6c1d89c4 (data/olist/subset-v1.3.json): 1 item(s), voucher 40.00 in 1 instalment(s).
+# Olist order 9990c5ac84ecb15401bfd148dee0a46b (data/olist/subset-v1.3.json): 1 item(s), credit_card 41.01 in 3 instalment(s).
+id = "H409"
+title = "Two orders: customer withdraws an initial request for a person, asks about voucher payment, and refunds one returned discounted unit"
+split = "held_out_v1_3"
+category = "eligible"
+template = "two-orders-customer-withdraws-an-initial-request-for-a"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h409-o1", "h409-o2"]
+
+[[fixture.customers]]
+id = "h409-beatriz"
+name = "Beatriz Falcao"
+email = "beatriz.falcao@example.test"
+
+[[fixture.staff]]
+id = "h409-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h409-o1"
+customer = "h409-beatriz"
+status = "delivered"
+purchased_at = 2026-10-21T06:34:02Z
+delivered_at = 2026-11-05T10:00:00Z  # delivered 11 days before now
+payments = [{ method = "voucher", amount_minor = 4000, installments = 1 }]  # 2490 + shipping 1510
+olist_order = "5308a8e3331c9fab38efdb6a6c1d89c4"
+
+[[fixture.orders.units]]
+id = "h409-o1-u1"
+product = "Ceramic plant pot"
+price_minor = 2864  # listed 15% above what was paid
+paid_minor = 2490
+shipping_minor = 1510
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "h409-o2"
+customer = "h409-beatriz"
+status = "delivered"
+purchased_at = 2026-10-05T15:27:15Z
+delivered_at = 2026-10-28T10:00:00Z  # delivered 19 days before now
+payments = [{ method = "credit_card", amount_minor = 4101, installments = 3 }]  # 2490 + shipping 1611
+olist_order = "9990c5ac84ecb15401bfd148dee0a46b"
+
+[[fixture.orders.units]]
+id = "h409-o2-u2"
+product = "Macrame plant hanger"
+price_minor = 2490
+paid_minor = 2490
+shipping_minor = 1611
+olist_item = 1
+
+[customer]
+id = "h409-beatriz"
+goal = "Tell the agent right away that you don't need a human after all, ask how voucher payments and discounts work for refunds, and refund your ceramic plant pot."
+opening_message = "I was going to ask for a human agent, but never mind, let's handle it here! I want to refund the ceramic plant pot. Since I paid with a single voucher and had a discount, how much do I get back and does it go back to the voucher automatically?"
+facts = []
+behaviour = [
+    "Confirm the proposal for the ceramic plant pot, decline any offer of a person, and end when you have the receipt.",
+]
+confirms = { units = ["h409-o1-u1"], amount_minor = 2490 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h409-o1-u1"]
+decision = "eligible"
+amount_minor = 2490
+
+[[policy_checks]]
+units = ["h409-o2-u2"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = ["h409-o1-u1"]
+refund_amount_minor = 2490  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/payment", "refund-policy/v2/amount"]
+quality_cites = []
+communication = ["proposes_without_asking", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/payment" = "An order with a single valid voucher payment record is refunded automatically back to that voucher."
+"refund-policy/v2/amount" = "The refund for the ceramic plant pot is the amount actually paid after subtracting its share of the discount."
