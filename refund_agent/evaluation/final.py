@@ -48,7 +48,7 @@ from refund_agent.evaluation import manifest
 from refund_agent.evaluation.customers import SIMULATOR_INSTRUCTIONS, simulator_instructions
 from refund_agent.evaluation.runner import CUT_OFF
 from refund_agent.evaluation.sets import SETS
-from refund_agent.evaluation.trials import Batch, awake, run_try, write_json
+from refund_agent.evaluation.trials import Batch, awake, line_by_line, run_try, write_json
 from refund_agent.policy import REPO_ROOT
 from refund_agent.refunds import Configuration
 from refund_agent.scenarios import (
@@ -330,6 +330,7 @@ def dry_run(names: tuple[str, ...] = ("held_out_v1_2", "stress_v1_2")) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    line_by_line()
     args = parse_args(argv)
     if args.dry_run:
         dry_run((args.set,) if args.set else ("held_out_v1_2", "stress_v1_2"))

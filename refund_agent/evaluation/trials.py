@@ -57,6 +57,15 @@ def awake(setter: Callable[[int], object] | None = None) -> Iterator[None]:
             setter(_ES_CONTINUOUS)
 
 
+def line_by_line() -> None:
+    """Show each printed line as soon as it is written. In Git Bash the output is a pipe, not a console, so Python
+    would hold a long run's lines until it ended, and a run of half an hour would look as if nothing ran (the
+    owner's first Sonnet command, 2026-11-03)."""
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if reconfigure is not None:
+        reconfigure(line_buffering=True)
+
+
 def write_json(path: Path, record: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(record, indent=2, ensure_ascii=False, default=str), encoding="utf-8", newline="\n")

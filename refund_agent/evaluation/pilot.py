@@ -38,7 +38,7 @@ from refund_agent.agent.tools import tool_definitions
 from refund_agent.evaluation import manifest
 from refund_agent.evaluation.customers import SIMULATOR_INSTRUCTIONS, simulator_instructions
 from refund_agent.evaluation.runner import CUT_OFF
-from refund_agent.evaluation.trials import Batch, awake, run_try
+from refund_agent.evaluation.trials import Batch, awake, line_by_line, run_try
 from refund_agent.policy import REPO_ROOT
 from refund_agent.scenarios import load_split, policy_for
 
@@ -213,6 +213,7 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
 
 
 def main(argv: list[str] | None = None) -> int:
+    line_by_line()
     args = parse_args(argv)
     scenarios = {s.id: s for s in load_split("development")}
     if args.scenarios:

@@ -169,3 +169,16 @@ def test_tries_per_scenario_scale_the_worst_case_and_stay_within_bounds(capsys):
     assert "x 3 tries" in three and cost(three) == pytest.approx(3 * cost(one), rel=0.02)
     with pytest.raises(SystemExit):
         pilot.parse_args(["--repeats", "9"])
+
+
+def test_each_line_is_shown_as_soon_as_it_is_printed(monkeypatch):
+    # The owner's first Sonnet command (2026-11-03) showed nothing in Git Bash, where the output is a pipe: Python held
+    # the lines, and a long run would look as if nothing ran.
+    import io
+    import sys
+
+    pipe = io.TextIOWrapper(io.BytesIO(), encoding="utf-8")
+    assert pipe.line_buffering is False
+    monkeypatch.setattr(sys, "stdout", pipe)
+    assert pilot.main(["--dry-run"]) == 0
+    assert pipe.line_buffering is True
