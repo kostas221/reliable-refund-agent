@@ -16,7 +16,7 @@ from datetime import datetime
 import pytest
 
 from refund_agent.policy import REPO_ROOT
-from refund_agent.scenarios import SPLIT_DIRS, load_split
+from refund_agent.scenarios import SPLIT_DIRS, check_frozen, frozen_hashes, load_split
 
 SET = load_split("held_out_v1_3")
 DOCS = REPO_ROOT / "docs" / "held-out-v1.3"
@@ -278,3 +278,20 @@ def test_the_converter_writes_nothing_once_the_set_is_frozen(monkeypatch, tmp_pa
     assert CONVERTER.main() == 1
     assert "is frozen: nothing is written" in capsys.readouterr().out
     assert (tmp_path / "H401-x.toml").read_text(encoding="utf-8") == "kept\n"
+
+
+def test_the_set_is_frozen_and_every_file_matches():
+    directory = SPLIT_DIRS["held_out_v1_3"]
+    check_frozen(directory)
+    assert sorted(frozen_hashes(directory)) == sorted(path.name for path in directory.glob("*.toml"))
+    assert len(frozen_hashes(directory)) == 39
+
+
+def test_the_converter_writes_nothing_to_the_frozen_set(capsys):
+    directory = SPLIT_DIRS["held_out_v1_3"]
+    before = {path: path.read_bytes() for path in directory.glob("*")}
+    log = (DOCS / "conversion-log.md").read_bytes()
+    assert CONVERTER.main() == 1
+    assert "scenarios/held-out-v1.3 is frozen: nothing is written" in capsys.readouterr().out
+    assert {path: path.read_bytes() for path in directory.glob("*")} == before
+    assert (DOCS / "conversion-log.md").read_bytes() == log

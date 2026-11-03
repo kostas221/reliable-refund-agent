@@ -383,9 +383,10 @@ orders in `data/olist/subset-v1.3.json`; `conversion-log.md`; four decisions for
 kept; file names cut at 60 characters for the Windows path limit; author unit labels such as "(u2)" in 19 roles, a
 limit). Free checks: 205 fidelity tests, policy checks agree with the code, a correct mocked conversation passes in all
 39 and wrong ones fail (`tests/acceptance/test_held_out_v1_3_mock.py`), 12 of 12 planted file errors (scratchpad
-`planted_v13_files.py`); the set lookups read every split from `SPLIT_DIRS`. Not frozen. Next: the owner approves the
-files and the decisions, the freeze, targets, predictions, decision rule, the simulator choice, the final runner's
-two configurations (Sol low, Sonnet low) with a budget cap, and the comparison run (about $2.60); then the handoff checks
+`planted_v13_files.py`); the set lookups read every split from `SPLIT_DIRS`. The owner approved the 39 and the
+decisions as recommended; **the set is frozen** (2026-11-03, `scenarios/held-out-v1.3/FROZEN`). Next: targets,
+predictions, decision rule, the simulator choice, the final runner's two configurations (Sol low, Sonnet low) with a
+budget cap, and the comparison run (about $2.60); then the handoff checks
 and the five-person trial. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
 `runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run

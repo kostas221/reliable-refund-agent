@@ -76,8 +76,11 @@ release brief's remaining work changes neither.
 v1.3`, with the author's ties, as `data/olist/subset-v1.3.json`. The conversion is recorded in
 [conversion-log.md](conversion-log.md), and the choices that need the owner are in
 [decision-notes.md](decision-notes.md). The free checks pass: the fidelity tests, the policy checks against the code,
-a correct mocked conversation in all 39 while wrong ones fail, and 12 of 12 planted file errors caught. The set is not
-frozen until the owner approves it.
+a correct mocked conversation in all 39 while wrong ones fail, and 12 of 12 planted file errors caught.
+
+**Update, 2026-11-03, the freeze:** the owner approved the 39 files and the decision notes as recommended. The set is
+frozen in `scenarios/held-out-v1.3/FROZEN`, which records each file's SHA-256. Loading the set checks it, and the
+converter no longer writes. From now on the files are not edited and not used for tuning.
 
 As in v1.2's protocol, sections 4 to 7:
 

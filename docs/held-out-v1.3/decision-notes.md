@@ -1,5 +1,8 @@
 # Comparison set of v1.3: decisions for the owner before the freeze
 
+**Approved on 2026-11-03.** The owner approved the 39 files and the decisions below as recommended ("Yes, freeze
+them"), and the set was frozen (`scenarios/held-out-v1.3/FROZEN`).
+
 For the project owner, who approves the 39 scenario files before they are frozen (protocol, section 4). Written on
 2026-11-03 by Claude after the conversion. Each point is a choice the author's text did not settle. Each gives what
 was done, why, and the alternative. Nothing here changes the agent; the agent is the one of the comparison
