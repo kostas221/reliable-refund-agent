@@ -9,8 +9,12 @@ changes the model and nothing else:
   before every attempt and settled as soon as it ends, and a refusal for lack of credit raised as OutOfCredit.
 - Reasoning: the model's adaptive thinking at the given effort (`output_config.effort`, "low" in the comparison);
   nothing else is set, so the model's own thinking mode is the one compared.
-- Caching: the API's automatic prompt caching (`cache_control` on the request), as OpenAI caches automatically.
-  A cache write is billed at 1.25 times the input price and counted that way.
+- Caching, as OpenAI caches a repeated prefix by itself: a cache mark on the instructions, so the tools and
+  instructions every conversation shares are written to the cache once and read after, and the API's automatic mark
+  on the request, which caches each conversation as it grows. Without the first, every conversation wrote the same
+  instructions to the cache again: in the first check of 65 development conversations (2026-11-03) cache writes
+  were 21% of the input against Sol's 4%, and the agent cost $0.029 a conversation against Sol's $0.006. A cache write
+  is billed at 1.25 times the input price and counted that way; the marks change what is billed, not what is sent.
 - What the model must get back: every block of its answer, thinking blocks included, unchanged and in order, travels
   in the agent message's continuation. The API checks that nothing before a thinking block changed since it was made,
   so the history is only ever appended to: each of our messages becomes one API message, built the same way on every
@@ -122,7 +126,8 @@ class AnthropicMessages:
         request: dict[str, Any] = {
             "model": self.model,
             "max_tokens": self.max_output_tokens,
-            "system": instructions,
+            # Marked, so the tools and instructions shared by every conversation are cached once (module docstring).
+            "system": [{"type": "text", "text": instructions, "cache_control": {"type": "ephemeral"}}],
             "messages": to_messages(messages),
             "cache_control": {"type": "ephemeral"},
         }

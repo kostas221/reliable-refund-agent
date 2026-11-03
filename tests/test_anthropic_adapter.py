@@ -86,7 +86,11 @@ def no_waiting(monkeypatch):
 def test_the_request_is_the_compared_setting_and_nothing_more():
     request = AnthropicMessages(MODEL, "low").request("Policy and instructions.", HI, TOOLS)
     assert request["model"] == MODEL and request["max_tokens"] == 4000  # the same output limit as the OpenAI adapter
-    assert request["system"] == "Policy and instructions."
+    # The instructions are marked for the cache, so every conversation reads them instead of writing them again (the
+    # first paid check, 2026-11-03: cache writes 21% of the input, the agent 4.6 times Sol's cost a conversation).
+    assert request["system"] == [
+        {"type": "text", "text": "Policy and instructions.", "cache_control": {"type": "ephemeral"}}
+    ]
     assert request["output_config"] == {"effort": "low"}
     assert request["tool_choice"] == {"type": "auto", "disable_parallel_tool_use": True}  # one call per answer
     assert request["cache_control"] == {"type": "ephemeral"}
