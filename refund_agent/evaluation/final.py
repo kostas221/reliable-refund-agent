@@ -1,23 +1,23 @@
-"""The final evaluation (plan sections 10 to 12): a frozen held-out set, three configurations, three tries each.
+"""The final evaluation (plan sections 10 to 12): a frozen held-out set, its configurations, three tries each.
 
     uv run python -m refund_agent.evaluation.final --dry-run
-    uv run --env-file .env python -m refund_agent.evaluation.final --set held_out_v1_2 --budget-usd 5 \\
+    uv run --env-file .env python -m refund_agent.evaluation.final --set held_out_v1_3 --budget-usd 6 \\
         --prices-checked DATE
-    uv run --env-file .env python -m refund_agent.evaluation.final --set held_out_v1_2 \\
-        --resume runs/final-v1.2-... --budget-usd 5 --prices-checked DATE
+    uv run --env-file .env python -m refund_agent.evaluation.final --set held_out_v1_3 \\
+        --resume runs/comparison-v1.3-... --budget-usd 6 --prices-checked DATE
 
-What runs is fixed in this module, not chosen on the command line: configurations A, B and C (CONFIGURATIONS), the
-simulated customer, three tries of each scenario of the named set. For each scenario and try the three configurations
-run one after another, so the pairs that are compared ran under the same conditions. The one choice is the set, by
-name (SETS), recorded in the manifest with the SHA-256 of its freeze, so that a run of another set can never be
-reported as this one (docs/held-out-v1.2/protocol.md, section 5). The sets of v1 and v1.1 are spent: their final
-evaluations ran on 2026-10-19 and 2026-10-26, and the runner refuses them. The stress set of v1.2 runs the same way,
-under its own name, and is reported apart.
+What runs is fixed in this module, not chosen on the command line: the named set's group of configurations
+(GROUPS: A, B and C for the final evaluations of v1 to v1.2; A and B for the comparison of v1.3), the simulated
+customer, three tries of each scenario. For each scenario and try the configurations run one after another, so the
+pairs that are compared ran under the same conditions. The one choice is the set, by name (SETS), recorded in the
+manifest with the SHA-256 of its freeze, so that a run of another set can never be reported as this one
+(docs/held-out-v1.2/protocol.md, section 5). The sets of v1, v1.1 and v1.2, and v1.2's stress set, are spent: their
+runs are recorded in SETS, and the runner refuses them.
 
 A run refuses to start unless its set matches its freeze, the set's quality targets and predictions are committed
-and unchanged, no tracked file has uncommitted changes (the evaluation runs one identified revision), an
-OPENAI_API_KEY is present (never read or printed), the date the prices were checked is given, and the budget is
-within the plan's $15 for a final batch.
+and unchanged, no tracked file has uncommitted changes (the evaluation runs one identified revision), the key of every
+model the set's configurations and the simulated customer use is present (never read or printed), the date the prices
+were checked is given, and the budget is within the plan's $15 for a final batch.
 
 It writes runs/<prefix>-<time>/ (SETS): manifest.json, invocations.jsonl (each start and resume, with its budget),
 and one folder per configuration with a manifest of its own, laid out as a pilot's (<scenario>/try<n>/), so the
@@ -69,11 +69,20 @@ class Setup:
     configuration: Configuration  # A: every check of execute_refund; C: the lab configuration (plan section 10.5)
 
 
+# The final evaluations of v1 to v1.2.
 CONFIGURATIONS = {
     "A": Setup("gpt-6-luna", "none", "A"),  # the product: the setting chosen in the development pilot
     "B": Setup("gpt-6.1-sol", "low", "A"),  # the stronger model with the same checks; Sol takes no "none"
     "C": Setup("gpt-6-luna", "none", "C"),  # the product's model with the selected checks off
 }
+# The comparison of v1.3 (docs/held-out-v1.3/protocol.md, section 4; plan change log, 2026-11-02): the product's model
+# against an Anthropic model, both with every check and the agent of the freeze. A is the product, so the report's
+# "B minus A" is Sonnet minus Sol.
+COMPARISON = {
+    "A": Setup("gpt-6.1-sol", "low", "A"),  # the product's model (plan change log, 2026-11-01)
+    "B": Setup("claude-sonnet-5-5", "low", "A"),  # the comparison's second model, effort low
+}
+GROUPS = {"final": CONFIGURATIONS, "comparison": COMPARISON}
 SIMULATOR = Setup("gpt-6-luna", "low", "A")  # the same simulated customer for every configuration
 REPEATS = 3
 MAX_BUDGET_USD = 15.0  # plan section 12: the first final batch
@@ -86,6 +95,11 @@ AGENT_REQUESTS, SIMULATOR_REQUESTS = 12, 8
 
 class NotReady(Exception):
     """The final evaluation may not start yet; the message says why."""
+
+
+def configurations_of(held_out: str) -> dict[str, Setup]:
+    """The configurations that run the named set."""
+    return GROUPS[SETS[held_out].configurations]
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -129,7 +143,7 @@ def check_ready(args: argparse.Namespace) -> dict:
     commits = {"targets_commit": _committed(chosen.targets), "predictions_commit": _committed(chosen.predictions)}
     if manifest.git("status", "--porcelain", "--untracked-files=no"):
         raise NotReady("commit every change first: the final evaluation runs one identified revision")
-    key = missing_key(SIMULATOR.model, *(setup.model for setup in CONFIGURATIONS.values()))
+    key = missing_key(SIMULATOR.model, *(setup.model for setup in configurations_of(args.set).values()))
     if key:
         raise NotReady(f"no {key} in the environment; run with `uv run --env-file .env ...`")
     if args.prices_checked is None or args.prices_checked > date.today():
@@ -141,15 +155,16 @@ def check_ready(args: argparse.Namespace) -> dict:
 
 def identity(scenarios: dict, commits: dict, prices_checked: date, held_out: str) -> dict:
     """What the run is: compared on resume, apart from the date the prices were checked."""
-    models = sorted({setup.model for setup in (*CONFIGURATIONS.values(), SIMULATOR)})
+    configurations = configurations_of(held_out)
+    models = sorted({setup.model for setup in (*configurations.values(), SIMULATOR)})
     return {
         "kind": "final",
         "set": held_out,
-        "configurations": {name: vars(setup) for name, setup in CONFIGURATIONS.items()},
+        "configurations": {name: vars(setup) for name, setup in configurations.items()},
         "simulator": vars(SIMULATOR),
         "repeats": REPEATS,
         "scenarios": sorted(scenarios),
-        "order": "for each scenario, for each try: A, B, C",
+        "order": f"for each scenario, for each try: {', '.join(configurations)}",
         "prices_usd_per_1m": {model: PRICES[model] for model in models},
         "prices_checked": prices_checked.isoformat(),
         "agent_instructions_sha256": load_instructions(policy=policy_for(scenarios.values())).sha256,
@@ -183,7 +198,8 @@ def _spent_before(out: Path) -> tuple[float, dict[str, float]]:
 
 def _configuration_manifest(record: dict, name: str) -> dict:
     """What the transcripts and the audit read for one configuration's folder."""
-    setup, ident = CONFIGURATIONS[name], record["identity"]
+    ident = record["identity"]
+    setup = configurations_of(ident["set"])[name]
     return {
         "identity": {
             "kind": "final",
@@ -213,7 +229,7 @@ def _open(args: argparse.Namespace, scenarios: dict, commits: dict) -> Path:
         out = RUNS / f"{SETS[args.set].prefix}-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}"
         out.mkdir(parents=True)
         write_json(out / "manifest.json", record)
-        for name in CONFIGURATIONS:
+        for name in configurations_of(args.set):
             write_json(out / name / "manifest.json", _configuration_manifest(record, name))
     with (out / "invocations.jsonl").open("a", encoding="utf-8", newline="\n") as log:
         started = {"at": datetime.now(UTC).isoformat(timespec="seconds"), "resumed": bool(args.resume)}
@@ -222,8 +238,8 @@ def _open(args: argparse.Namespace, scenarios: dict, commits: dict) -> Path:
     return out
 
 
-def plan(scenario_ids: list[str]) -> list[tuple[str, int, str]]:
-    return [(s, t, c) for s in sorted(scenario_ids) for t in range(1, REPEATS + 1) for c in CONFIGURATIONS]
+def plan(scenario_ids: list[str], names: tuple[str, ...] = tuple(CONFIGURATIONS)) -> list[tuple[str, int, str]]:
+    return [(s, t, c) for s in sorted(scenario_ids) for t in range(1, REPEATS + 1) for c in names]
 
 
 def paid_run(args: argparse.Namespace, scenarios: dict, commits: dict) -> int:
@@ -231,12 +247,13 @@ def paid_run(args: argparse.Namespace, scenarios: dict, commits: dict) -> int:
     out = _open(args, scenarios, commits)
     before, by_role = _spent_before(out)
     budget = Budget(args.budget_usd, spent_usd=before, by_role=by_role)
-    trials = plan(list(scenarios))
+    configurations = configurations_of(args.set)
+    trials = plan(list(scenarios), tuple(configurations))
     print(
         f"Final evaluation {_shown(out)}: {len(trials)} conversations, budget ${args.budget_usd:.2f}"
         + (f", ${before:.4f} spent before" if before else "")
     )
-    machine_clean = {name: 0 for name in CONFIGURATIONS}
+    machine_clean = {name: 0 for name in configurations}
     try:
         with Batch("refund_final") as batch, awake():  # the run lasts hours; a sleeping computer once cost a try
             for scenario_id, attempt, name in trials:
@@ -246,7 +263,7 @@ def paid_run(args: argparse.Namespace, scenarios: dict, commits: dict) -> int:
                 if (folder / "started.json").exists():  # cut short: kept aside, then run again
                     aside = 1 + sum(1 for _ in folder.parent.glob(f"try{attempt}-cut-short-*"))
                     folder.rename(folder.with_name(f"try{attempt}-cut-short-{aside}"))
-                setup = CONFIGURATIONS[name]
+                setup = configurations[name]
                 outcome = run_try(
                     batch,
                     scenarios[scenario_id],
@@ -292,10 +309,14 @@ def paid_run(args: argparse.Namespace, scenarios: dict, commits: dict) -> int:
     return 0
 
 
-def dry_run(names: tuple[str, ...] = ("held_out_v1_2", "stress_v1_2")) -> None:
+def dry_run(names: tuple[str, ...] = ("held_out_v1_3",)) -> None:
     """The first request of each configuration's agent and of the simulated customer, on D01 (a development
     scenario: nothing of the held-out set is read but its files' names, to count them), and an estimate of the cost
-    of running the named sets."""
+    of running the named sets, which share one group of configurations."""
+    groups = {SETS[name].configurations for name in names}
+    if len(groups) != 1:
+        raise ValueError(f"the sets {', '.join(names)} are run by different configurations")
+    configurations = GROUPS[groups.pop()]
     out = RUNS / "final-dry-run"
     out.mkdir(parents=True, exist_ok=True)
     d01 = next(s for s in load_split("development") if s.id == "D01")
@@ -307,7 +328,7 @@ def dry_run(names: tuple[str, ...] = ("held_out_v1_2", "stress_v1_2")) -> None:
     scenarios = sum(len(list(SPLIT_DIRS[SETS[n].split].glob("*.toml"))) for n in names)
     conversations = scenarios * REPEATS
     total = 0.0
-    for name, setup in CONFIGURATIONS.items():
+    for name, setup in configurations.items():
         agent = model_adapter(setup.model, setup.reasoning, role="agent")
         request = agent.request(load_instructions(policy=policy_for([d01])).text, opening, tool_definitions())
         write_json(out / f"first-agent-request-{name}.json", request)
@@ -322,7 +343,7 @@ def dry_run(names: tuple[str, ...] = ("held_out_v1_2", "stress_v1_2")) -> None:
         )
     print(
         f"Wrote {_shown(out)}/: the first agent request of each configuration and the simulator's; nothing sent. "
-        f"Estimate for {', '.join(names)}, {conversations * len(CONFIGURATIONS)} conversations: about ${total:.2f}, "
+        f"Estimate for {', '.join(names)}, {conversations * len(configurations)} conversations: about ${total:.2f}, "
         f"if each made {AGENT_REQUESTS} agent and "
         f"{SIMULATOR_REQUESTS} simulator requests at their maximum output. An estimate, not a limit; the budget, "
         "checked before every attempt against its upper bound, is what limits spending."
@@ -333,7 +354,7 @@ def main(argv: list[str] | None = None) -> int:
     line_by_line()
     args = parse_args(argv)
     if args.dry_run:
-        dry_run((args.set,) if args.set else ("held_out_v1_2", "stress_v1_2"))
+        dry_run((args.set,) if args.set else ("held_out_v1_3",))
         return 0
     try:
         commits = check_ready(args)

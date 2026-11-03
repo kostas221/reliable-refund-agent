@@ -82,6 +82,16 @@ a correct mocked conversation in all 39 while wrong ones fail, and 12 of 12 plan
 frozen in `scenarios/held-out-v1.3/FROZEN`, which records each file's SHA-256. Loading the set checks it, and the
 converter no longer writes. From now on the files are not edited and not used for tuning.
 
+**Update, 2026-11-03, before the run:**
+
+- **Targets and decision rule:** [quality-targets.md](quality-targets.md). The targets keep their shares (100 of
+  117, 28 of 39) for A, the product's model. Sol stays unless Sonnet is shown better and is cheaper at $1 per
+  failure.
+- **Predictions:** [predictions.md](predictions.md).
+- **Simulated customer:** GPT-6 Luna `low` for both configurations, as decided on 2026-11-02 (section 5).
+- **Configurations:** the final runner runs this set with A, Sol `low`, and B, Sonnet 5.5 `low`, both with every
+  check (`GROUPS["comparison"]` in `refund_agent/evaluation/final.py`). v1.2's two sets are now refused as spent.
+
 As in v1.2's protocol, sections 4 to 7:
 
 - the files are converted with a conversion log;

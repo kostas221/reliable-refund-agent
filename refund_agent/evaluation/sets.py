@@ -19,6 +19,7 @@ class HeldOutSet:
     prefix: str  # of the run's folder
     spent: str = ""  # why the set may no longer run, if it may not
     targeted: bool = True  # False: run and reported apart, with no target
+    configurations: str = "final"  # which group of configurations runs it (refund_agent/evaluation/final.py)
 
 
 SETS = {
@@ -43,6 +44,7 @@ SETS = {
         REPO_ROOT / "docs" / "held-out-v1.2" / "quality-targets.md",
         REPO_ROOT / "docs" / "held-out-v1.2" / "predictions.md",
         "final-v1.2",
+        spent="v1.2's held-out set is spent: its final evaluation ran on 2026-10-30 (runs/final-v1.2-20261030T170445Z)",
     ),
     "stress_v1_2": HeldOutSet(
         "stress_v1_2",
@@ -50,6 +52,16 @@ SETS = {
         REPO_ROOT / "docs" / "held-out-v1.2" / "predictions.md",
         "stress-v1.2",
         targeted=False,
+        spent="v1.2's stress set is spent: it ran on 2026-10-30 (runs/stress-v1.2-20261030T174734Z)",
+    ),
+    # v1.3: the 39 scenarios that compare the product's model with an Anthropic model (docs/held-out-v1.3/protocol.md),
+    # run by the comparison's two configurations, not the final evaluations' three.
+    "held_out_v1_3": HeldOutSet(
+        "held_out_v1_3",
+        REPO_ROOT / "docs" / "held-out-v1.3" / "quality-targets.md",
+        REPO_ROOT / "docs" / "held-out-v1.3" / "predictions.md",
+        "comparison-v1.3",
+        configurations="comparison",
     ),
 }
 # v1's final run of 2026-10-19 recorded no set name in its manifest: it ran v1's held-out set.

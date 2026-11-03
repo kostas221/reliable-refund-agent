@@ -132,10 +132,11 @@ def recorded_set(run, name):
     (run / "manifest.json").write_text(json.dumps({"identity": {"kind": "final", "set": name}}), encoding="utf-8")
 
 
-def test_the_report_names_the_targets_of_the_set_it_ran_and_counts_its_scenarios(run):
-    recorded_set(run, "held_out_v1_2")
+@pytest.mark.parametrize(("name", "folder"), [("held_out_v1_2", "held-out-v1.2"), ("held_out_v1_3", "held-out-v1.3")])
+def test_the_report_names_the_targets_of_the_set_it_ran_and_counts_its_scenarios(run, name, folder):
+    recorded_set(run, name)
     shown = report.render(report.build(run))
-    assert "## Targets (docs/held-out-v1.2/quality-targets.md)" in shown
+    assert f"## Targets (docs/{folder}/quality-targets.md)" in shown
     assert "met for these 2 scenarios" in shown and "With 2 scenarios the intervals" in shown
     assert "20 scenarios" not in shown
 

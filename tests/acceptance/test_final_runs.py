@@ -83,6 +83,25 @@ def test_every_try_runs_once_in_order_with_its_configuration(played, tmp_path):
     assert configuration["set"] == "held_out_v1_2"
 
 
+def test_the_comparison_runs_sol_and_sonnet_in_turn_under_its_own_name(played, tmp_path):
+    # docs/held-out-v1.3/protocol.md, section 4: two configurations, the product's model first, then Sonnet.
+    calls, _ = played
+    comparison = argparse.Namespace(budget_usd=5.0, prices_checked=date(2026, 11, 3), resume=None, set="held_out_v1_3")
+    assert final.paid_run(comparison, TWO, COMMITS) == 0
+    models = {"A": "gpt-6.1-sol", "B": "claude-sonnet-5-5"}
+    assert [(s, t, model, checks) for s, t, _, model, checks in calls] == [
+        (s, t, models[c], "A") for s, t, c in final.plan(list(TWO), ("A", "B"))
+    ]
+    (run,) = tmp_path.glob("comparison-v1.3-*")
+    assert sorted(p.name for p in run.iterdir() if p.is_dir()) == ["A", "B"]
+    sonnet = json.loads((run / "B" / "manifest.json").read_text(encoding="utf-8"))["identity"]
+    assert (sonnet["model"], sonnet["agent_reasoning"], sonnet["set"]) == ("claude-sonnet-5-5", "low", "held_out_v1_3")
+    identity = json.loads((run / "manifest.json").read_text(encoding="utf-8"))["identity"]
+    assert identity["frozen_sha256"] == "stand-in for held-out-v1.3/FROZEN"
+    assert set(identity["prices_usd_per_1m"]) == {"gpt-6-luna", "gpt-6.1-sol", "claude-sonnet-5-5"}
+    assert identity["order"] == "for each scenario, for each try: A, B"
+
+
 def test_a_run_cut_short_resumes_without_running_a_finished_try_again(played, tmp_path):
     calls, stop = played
     stop.update(at=5, error=KeyboardInterrupt())  # D01 try 2, configuration B, cut short
