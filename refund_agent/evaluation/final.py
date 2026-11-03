@@ -34,12 +34,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 
+from refund_agent.agent.adapters import missing_key, model_adapter
 from refund_agent.agent.costs import PRICES, Budget
 from refund_agent.agent.model import load_instructions
 from refund_agent.agent.openai_adapter import OpenAIResponses
@@ -129,8 +129,9 @@ def check_ready(args: argparse.Namespace) -> dict:
     commits = {"targets_commit": _committed(chosen.targets), "predictions_commit": _committed(chosen.predictions)}
     if manifest.git("status", "--porcelain", "--untracked-files=no"):
         raise NotReady("commit every change first: the final evaluation runs one identified revision")
-    if not os.environ.get("OPENAI_API_KEY", "").strip():
-        raise NotReady("no OPENAI_API_KEY in the environment; run with `uv run --env-file .env ...`")
+    key = missing_key(SIMULATOR.model, *(setup.model for setup in CONFIGURATIONS.values()))
+    if key:
+        raise NotReady(f"no {key} in the environment; run with `uv run --env-file .env ...`")
     if args.prices_checked is None or args.prices_checked > date.today():
         raise NotReady("give --prices-checked with the date you checked the models' prices (not in the future)")
     if args.budget_usd is None or not 0 < args.budget_usd <= MAX_BUDGET_USD:
@@ -251,7 +252,7 @@ def paid_run(args: argparse.Namespace, scenarios: dict, commits: dict) -> int:
                     scenarios[scenario_id],
                     attempt,
                     folder,
-                    agent=OpenAIResponses(setup.model, setup.reasoning, role="agent", budget=budget),
+                    agent=model_adapter(setup.model, setup.reasoning, role="agent", budget=budget),
                     simulator=OpenAIResponses(SIMULATOR.model, SIMULATOR.reasoning, role="simulator", budget=budget),
                     budget=budget,
                     policy=policy,
@@ -307,7 +308,7 @@ def dry_run(names: tuple[str, ...] = ("held_out_v1_2", "stress_v1_2")) -> None:
     conversations = scenarios * REPEATS
     total = 0.0
     for name, setup in CONFIGURATIONS.items():
-        agent = OpenAIResponses(setup.model, setup.reasoning, role="agent")
+        agent = model_adapter(setup.model, setup.reasoning, role="agent")
         request = agent.request(load_instructions(policy=policy_for([d01])).text, opening, tool_definitions())
         write_json(out / f"first-agent-request-{name}.json", request)
         per = 2 * (

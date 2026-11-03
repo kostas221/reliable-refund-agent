@@ -352,8 +352,20 @@ asked; reasons in the plan entry). `--resume` for the pilot runner still for lat
 and 54 screen tests pass, 26 of 26 planted bugs caught; committed as d26d584. The owner's first paid live session
 (D01, Sol low, three parts on one database, $0.0168; results in `docs/pilot/results.md`, "Live mode: the first paid
 session"): one refund paid once, a pause at $0.05 that sent nothing and kept the message, a restart that answered it
-first; `model_spend` and the request logs agree; 6 of 6 predictions right; a `payout` citation that did not fit, recorded. Next: the handoff checks (release brief, section 4) and the
-five-person trial with one staff-role participant, each session's deadline sentences checked. The Sol-Sonnet comparison set is being prepared now, run after the release (plan change log, 2026-11-01): author package `docs/held-out-v1.3/author-package.md` (60 candidates H401-H460, Appendix A lists the 89 development situations, `nearest`/`difference` per candidate, the 9 facts of earlier corrections; `tests/test_author_package_v1_3.py`), protocol draft `docs/held-out-v1.3/protocol.md`: a third-family author, the answer kept outside the repository and unread by Claude until the comparison's freeze. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
+first; `model_spend` and the request logs agree; 6 of 6 predictions right; a `payout` citation that did not fit,
+recorded. The Sol-Sonnet comparison set: author package `docs/held-out-v1.3/author-package.md` (60 candidates
+H401-H460, Appendix A lists the 89 development situations; `tests/test_author_package_v1_3.py`); the author answered
+72 (H401-H472, now `docs/held-out-v1.3/author-output.md` and `-2.md`; they had been saved over v1.2's files, which
+are restored); a reviewer read all and selected 39 (`selected-39-*`, H463 removed by the owner; protocol section 2
+records the early reading). **The owner moved the comparison before the trial** (plan change log, 2026-11-02): Sol
+low against Claude Sonnet 5.5 (`claude-sonnet-5-5`) at effort low, the same simulated customer (Luna low), no
+fallbacks; the agent compared as it is, the trial's fixes after. The Anthropic adapter is written
+(`agent/anthropic_adapter.py`, chosen by model name in `agent/adapters.py`; the same contract as the OpenAI one,
+append-only messages for the provider's thinking-block check, 402 `billing_error` as `OutOfCredit`; 15 tests with fake
+clients and a whole D01 conversation, 19 of 19 planted bugs in scratchpad `planted_anthropic.py`). Next: the owner's
+paid check of the adapter on the 89 development scenarios, 1 try each, budget $2 (predictions in
+`docs/pilot/predictions.md`, "The comparison's second model"); then the 39 converted and frozen, targets and
+predictions, the comparison run; then the handoff checks and the five-person trial. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
 `runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run
 (`user-review/`), 7 of the comparison

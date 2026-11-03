@@ -26,11 +26,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from datetime import UTC, date, datetime
 from pathlib import Path
 
+from refund_agent.agent.adapters import missing_key, model_adapter
 from refund_agent.agent.costs import PRICES, Budget
 from refund_agent.agent.model import load_instructions
 from refund_agent.agent.openai_adapter import OpenAIResponses
@@ -83,8 +83,9 @@ def check_ready(args: argparse.Namespace) -> str:
     changed = manifest.git("status", "--porcelain", "--", str(PREDICTIONS.relative_to(REPO_ROOT)))
     if not PREDICTIONS.exists() or not committed or changed:
         raise NotReady(f"commit {PREDICTIONS.relative_to(REPO_ROOT)} first: predictions are written before the run")
-    if not os.environ.get("OPENAI_API_KEY", "").strip():
-        raise NotReady("no OPENAI_API_KEY in the environment; run with `uv run --env-file .env ...`")
+    key = missing_key(args.model, args.simulator_model)
+    if key:
+        raise NotReady(f"no {key} in the environment; run with `uv run --env-file .env ...`")
     if args.prices_checked is None or args.prices_checked > date.today():
         raise NotReady("give --prices-checked with the date you checked the model's prices (not in the future)")
     if not 0 < args.budget_usd <= 5:
@@ -97,7 +98,7 @@ def dry_run(args: argparse.Namespace, scenarios: dict) -> None:
     out.mkdir(parents=True, exist_ok=True)
     first = scenarios[min(scenarios)]  # the first scenario chosen: D01 unless --scenarios names others
     instructions = load_instructions(policy=policy_for(scenarios.values()))
-    agent = OpenAIResponses(args.model, args.reasoning, role="agent")
+    agent = model_adapter(args.model, args.reasoning, role="agent")
     simulator = OpenAIResponses(args.simulator_model, args.simulator_reasoning, role="simulator")
     first_agent = agent.request(
         instructions.text, [{"role": "customer", "text": first.customer.opening_message}], tool_definitions()
@@ -162,7 +163,7 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
                     scenarios[scenario_id],
                     attempt,
                     out / scenario_id / f"try{attempt}",
-                    agent=OpenAIResponses(args.model, args.reasoning, role="agent", budget=budget),
+                    agent=model_adapter(args.model, args.reasoning, role="agent", budget=budget),
                     simulator=OpenAIResponses(
                         args.simulator_model, args.simulator_reasoning, role="simulator", budget=budget
                     ),

@@ -23,7 +23,6 @@ X-CSRF-Token.
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from datetime import UTC, date, datetime
 
@@ -33,10 +32,10 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from refund_agent import db as database
+from refund_agent.agent.adapters import missing_key, model_adapter
 from refund_agent.agent.costs import PRICES
 from refund_agent.agent.graph import Agent
 from refund_agent.agent.model import ModelAdapter, RecordingAdapter, ScriptedModel
-from refund_agent.agent.openai_adapter import OpenAIResponses
 from refund_agent.api import live
 from refund_agent.api.app import create_app
 from refund_agent.api.auth import set_password
@@ -66,7 +65,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def not_ready(args: argparse.Namespace) -> str | None:
     """Why the server cannot start as asked, or None. Live mode needs the owner's explicit budget, the date the
-    prices were checked and an OPENAI_API_KEY (only its presence is checked; it is never read or printed)."""
+    prices were checked and the model's key (only its presence is checked; it is never read or printed)."""
     scenarios = {s.id for s in load_split("development")}
     if args.scenario not in scenarios:
         return f"no development scenario {args.scenario}"
@@ -78,8 +77,9 @@ def not_ready(args: argparse.Namespace) -> str | None:
         return f"live mode needs --budget-usd above 0 and at most {live.MOST_USD:.2f}"
     if args.prices_checked is None or args.prices_checked > date.today():
         return "live mode needs --prices-checked with the date you checked the model's prices (not in the future)"
-    if not os.environ.get("OPENAI_API_KEY", "").strip():
-        return "no OPENAI_API_KEY in the environment; run with `uv run --env-file .env ...`"
+    key = missing_key(args.model)
+    if key:
+        return f"no {key} in the environment; run with `uv run --env-file .env ...`"
     return None
 
 
@@ -114,7 +114,7 @@ def main(argv: list[str] | None = None) -> None:
     model: ModelAdapter
     if args.live:
         budget = live.session_budget(app_engine, args.budget_usd)
-        model = RecordingAdapter(OpenAIResponses(args.model, args.reasoning, role="agent", budget=budget), log)
+        model = RecordingAdapter(model_adapter(args.model, args.reasoning, role="agent", budget=budget), log)
     else:
         model = ScriptedModel(MOCK[scenario.id].agent)
 

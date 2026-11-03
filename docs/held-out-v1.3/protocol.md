@@ -33,6 +33,13 @@ system side has seen the candidates. The review must not be used to tune the age
 product change becomes development evidence and must be replaced for a fresh holdout claim. The review records and
 provisional selection are under this directory; the original author text has not been edited.
 
+**Update, 2026-11-02, where the author's answers are kept:** the two answers had been saved, uncommitted, over v1.2's
+`docs/held-out-v1.2/author-output.md` and `author-output-2.md`, which are the record of v1.2's authoring. They are now
+in this directory as `author-output.md` (H401-H460) and `author-output-2.md` (H461-H472), byte for byte (the
+SHA-256 values of `selected-39-manifest.json`), and v1.2's two files are restored from Git. The source paths of the
+manifest and of `selected-39-author-specifications.md` were changed to the new place. Since every candidate has been
+read (above), keeping the answers outside the repository (section 1, step 3) no longer protects anything.
+
 Claude does not read the answer until the system for the comparison is frozen. The freeze comes after the five-person
 trial and its fixes, and after an adapter for the Anthropic model exists and passes its checks. Until then the owner
 does not paste the answer into a conversation with Claude or into the repository.

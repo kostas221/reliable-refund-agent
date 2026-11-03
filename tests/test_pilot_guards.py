@@ -73,6 +73,22 @@ def test_a_paid_run_needs_a_key(committed_predictions, monkeypatch, capsys):
     assert "no OPENAI_API_KEY" in capsys.readouterr().out
 
 
+def test_a_paid_run_of_a_claude_agent_needs_both_keys(committed_predictions, monkeypatch, capsys):
+    # The agent on Anthropic, the simulated customer still on OpenAI (plan change log, 2026-11-02).
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-not-a-real-key")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    assert pilot.main(["--model", "claude-sonnet-5-5", "--prices-checked", date.today().isoformat()]) == 1
+    assert "no ANTHROPIC_API_KEY" in capsys.readouterr().out
+
+
+def test_the_dry_run_of_a_claude_agent_writes_its_request_and_keeps_the_customers_model(tmp_path):
+    assert pilot.main(["--dry-run", "--model", "claude-sonnet-5-5", "--reasoning", "low"]) == 0
+    agent = json.loads((tmp_path / "pilot-dry-run" / "first-agent-request.json").read_text(encoding="utf-8"))
+    simulator = json.loads((tmp_path / "pilot-dry-run" / "first-simulator-request.json").read_text(encoding="utf-8"))
+    assert (agent["model"], agent["output_config"], len(agent["tools"])) == ("claude-sonnet-5-5", {"effort": "low"}, 7)
+    assert (simulator["model"], simulator["reasoning"]) == ("gpt-6-luna", {"effort": "low"})
+
+
 class On14October(date):
     """The pilot's "today", fixed: dates worked out when the tests are collected went stale in a run that crossed
     midnight, and a date one day ahead became today."""

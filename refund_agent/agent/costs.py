@@ -31,6 +31,9 @@ from dataclasses import dataclass, field
 PRICES: dict[str, tuple[float, float, float, float]] = {
     "gpt-6-luna": (0.10, 0.01, 0.125, 0.50),
     "gpt-6.1-sol": (2.00, 0.10, 2.50, 10.00),
+    # Anthropic's first-party rates for Claude Sonnet 5.5 (cache writes of five minutes, 1.25 times the input price),
+    # as the skill's model table gave them on 2026-11-02; the owner confirms them with --prices-checked.
+    "claude-sonnet-5-5": (2.00, 0.20, 2.50, 10.00),
 }
 
 

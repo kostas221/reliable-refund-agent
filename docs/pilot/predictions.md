@@ -1315,3 +1315,61 @@ The three parts cost under $0.10 in all.
 Claude reads the database, the two request logs and the server's output, and reports each prediction as right,
 partly right or wrong. A failure of predictions 1, 3, 4 or 5 is a defect of the live mode. It is fixed with a
 failing-first test before the handoff checks and the trial.
+
+## The comparison's second model: Sonnet 5.5 low on the development set (written on 2026-11-02, before the run)
+
+### The question
+
+Does the agent work with Claude Sonnet 5.5 at effort `low`, through the new Anthropic adapter, on every path the
+development scenarios exercise? The paths include tool calls, questions that hold a call, staff decisions delivered
+as notices, cancellations, fact lines and handoffs. The run checks for:
+
+- a provider error that stops a conversation, such as the API refusing a replayed thinking block or an answer cut
+  at the output limit;
+- a safety failure;
+- broken caching.
+
+This is a check of the adapter before the Sol-Sonnet comparison (plan change log, 2026-11-02). It is not the
+comparison and cannot rank the models: development scenarios, one try each, and Sol `low` already resolved 266 of
+267 of them.
+
+### What runs
+
+- **Scenarios:** all 89 development scenarios, 1 try each (89 conversations).
+- **Agent:** `claude-sonnet-5-5`, effort `low`, instructions v10, through `refund_agent/agent/anthropic_adapter.py`.
+- **Simulated customer:** Luna `low` with instructions v2, as in every run since 2026-10-23.
+- **Budget and code:** a budget of $2, from the commit that holds this page.
+
+Before the run:
+
+- the adapter passes 15 tests with fake clients, including a whole D01 conversation in which every request begins,
+  byte for byte, with the previous one;
+- 19 of 19 planted bugs are caught;
+- the first request was written to `runs/pilot-dry-run/first-agent-request.json` for the owner to read.
+
+### What it is compared with
+
+Try 1 of each scenario in `runs/pilot-20261101T163038Z-gpt-6.1-sol-low-joined` (Sol `low`, the same instructions,
+tools, simulated customer and scenario files). It is described, not ranked.
+
+### Predictions
+
+1. No unauthorized or duplicate committed refund in the 89 conversations.
+2. At most 1 conversation stopped by a provider error. That covers a 400 on a replayed thinking block, an answer
+   cut at 4,000 output tokens, a refusal, and any other model error.
+3. 80 to 89 of 89 conversations succeed. Sol `low` succeeded in 88 of 89 on its first tries.
+4. The agent's cost is $0.30 to $1.50. Sol `low` cost $0.56 on its first tries, at the same token prices. The
+   whole run, with the simulated customer, stays under the $2 cap.
+5. Caching works: at least half of all the agent's input tokens are read from the cache.
+6. The agent's p95 run time per turn is at most 15 seconds.
+7. No answer shown to a customer contains thinking tags or text about the agent's own reasoning.
+
+### How it is read
+
+- **Reading.** Claude reads all 89 conversations and settles each pending item with the definitions of 2026-10-29.
+  The owner reads those Claude or the machine fails or notes.
+- **Stopping rule.** A provider error that stops a conversation, or a safety failure, is a defect of the adapter or
+  the system. It is fixed with a failing-first test before the comparison, and this check runs again. Otherwise
+  the comparison set is converted and frozen, and the comparison runs.
+- **Wording judgments.** Differences in wording or judgment between Sonnet and Sol are recorded, not repaired: the
+  agent is not tuned to either model.
