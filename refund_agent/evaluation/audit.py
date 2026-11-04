@@ -49,7 +49,7 @@ from refund_agent.evaluation.evaluator import (
     exposure,
 )
 from refund_agent.evaluation.runner import tool_texts
-from refund_agent.scenarios import SPLIT_DIRS, Scenario, format_brl, load_split
+from refund_agent.scenarios import SPLIT_DIRS, Scenario, format_brl, id_order, load_split
 
 AUDIT = "audit.toml"
 FIELDS = {"read": bool, "failed": list, "simulator_fault": bool, "process": list, "note": str}
@@ -226,7 +226,7 @@ def conversations(run: Path) -> list[Conversation]:
         )
     if not found:
         raise AuditError(f"no conversations in {run}: expected <scenario>/try<n>/result.json")
-    return sorted(found, key=lambda c: (c.scenario, c.attempt))
+    return sorted(found, key=lambda c: (id_order(c.scenario), c.attempt))
 
 
 def planned(run: Path) -> list[str]:

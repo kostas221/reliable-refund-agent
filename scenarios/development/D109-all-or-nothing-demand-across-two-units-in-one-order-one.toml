@@ -1,0 +1,97 @@
+# Development copy of H426 (scenarios/held-out-v1.3/H426-all-or-nothing-demand-across-two-units-in-one-order-one.toml): copied on 2026-11-04,
+# after the comparison of v1.3 used its set (runs/comparison-v1.3-20261103T155348Z; plan change log,
+# 2026-11-04). The source file stays frozen and unchanged.
+# All-or-nothing demand across two units in one order: one returned on time, one already refunded, plus demand to pay a different card.
+# The author's candidate H426 (docs/held-out-v1.3/author-output.md, line 1684), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 913f18fcb317f3eee87b26f9b241c683 (data/olist/subset-v1.3.json): 2 item(s), credit_card 214.07 in 4 instalment(s).
+id = "D109"
+title = "All-or-nothing demand across two units in one order: one returned on time, one already refunded, plus demand to pay a different card"
+split = "development"
+derived_from = "H426"
+category = "ineligible"
+template = "all-or-nothing-demand-across-two-units-in-one-order-one"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h426-o1"]
+
+[[fixture.customers]]
+id = "h426-carolina"
+name = "Carolina Mesquita"
+email = "carolina.mesquita@example.test"
+
+[[fixture.staff]]
+id = "h426-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h426-o1"
+customer = "h426-carolina"
+status = "delivered"
+purchased_at = 2026-09-29T06:53:06Z
+delivered_at = 2026-11-04T10:00:00Z  # delivered 12 days before now
+payments = [{ method = "credit_card", amount_minor = 21407, installments = 4 }]  # 9990 + shipping 2005 + 7990 + shipping 1422
+olist_order = "913f18fcb317f3eee87b26f9b241c683"
+
+[[fixture.orders.units]]
+id = "h426-o1-u1"
+product = "Velvet cushion"
+price_minor = 9990
+paid_minor = 9990
+shipping_minor = 2005
+received_back_at = 2026-11-09T10:00:00Z  # received back 7 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h426-o1-u2"
+product = "Woven throw blanket"
+price_minor = 7990
+paid_minor = 7990
+shipping_minor = 1422
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 2
+
+[[fixture.past_refunds]]
+units = ["h426-o1-u1"]
+committed_at = 2026-11-11T10:00:00Z  # 5 days before now
+receipt_number = "R-H426-0001"
+
+[customer]
+id = "h426-carolina"
+goal = "Demand a single refund covering both the velvet cushion and the woven throw blanket sent to a brand-new credit card, and refuse any refund that only covers the blanket or goes to your original card."
+opening_message = "I want a single refund for both my velvet cushion and my woven throw blanket, and you must send it to my new MasterCard instead of the card I used on the order. I won't accept a partial refund or payment to the old card."
+facts = []
+behaviour = [
+    "Decline any proposal card the agent creates, refuse to accept a refund to the original card or for just the throw blanket, and do not ask for a human agent.",
+    "End once the agent has explained both the single-refund-per-unit rule (with the cushion's receipt) and the original-payment rule.",
+]
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h426-o1-u1", "h426-o1-u2"]
+decision = "refused"
+reasons = ["remaining"]
+
+[[policy_checks]]
+units = ["h426-o1-u2"]
+decision = "eligible"
+amount_minor = 7990
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["none", "ineligible", "cancelled"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/remaining", "refund-policy/v2/payment"]
+quality_cites = []
+communication = ["explains_refusal_reason"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/remaining" = "The velvet cushion was already refunded once (with its receipt) so it cannot be refunded again; only the woven throw blanket remains."
+"refund-policy/v2/payment" = "A refund can only be paid to the original payment record on the order and never to a different card."

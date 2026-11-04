@@ -171,3 +171,56 @@ def test_quality_citations_are_counted_shown_or_not():
     shown = of_try({"messages": [said]}, set(), {}, quality, "", POLICY)
     missed = of_try({"messages": []}, set(), {}, quality, "", POLICY)
     assert summarize([shown, missed])["quality_citations"] == {"shown": 1, "not shown": 1}
+
+
+# Citations the model wrote (plan change log, 2026-11-04): instructions v11 ask for more of them, so the report shows
+# how many per message, how many name no section of the run's policy, and where `exceptions` and `scope` were cited
+# where the scenario lists them neither as required nor as quality. Only IDs are counted, never the words beside them.
+
+
+def test_the_citations_the_model_wrote_are_counted_with_unknown_and_unlisted_ones():
+    from refund_agent.evaluation.diagnostics import of_try, summarize
+    from refund_agent.scenarios import load_split
+
+    window, amount = POLICY.citation("window"), POLICY.citation("amount")
+    exceptions, scope = POLICY.citation("exceptions"), POLICY.citation("scope")
+    d01 = next(s for s in load_split("development") if s.id == "D01")
+    expected = d01.expected.model_copy(update={"cites": (window,), "quality_cites": (amount,), "obligations": {}})
+    scenario = d01.model_copy(update={"expected": expected})
+    calls = [{"call_id": "c", "name": "list_my_orders", "arguments": "{}"}]
+    messages = [
+        tool("list_my_orders", {"orders": [], "policy_citation": scope}),  # a tool result is not the model's
+        {"role": "agent", "text": "", "tool_calls": calls},  # no text: not a message to the customer
+        {"role": "agent", "text": f"Too late ({window}); no exception either ({exceptions})."},
+        {
+            "role": "agent",
+            # an ID of another policy version, and one of no section at all
+            "text": f"Paid at its price ({amount}), not (refund-policy/v1/window) or (refund-policy/v2/refunds).",
+        },
+        {"role": "agent", "text": f"As the records show ({scope}).", "fact_line": True},  # the graph's, counted apart
+        {"role": "agent", "text": f"Again, no exception ({exceptions})."},
+    ]
+    found = of_try({"messages": messages}, set(), {}, scenario, "", POLICY)
+    assert found["citations_written"] == {"messages": 3, "citations": 6}
+    assert found["unknown_citations"] == {"refund-policy/v1/window": 1, "refund-policy/v2/refunds": 1}
+    assert found["unlisted_sections"] == {"exceptions": 1}  # once per conversation; window and amount are listed
+    quiet = of_try({"messages": [messages[2]]}, set(), {}, scenario, "", POLICY)
+    total = summarize([found, quiet, {"citations": {}, "handoffs": {}, "proposals_after_receipt": 0}])
+    assert total["citations_written"] == {"messages": 4, "citations": 8}
+    assert total["unknown_citations"] == {"refund-policy/v1/window": 1, "refund-policy/v2/refunds": 1}
+    assert total["unlisted_sections"] == {"exceptions": 2, "scope": 0}  # the two v11 names, shown even at zero
+
+
+def test_the_citation_counts_reproduce_the_baselines_v11_is_measured_against():
+    # docs/pilot/predictions.md, "v1.3, instructions v11": Sol low with v10 on D01 to D89 (joined run of 2026-11-01)
+    # and on the 39 scenarios of the comparison, configuration A.
+    joined = REPO_ROOT / "runs" / "pilot-20261101T163038Z-gpt-6.1-sol-low-joined"
+    development = report.build(joined)["configurations"]["A"]["diagnostics"]
+    assert development["citations_written"] == {"messages": 609, "citations": 919}  # 1.51 per message
+    assert development["unknown_citations"] == {}
+    assert (development["unlisted_sections"]["exceptions"], development["unlisted_sections"]["scope"]) == (24, 3)
+    comparison = report.build(REPO_ROOT / "runs" / "comparison-v1.3-20261103T155348Z")["configurations"]
+    sol = comparison["A"]["diagnostics"]
+    assert sol["citations_written"] == {"messages": 261, "citations": 584}  # 2.24 per message
+    assert sol["unknown_citations"] == {} == comparison["B"]["diagnostics"]["unknown_citations"]
+    assert (sol["unlisted_sections"]["exceptions"], sol["unlisted_sections"]["scope"]) == (0, 0)

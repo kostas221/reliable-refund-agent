@@ -14,6 +14,10 @@
   refused because the customer's words do not yet say which look-alike they mean (and conversations where that
   happened twice or more, a sign of a loop), and handoffs refused because a yes answered no offer the check could
   read, apart from other refusals of a handoff. They show whether each change was exercised, not whether it helped.
+- Citations the model wrote (plan change log, 2026-11-04), fact lines apart: how many per agent message with text,
+  how many name no section of the run's policy version, and the conversations where it cited a section the scenario
+  lists neither as required nor as a quality citation. Instructions v11 ask for more citations, `exceptions` and
+  `scope` above all; these show what that costs. They count IDs, never judge the words beside them.
 """
 
 from __future__ import annotations
@@ -33,6 +37,11 @@ DENIES_PROPOSAL = re.compile(
     r"\b(?:proposed|(?:created|made) (?:a|any) proposal)",
     re.IGNORECASE,
 )
+
+
+# The two sections instructions v11 name for refusals no tool result explains (plan change log, 2026-11-04): the report
+# shows where they were cited unasked, even when that is never.
+WATCHED_UNLISTED = ("exceptions", "scope")
 
 
 def instructions_of(try_folder: Path) -> str:
@@ -126,9 +135,15 @@ def of_try(
     shown = shown_sections(saved.get("messages", []), instructions, policy)
     # What the model wrote, without the graph's fact lines (agent/facts.py), so their citations are counted apart.
     said = " ".join(m.get("text") or "" for m in saved.get("messages", []) if m.get("role") == "agent")
-    model_said = " ".join(
-        m.get("text") or "" for m in saved.get("messages", []) if m.get("role") == "agent" and not m.get("fact_line")
-    )
+    written = [
+        m["text"]
+        for m in saved.get("messages", [])
+        if m.get("role") == "agent" and not m.get("fact_line") and m.get("text")
+    ]
+    model_said = " ".join(written)
+    ids = [found for text in written for found in CITATION.findall(text)]
+    sections = {policy.citation(s.id) for s in policy.sections}
+    listed = {*scenario.expected.cites, *scenario.expected.quality_cites}
     citations = Counter()
     for name, status in items.items():
         if name.startswith("cites:"):
@@ -160,6 +175,10 @@ def of_try(
         "quality_citations": Counter(
             "shown" if citation in said else "not shown" for citation in scenario.expected.quality_cites
         ),
+        "citations_written": Counter({"messages": len(written), "citations": len(ids)}),
+        "unknown_citations": Counter(found for found in ids if found not in sections),
+        # once per conversation and section
+        "unlisted_sections": Counter(found.rsplit("/", 1)[1] for found in set(ids) & sections - listed),
     }
 
 
@@ -169,6 +188,8 @@ def summarize(per_try: list[dict]) -> dict:
     acted = Counter({name: 0 for name in (*CHECKS_ACTED, REPEATED_SELECTION)})
     reminders = Counter({"answered": 0, "ended": 0})
     quality = Counter({"shown": 0, "not shown": 0})
+    written = Counter({"messages": 0, "citations": 0})
+    unknown, unlisted = Counter(), Counter({section: 0 for section in WATCHED_UNLISTED})
     process = {signal: {"times": 0, "conversations": 0} for signal in PROCESS_SIGNALS}
     for d in per_try:
         for signal, times in d.get("process", {}).items():
@@ -182,6 +203,9 @@ def summarize(per_try: list[dict]) -> dict:
         total["proposal_denials"] += d.get("proposal_denials", 0)
         reminders.update(d.get("simulator_reminders", {}))
         quality.update(d.get("quality_citations", {}))
+        written.update(d.get("citations_written", {}))
+        unknown.update(d.get("unknown_citations", {}))
+        unlisted.update(d.get("unlisted_sections", {}))
     return {
         "citations": dict(sorted(total["citations"].items())),
         "handoffs": dict(sorted(total["handoffs"].items())),
@@ -192,4 +216,7 @@ def summarize(per_try: list[dict]) -> dict:
         "simulator_reminders": dict(reminders),
         "quality_citations": dict(quality),
         "process": process,
+        "citations_written": dict(written),
+        "unknown_citations": dict(sorted(unknown.items())),
+        "unlisted_sections": dict(sorted(unlisted.items())),
     }

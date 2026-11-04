@@ -1,0 +1,103 @@
+# Development copy of H416 (scenarios/held-out-v1.3/H416-three-identical-units-two-returned-one-not-returned-customer.toml): copied on 2026-11-04,
+# after the comparison of v1.3 used its set (runs/comparison-v1.3-20261103T155348Z; plan change log,
+# 2026-11-04). The source file stays frozen and unchanged.
+# Three identical units: two returned, one not returned; customer asks to refund all three, then accepts the two returned ones.
+# The author's candidate H416 (docs/held-out-v1.3/author-output.md, line 1053), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order ccce262c4b1775baab94c62c954014c8 (data/olist/subset-v1.3.json): 3 item(s), credit_card 299.79 in 3 instalment(s).
+id = "D103"
+title = "Three identical units: two returned, one not returned; customer asks to refund all three, then accepts the two returned ones"
+split = "development"
+derived_from = "H416"
+category = "eligible"
+template = "three-identical-units-two-returned-one-not-returned-customer"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h416-o1"]
+
+[[fixture.customers]]
+id = "h416-aline"
+name = "Aline Godoy"
+email = "aline.godoy@example.test"
+
+[[fixture.staff]]
+id = "h416-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h416-o1"
+customer = "h416-aline"
+status = "delivered"
+purchased_at = 2026-11-01T10:07:21Z
+delivered_at = 2026-11-04T10:00:00Z  # delivered 12 days before now
+payments = [{ method = "credit_card", amount_minor = 29979, installments = 3 }]  # 9100 + shipping 893 + 9100 + shipping 893 + 9100 + shipping 893
+olist_order = "ccce262c4b1775baab94c62c954014c8"
+
+[[fixture.orders.units]]
+id = "h416-o1-u1"
+product = "Linen dinner napkin"
+price_minor = 10010  # listed 10% above what was paid
+paid_minor = 9100
+shipping_minor = 893
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h416-o1-u2"
+product = "Linen dinner napkin"
+price_minor = 10010  # listed 10% above what was paid
+paid_minor = 9100
+shipping_minor = 893
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 2
+
+[[fixture.orders.units]]
+id = "h416-o1-u3"
+product = "Linen dinner napkin"
+price_minor = 10010  # listed 10% above what was paid
+paid_minor = 9100
+shipping_minor = 893
+olist_item = 3
+
+[customer]
+id = "h416-aline"
+goal = "Ask to refund all three linen dinner napkins, explain when asked that you haven't mailed the third one yet, and accept a refund for the two returned napkins while asking how the discounted total is split among identical units."
+opening_message = "I bought three identical linen dinner napkins on discount. Can you refund all three of them for me today, and explain how the discounted price is split across identical items?"
+facts = [
+    { text = "You only put two napkins in the return parcel; the third napkin is still on your dining table and you will mail it next week.", reveal = "upfront" },
+]
+behaviour = [
+    "When the agent explains that the third napkin cannot be refunded until received back, accept a proposal for the two returned napkins.",
+    "Decline any human handoff and end once you have the receipt.",
+]
+confirms = { units = ["h416-o1-u1", "h416-o1-u2"], amount_minor = 18200 }  # paid(u1) + paid(u2)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h416-o1-u1", "h416-o1-u2", "h416-o1-u3"]
+decision = "refused"
+reasons = ["return"]
+
+[[policy_checks]]
+units = ["h416-o1-u1", "h416-o1-u2"]
+decision = "eligible"
+amount_minor = 18200
+
+[expected]
+refunded_units = ["h416-o1-u1", "h416-o1-u2"]
+refund_amount_minor = 18200  # paid(u1) + paid(u2)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/return", "refund-policy/v2/amount"]
+quality_cites = []
+communication = ["explains_refusal_reason", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/return" = "Only the two napkins that have been received back can be refunded now; the third napkin must arrive back first."
+"refund-policy/v2/amount" = "Each identical unit is refunded its fixed share of the discounted total paid."

@@ -1,0 +1,85 @@
+# Development copy of H402 (scenarios/held-out-v1.3/H402-timely-order-with-an-expired-earlier-proposal-and-a-debit.toml): copied on 2026-11-04,
+# after the comparison of v1.3 used its set (runs/comparison-v1.3-20261103T155348Z; plan change log,
+# 2026-11-04). The source file stays frozen and unchanged.
+# Timely order with an expired earlier proposal and a debit card payment question.
+# The author's candidate H402 (docs/held-out-v1.3/author-output.md, line 87), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 71c62b09517904ad3d421858168363ac (data/olist/subset-v1.3.json): 1 item(s), debit_card 149.78 in 1 instalment(s).
+id = "D91"
+title = "Timely order with an expired earlier proposal and a debit card payment question"
+split = "development"
+derived_from = "H402"
+category = "eligible"
+template = "timely-order-with-an-expired-earlier-proposal-and-a-debit"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h402-o1"]
+
+[[fixture.customers]]
+id = "h402-caio"
+name = "Caio Moreira"
+email = "caio.moreira@example.test"
+
+[[fixture.staff]]
+id = "h402-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h402-o1"
+customer = "h402-caio"
+status = "delivered"
+purchased_at = 2026-10-11T03:16:07Z
+delivered_at = 2026-10-29T10:00:00Z  # delivered 18 days before now
+payments = [{ method = "debit_card", amount_minor = 14978, installments = 1 }]  # 11990 + shipping 2988
+olist_order = "71c62b09517904ad3d421858168363ac"
+
+[[fixture.orders.units]]
+id = "h402-o1-u1"
+product = "Glass coffee carafe"
+price_minor = 11990
+paid_minor = 11990
+shipping_minor = 2988
+received_back_at = 2026-11-07T10:00:00Z  # received back 9 days before now
+olist_item = 1
+
+[[fixture.past_proposals]]
+id = "h402-p1"
+units = ["h402-o1-u1"]
+created_at = 2026-11-10T10:00:00Z  # 6 days before now
+status = "expired"
+
+[customer]
+id = "h402-caio"
+goal = "Get a refund for your glass coffee carafe after your earlier proposal expired, and find out why the old card stopped working and whether your debit card payment can be refunded automatically."
+opening_message = "My previous refund card for the glass coffee carafe stopped working after a few days. Why did it expire, can you make a new one, and does a debit card payment get refunded automatically?"
+facts = []
+behaviour = [
+    "If offered a person, decline and ask to complete the refund here.",
+    "End the conversation once you have the receipt and your questions about the 72-hour expiry and debit card payment are answered.",
+]
+confirms = { units = ["h402-o1-u1"], amount_minor = 11990 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h402-o1-u1"]
+decision = "eligible"
+amount_minor = 11990
+
+[expected]
+refunded_units = ["h402-o1-u1"]
+refund_amount_minor = 11990  # paid(u1)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/validity", "refund-policy/v2/payment"]
+quality_cites = ["refund-policy/v2/window"]
+communication = ["states_correct_amount", "gives_this_receipt", "proposes_without_asking"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/validity" = "A proposal expires 72 hours after creation if not paid, so a new proposal must be created."
+"refund-policy/v2/payment" = "An order with a single valid debit card payment record is refunded automatically back to that original payment."

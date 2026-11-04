@@ -1,0 +1,105 @@
+# Development copy of H468 (scenarios/held-out-v1.3/H468-customer-confirms-proposal-cancels-it-with-the-button-after.toml): copied on 2026-11-04,
+# after the comparison of v1.3 used its set (runs/comparison-v1.3-20261103T155348Z; plan change log,
+# 2026-11-04). The source file stays frozen and unchanged.
+# Customer confirms proposal, cancels it with the button after asking about discount share, and then asks for a person while a second order is shipped.
+# The author's candidate H468 (docs/held-out-v1.3/author-output-2.md, line 449), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 6bd11fe98af2b892fa7e7dbeb3e40cb6 (data/olist/subset-v1.3.json): 1 item(s), credit_card 34.00 in 1 instalment(s).
+# Olist order dc8e7d66422ec37c6fa1cd4f6d29a85a (data/olist/subset-v1.3.json): 1 item(s), credit_card 67.18 in 3 instalment(s).
+id = "D125"
+title = "Customer confirms proposal, cancels it with the button after asking about discount share, and then asks for a person while a second order is shipped"
+split = "development"
+derived_from = "H468"
+category = "clarification_handoff"
+template = "customer-confirms-proposal-cancels-it-with-the-button-after"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h468-o1", "h468-o2"]
+
+[[fixture.customers]]
+id = "h468-adriana"
+name = "Adriana Seixas"
+email = "adriana.seixas@example.test"
+
+[[fixture.staff]]
+id = "h468-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h468-o1"
+customer = "h468-adriana"
+status = "delivered"
+purchased_at = 2026-10-28T13:47:28Z
+delivered_at = 2026-11-05T10:00:00Z  # delivered 11 days before now
+payments = [{ method = "credit_card", amount_minor = 3400, installments = 1 }]  # 1990 + shipping 1410
+olist_order = "6bd11fe98af2b892fa7e7dbeb3e40cb6"
+
+[[fixture.orders.units]]
+id = "h468-o1-u1"
+product = "Linen duvet cover"
+price_minor = 2388  # listed 20% above what was paid
+paid_minor = 1990
+shipping_minor = 1410
+received_back_at = 2026-11-13T10:00:00Z  # received back 3 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "h468-o2"
+customer = "h468-adriana"
+status = "shipped"
+purchased_at = 2026-11-14T10:00:00Z
+# no delivered_at: bought 2 days before now
+payments = [{ method = "credit_card", amount_minor = 6718, installments = 3 }]  # 4990 + shipping 1728
+olist_order = "dc8e7d66422ec37c6fa1cd4f6d29a85a"
+
+[[fixture.orders.units]]
+id = "h468-o2-u2"
+product = "Down alternative comforter"
+price_minor = 4990
+paid_minor = 4990
+shipping_minor = 1728
+olist_item = 1
+
+[customer]
+id = "h468-adriana"
+goal = "Ask to refund your returned linen duvet cover and ask why the amount is less than the listed price, confirm the card and immediately cancel it with the card button, and then ask for a staff member to help cancel your shipped comforter order."
+opening_message = "Please propose a refund for my returned linen duvet cover, and tell me why the refund amount is lower than its listed price."
+facts = [
+    { text = "After you confirm and then cancel the linen duvet cover proposal card with the button, you want to ask for a person to help cancel your shipped down alternative comforter order.", reveal = "upfront" },
+]
+behaviour = [
+    "Wait for the proposal card for u1, which the script will confirm and then cancel.",
+    "Once the card is cancelled, tell the agent you decided to cancel the duvet cover refund for now, and ask to be connected to a staff member to cancel your shipped down alternative comforter order (u2).",
+    "Accept the handoff and end the conversation.",
+]
+confirms = { units = ["h468-o1-u1"], amount_minor = 1990 }  # paid(u1)
+cards = { other = "decline", after_confirming = "cancel" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h468-o1-u1"]
+decision = "eligible"
+amount_minor = 1990
+
+[[policy_checks]]
+units = ["h468-o2-u2"]
+decision = "refused"
+reasons = ["eligible-orders", "return"]
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["cancelled"]
+handoff = "required"
+handoff_origins = ["customer", "agent"]
+cites = ["refund-policy/v2/amount", "refund-policy/v2/eligible-orders"]
+quality_cites = ["refund-policy/v2/approval", "refund-policy/v2/exceptions"]
+communication = ["states_correct_amount", "announces_handoff"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/amount" = "The refund for a unit is what was actually paid for it after subtracting its share of the discount."
+"refund-policy/v2/eligible-orders" = "An order that is still shipped cannot be refunded or cancelled through this process, so a staff member handles that request."

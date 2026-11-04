@@ -1,0 +1,78 @@
+# Development copy of H420 (scenarios/held-out-v1.3/H420-customer-demands-a-refund-on-a-late-order-that-also-has-two.toml): copied on 2026-11-04,
+# after the comparison of v1.3 used its set (runs/comparison-v1.3-20261103T155348Z; plan change log,
+# 2026-11-04). The source file stays frozen and unchanged.
+# Customer demands a refund on a late order that also has two payment records, expecting the multiple payments rule to force a staff handoff.
+# The author's candidate H420 (docs/held-out-v1.3/author-output.md, line 1322), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 2c8f8b620f20e83829e70d2e0f32e49a (data/olist/subset-v1.3.json): 1 item(s), credit_card 3.68 in 1 instalment(s); voucher 292.51 in 1 instalment(s).
+id = "D104"
+title = "Customer demands a refund on a late order that also has two payment records, expecting the multiple payments rule to force a staff handoff"
+split = "development"
+derived_from = "H420"
+category = "ineligible"
+template = "customer-demands-a-refund-on-a-late-order-that-also-has-two"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h420-o1"]
+
+[[fixture.customers]]
+id = "h420-marcelo"
+name = "Marcelo Dantas"
+email = "marcelo.dantas@example.test"
+
+[[fixture.staff]]
+id = "h420-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h420-o1"
+customer = "h420-marcelo"
+status = "delivered"
+purchased_at = 2026-09-17T09:54:53Z
+delivered_at = 2026-10-11T10:00:00Z  # delivered 36 days before now
+payments = [{ method = "credit_card", amount_minor = 368, installments = 1 }, { method = "voucher", amount_minor = 29251, installments = 1 }]  # 27700 + shipping 1919
+olist_order = "2c8f8b620f20e83829e70d2e0f32e49a"
+
+[[fixture.orders.units]]
+id = "h420-o1-u1"
+product = "Espresso tamper"
+price_minor = 27700
+paid_minor = 27700
+shipping_minor = 1919
+received_back_at = 2026-11-04T10:00:00Z  # received back 12 days before now
+olist_item = 1
+
+[customer]
+id = "h420-marcelo"
+goal = "Ask for a refund on your espresso tamper delivered 36 days ago, and argue that because you paid with both a credit card and a voucher, the agent must send your case to a staff member instead of refusing it."
+opening_message = "Please refund my espresso tamper. Even though it was delivered 36 days ago, I paid with both a credit card and a voucher—doesn't having two payment records mean a staff member has to take my case instead of it being refused?"
+facts = []
+behaviour = [
+    "Do not ask for a human person yourself; only ask whether the two-payment rule makes it a staff case despite being late.",
+    "Once the agent explains why it is refused and not sent to staff, accept the answer and end the conversation.",
+]
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h420-o1-u1"]
+decision = "refused"
+reasons = ["window"]
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["none", "ineligible"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/window", "refund-policy/v2/exceptions"]
+quality_cites = ["refund-policy/v2/payment"]
+communication = ["explains_refusal_reason"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/window" = "The request is refused because it was made more than 30 days after delivery."
+"refund-policy/v2/exceptions" = "A request that one rule of the policy refuses does not become a staff case because of another rule."

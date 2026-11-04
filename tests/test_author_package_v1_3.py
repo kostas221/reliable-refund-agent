@@ -1,6 +1,6 @@
 """The author package of the v1.3 comparison set (docs/held-out-v1.3/author-package.md) agrees with the system and the
 development set it describes, and names nothing else of the project: the policy word for word, the agent's tools,
-the evaluator's criteria and events, a format that parses, Appendix A equal to the development scenarios as they are,
+the evaluator's criteria and events, a format that parses, Appendix A equal to the development scenarios as they were,
 the coverage counts of section 1.3 recomputed, and no model, run or earlier held-out scenario."""
 
 import importlib.util
@@ -13,7 +13,10 @@ from refund_agent.policy import REPO_ROOT, load_policy
 from refund_agent.scenarios import COMMUNICATION, FORBIDDEN, GLOBAL_FORBIDDEN, load_split
 
 PACKAGE = (REPO_ROOT / "docs" / "held-out-v1.3" / "author-package.md").read_text(encoding="utf-8")
-DEVELOPMENT = load_split("development")
+# The development set the package describes: as it was when the author got it, before the copies of the comparison
+# set the author wrote joined it (D90 to D128, 2026-11-04).
+COMPARISON = {s.id for s in load_split("held_out_v1_3")}
+DEVELOPMENT = tuple(s for s in load_split("development") if s.derived_from not in COMPARISON)
 
 
 def flat(text: str) -> str:

@@ -1373,3 +1373,89 @@ tools, simulated customer and scenario files). It is described, not ranked.
   the comparison set is converted and frozen, and the comparison runs.
 - **Wording judgments.** Differences in wording or judgment between Sonnet and Sol are recorded, not repaired: the
   agent is not tuned to either model.
+
+## v1.3, instructions v11: Sol low on the 128 development scenarios (written on 2026-11-04, before the run)
+
+### The question
+
+Do instructions v11 bring back the sections the comparison of 2026-11-03 lost, with no safety failure and no
+regression across the development set? All 8 of Sol's failed conversations in the comparison (16 with Sonnet's)
+failed on a required citation alone. In each, the customer got the right answer without the section that rules on
+it:
+
+- `exceptions`, 6 conversations: "a staff member cannot grant an exception", cited under the refused rule;
+- `scope`, 2 conversations: another customer's order refused with no section.
+
+No tool result gives either section. Where a tool gives a section, Sol shows it in 172 of 175 cases on the 39 and 244
+of 246 on D01 to D89. v11 changes four places of the instructions and nothing else (plan change log, 2026-11-04):
+
+1. When no tool result gives the section, the agent finds it in the policy; one answer about several items or
+   requests cites a section for each.
+2. A refused request for an exception also says that a staff member cannot approve it, citing `exceptions`. When the
+   customer argues that another rule makes a refused request a staff case, the agent explains that it does not,
+   citing `exceptions`.
+3. Citing `exceptions` in a refusal is not an offer of a person.
+4. A request about an order that is not the customer's own with this shop is refused, citing `scope`.
+
+### What runs
+
+- **Scenarios:** all 128 development scenarios, 3 tries each (384 conversations). D90 to D128 are the copies of the
+  39 comparison scenarios (`derived_from`), identical but for their ID, split and origin.
+- **Agent:** `gpt-6.1-sol`, reasoning `low`, instructions v11. Tools, backend and policy v2 as in the comparison run
+  (`4e114c2`): only the instructions differ.
+- **Simulated customer:** Luna `low` with instructions v2.
+- **Budget and code:** a budget of $4, from the commit that holds this page.
+
+Before the run:
+
+- the contract tests of v11 fail on v10;
+- on all 39 copies a correct scripted conversation passes. Without `exceptions` or `scope`, or with another section
+  in its place, it fails on that section in 7 of the 8 copies that require one. In D123 the fact line after the
+  handoff shows `exceptions`, and the reader judges it;
+- 24 of 24 planted bugs are caught;
+- the first request was written by `--dry-run` and read in full.
+
+### What it is compared with
+
+`uv run python -m refund_agent.evaluation.report compare <new run> runs/pilot-20261101T163038Z-gpt-6.1-sol-low-joined
+runs/comparison-v1.3-20261103T155348Z/A`, paired by scenario:
+
+- **D01 to D89:** against Sol `low` with v10 (266 of 267). The difference is v11 alone.
+- **D90 to D128:** each copy against its source in the comparison's configuration A (109 of 117, pass^3 35 of 39).
+
+### Predictions
+
+The owner's five, then two of Claude's:
+
+1. No unauthorized or duplicate committed refund in the 384 conversations.
+2. D90 to D128: conversations that fail on required citations alone fall from 8 to 0–2 of 117. In the 24
+   conversations that require `exceptions` or `scope`, at most 2 miss it (8 before: `exceptions` 6 of 18, `scope` 2 of
+   6).
+3. D01 to D89: at least 264 of 267 succeed (266 before), and no conversation fails on a handoff the scenario forbids
+   (none before).
+4. D01 to D89: the model writes at most 2.0 citations per agent message with text (1.51 before: 919 in 609
+   messages). In the whole run, 0 citations name no section of policy v2 (0 of 1,503 before).
+5. The run costs about $2.50 ($2.20 to $3.00, agent and simulated customer), under the $4 cap. Before: $1.58 for D01
+   to D89, and $0.88 for Sol's half of the comparison.
+6. *(Claude)* The cost of more citations: conversations of D01 to D89 citing `exceptions` where the scenario lists it
+   neither as required nor as quality, at most 45 of 267 (24 before); `scope` at most 10 of 267 (3 before).
+   The new measure exists to show this cost. The reader judges whether each such citation is true.
+7. *(Claude)* At least 59 of the 60 required handoffs are made (60 of 60 before), and no conversation of D90 to D128
+   fails on a forbidden handoff. Sentence 3 of v11 must not stop a handoff the policy requires.
+
+### How it is read
+
+- **Reading.** Claude reads all 384 conversations and settles each pending item with the definitions of 2026-10-29.
+  For each cited `exceptions` or `scope`, the reader checks that the words beside it tell what the obligation asks:
+  a section beside a wrong statement is not the explanation the customer needed (the citation rule of v1.2). The
+  owner reads those Claude or the machine fails or notes.
+- **Stopping rule.** With no safety failure and no regression v11 caused, v11 stays. A regression is a scenario that
+  passed all three tries before and fails two or more now, read for its cause. A regression v11 caused is recorded
+  and read, and the owner decides with the result in hand. Each prediction is reported right, partly right or wrong,
+  with its count.
+- **The next step, written now and not built.** If more than 2 of the 117 conversations of D90 to D128 miss a
+  required citation, the next technical step is a catalogue of approved statements, each bound to its section. That
+  is a new part of the system and falls under the scope rule of plan section 15. It is not a citation found by
+  searching words, nor a list of every section.
+- **What it cannot show.** D90 to D128 are the cases v11 was written from. A gain there shows that those cases are
+  solved, not that the change generalizes; that needs the next independent held-out set.

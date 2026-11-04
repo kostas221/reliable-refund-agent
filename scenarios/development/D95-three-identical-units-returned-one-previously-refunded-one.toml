@@ -1,0 +1,113 @@
+# Development copy of H406 (scenarios/held-out-v1.3/H406-three-identical-units-returned-one-previously-refunded-one.toml): copied on 2026-11-04,
+# after the comparison of v1.3 used its set (runs/comparison-v1.3-20261103T155348Z; plan change log,
+# 2026-11-04). The source file stays frozen and unchanged.
+# Three identical units returned, one previously refunded, one earlier proposal rejected, customer asks for all three then accepts two.
+# The author's candidate H406 (docs/held-out-v1.3/author-output.md, line 359), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order b58ad6013994eef55be5cdaf76a1a14d (data/olist/subset-v1.3.json): 3 item(s), credit_card 411.24 in 10 instalment(s).
+id = "D95"
+title = "Three identical units returned, one previously refunded, one earlier proposal rejected, customer asks for all three then accepts two"
+split = "development"
+derived_from = "H406"
+category = "eligible"
+template = "three-identical-units-returned-one-previously-refunded-one"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h406-o1"]
+
+[[fixture.customers]]
+id = "h406-eduardo"
+name = "Eduardo Lins"
+email = "eduardo.lins@example.test"
+
+[[fixture.staff]]
+id = "h406-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h406-o1"
+customer = "h406-eduardo"
+status = "delivered"
+purchased_at = 2026-10-13T11:53:19Z
+delivered_at = 2026-10-27T10:00:00Z  # delivered 20 days before now
+payments = [{ method = "credit_card", amount_minor = 41124, installments = 10 }]  # 11900 + shipping 1808 + 11900 + shipping 1808 + 11900 + shipping 1808
+olist_order = "b58ad6013994eef55be5cdaf76a1a14d"
+
+[[fixture.orders.units]]
+id = "h406-o1-u1"
+product = "Porcelain espresso cup"
+price_minor = 11900
+paid_minor = 11900
+shipping_minor = 1808
+received_back_at = 2026-11-04T10:00:00Z  # received back 12 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h406-o1-u2"
+product = "Porcelain espresso cup"
+price_minor = 11900
+paid_minor = 11900
+shipping_minor = 1808
+received_back_at = 2026-11-08T10:00:00Z  # received back 8 days before now
+olist_item = 2
+
+[[fixture.orders.units]]
+id = "h406-o1-u3"
+product = "Porcelain espresso cup"
+price_minor = 11900
+paid_minor = 11900
+shipping_minor = 1808
+received_back_at = 2026-11-08T10:00:00Z  # received back 8 days before now
+olist_item = 3
+
+[[fixture.past_refunds]]
+units = ["h406-o1-u1"]
+committed_at = 2026-11-06T10:00:00Z  # 10 days before now
+receipt_number = "R-H406-0001"
+
+[[fixture.past_proposals]]
+id = "h406-p1"
+units = ["h406-o1-u2", "h406-o1-u3"]
+created_at = 2026-11-11T10:00:00Z  # 5 days before now
+status = "rejected"
+
+[customer]
+id = "h406-eduardo"
+goal = "Ask to refund all three porcelain espresso cups, find out the receipt for the one already paid and whether the earlier staff rejection stops you from trying again, and accept a refund for the two remaining cups."
+opening_message = "I returned all three porcelain espresso cups. Can you refund all three of them now, tell me the receipt for the one that was already refunded, and let me know if the earlier rejected proposal for the other two stops a new request?"
+facts = []
+behaviour = [
+    "Accept the explanation that only two cups remain unrefunded and ask the agent to propose those two cups.",
+    "Decline any human handoff and end after getting the receipt for the two remaining cups.",
+]
+confirms = { units = ["h406-o1-u2", "h406-o1-u3"], amount_minor = 23800 }  # paid(u2) + paid(u3)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h406-o1-u1", "h406-o1-u2", "h406-o1-u3"]
+decision = "refused"
+reasons = ["remaining"]
+
+[[policy_checks]]
+units = ["h406-o1-u2", "h406-o1-u3"]
+decision = "eligible"
+amount_minor = 23800
+
+[expected]
+refunded_units = ["h406-o1-u2", "h406-o1-u3"]
+refund_amount_minor = 23800  # paid(u2) + paid(u3)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/remaining", "refund-policy/v2/approval"]
+quality_cites = ["refund-policy/v2/window"]
+communication = ["explains_refusal_reason", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/remaining" = "Each unit can be refunded only once, so the cup already refunded (with its receipt) cannot be paid again and only the two remaining cups can be refunded."
+"refund-policy/v2/approval" = "A new proposal can be created and submitted for confirmation and staff approval after an earlier rejection."

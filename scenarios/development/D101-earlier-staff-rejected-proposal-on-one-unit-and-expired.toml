@@ -1,0 +1,99 @@
+# Development copy of H414 (scenarios/held-out-v1.3/H414-earlier-staff-rejected-proposal-on-one-unit-and-expired.toml): copied on 2026-11-04,
+# after the comparison of v1.3 used its set (runs/comparison-v1.3-20261103T155348Z; plan change log,
+# 2026-11-04). The source file stays frozen and unchanged.
+# Earlier staff-rejected proposal on one unit and expired proposal on another unit in the same timely order: customer refunds both.
+# The author's candidate H414 (docs/held-out-v1.3/author-output.md, line 919), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 1b7efcda93ef629e74df8b1fcd2b1f92 (data/olist/subset-v1.3.json): 2 item(s), credit_card 143.39 in 3 instalment(s).
+id = "D101"
+title = "Earlier staff-rejected proposal on one unit and expired proposal on another unit in the same timely order: customer refunds both"
+split = "development"
+derived_from = "H414"
+category = "eligible"
+template = "earlier-staff-rejected-proposal-on-one-unit-and-expired"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h414-o1"]
+
+[[fixture.customers]]
+id = "h414-fernanda"
+name = "Fernanda Bastos"
+email = "fernanda.bastos@example.test"
+
+[[fixture.staff]]
+id = "h414-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h414-o1"
+customer = "h414-fernanda"
+status = "delivered"
+purchased_at = 2026-10-15T23:50:55Z
+delivered_at = 2026-10-26T10:00:00Z  # delivered 21 days before now
+payments = [{ method = "credit_card", amount_minor = 14339, installments = 3 }]  # 2690 + shipping 457 + 7990 + shipping 3202
+olist_order = "1b7efcda93ef629e74df8b1fcd2b1f92"
+
+[[fixture.orders.units]]
+id = "h414-o1-u1"
+product = "Quartet wine glasses"
+price_minor = 2690
+paid_minor = 2690
+shipping_minor = 457
+received_back_at = 2026-11-06T10:00:00Z  # received back 10 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h414-o1-u2"
+product = "Crystal decanter"
+price_minor = 7990
+paid_minor = 7990
+shipping_minor = 3202
+received_back_at = 2026-11-06T10:00:00Z  # received back 10 days before now
+olist_item = 2
+
+[[fixture.past_proposals]]
+id = "h414-p1"
+units = ["h414-o1-u1"]
+created_at = 2026-11-10T10:00:00Z  # 6 days before now
+status = "rejected"
+
+[[fixture.past_proposals]]
+id = "h414-p2"
+units = ["h414-o1-u2"]
+created_at = 2026-11-12T10:00:00Z  # 4 days before now
+status = "expired"
+
+[customer]
+id = "h414-fernanda"
+goal = "Refund both your quartet wine glasses (which had a rejected proposal) and your crystal decanter (which had an expired proposal) in a single new refund proposal, and ask why both old proposals ended."
+opening_message = "In my order, I had one proposal for the quartet wine glasses that was rejected by staff, and another proposal for the crystal decanter that expired. Why did the decanter one expire, and can we combine both items into one new proposal right now since I'm still within 30 days?"
+facts = []
+behaviour = [
+    "Confirm the combined proposal for u1 and u2, decline any offer of a human agent, and finish once you get the receipt.",
+]
+confirms = { units = ["h414-o1-u1", "h414-o1-u2"], amount_minor = 10680 }  # paid(u1) + paid(u2)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h414-o1-u1", "h414-o1-u2"]
+decision = "eligible"
+amount_minor = 10680
+
+[expected]
+refunded_units = ["h414-o1-u1", "h414-o1-u2"]
+refund_amount_minor = 10680  # paid(u1) + paid(u2)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/validity", "refund-policy/v2/approval"]
+quality_cites = ["refund-policy/v2/window"]
+communication = ["proposes_without_asking", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/validity" = "A proposal expires 72 hours after creation if not paid, requiring a new proposal."
+"refund-policy/v2/approval" = "Combining the items after the earlier rejection requires a new proposal, customer confirmation, and staff approval."

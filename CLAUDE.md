@@ -395,8 +395,24 @@ Claude read all 234 and changed no machine verdict; Sol 109/117, pass^3 35/39 (b
 B-A -0.9 points (95% -6.8 to +5.1); Sonnet 2.54 times the agent cost; expected cost at $1 per failure $0.076 against
 $0.096. All 16 failures are citations alone (`exceptions` 10, `scope` 5, H464's two 1); 18/18 handoffs and 9/9
 clarifications each; premature cards 10 and 13, unneeded questions 0 and 3. The decision rule, v1.2's rule and the
-$1 criterion all recommend **Sol**; the owner decides. Predictions 8 right, 2 partly, 2 wrong. Next: the owner's
-reading under the recorded rule and the decision; then the handoff checks
+$1 criterion all recommend **Sol**; the owner decides. Predictions 8 right, 2 partly, 2 wrong. The owner's reading
+under the recorded rule is still pending. Instructions v11 (plan change log, 2026-11-04, part A of the owner's
+brief; written, not yet run): every failure of the comparison was a required citation of a section no tool result
+gives, so v11 tells the agent to find such a section in the policy, cite one per item or request, cite `exceptions`
+when the customer asks for an exception or argues that another rule makes a refused request a staff case (citing it
+is no offer of a person), and `scope` for an order that is not the customer's own with this shop; its contract tests
+fail on v10. The 39 copied to development as D90-D128 (`derived_from`; IDs past D99 load and run in the order of
+their numbers; the comparison set spent in the final runner); a copy fails without a required `exceptions` or
+`scope`, or with another section in its place (7 of 8; in D123 the fact line after the handoff shows it). The
+report counts citations per agent message with text, IDs that are no section of the run's policy, and
+`exceptions`/`scope` cited where the scenario lists neither (fact lines apart; baselines on Sol's D01-D89: 1.51, 0, 24
+and 3 of 267; on the 39: 2.24). Mock run, the v11 request read in full (`--dry-run`), 24 of 24 planted bugs (scratchpad
+`planted_v11.py`), 3699 tests and 54 screen tests pass. Predictions written (`docs/pilot/predictions.md`, "v1.3, instructions v11"); the paid
+run (Sol low, 128 scenarios x 3, budget $4) is the owner's, after the commit. Recorded, not built: if more than 2 of
+the 117 conversations of D90-D128 miss a required citation, a catalogue of approved statements bound to sections is
+examined (scope rule, §15). Part B, after that run is read: Haiku 5.5 medium with v11 and with Anthropic Citations
+on D90-D128 against Sol with v11 (the owner reads Haiku's prices; one paid test conversation first); at most a place
+in the next held-out set, never a change of model; it reverses 2026-11-01's "no Haiku trial". Then the handoff checks
 and the five-person trial. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
 `runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run

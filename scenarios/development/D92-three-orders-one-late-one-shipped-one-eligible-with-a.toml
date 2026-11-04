@@ -1,0 +1,127 @@
+# Development copy of H403 (scenarios/held-out-v1.3/H403-three-orders-one-late-one-shipped-one-eligible-with-a.toml): copied on 2026-11-04,
+# after the comparison of v1.3 used its set (runs/comparison-v1.3-20261103T155348Z; plan change log,
+# 2026-11-04). The source file stays frozen and unchanged.
+# Three orders: one late, one shipped, one eligible with a discounted item and boletobancario payment.
+# The author's candidate H403 (docs/held-out-v1.3/author-output.md, line 145), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 3b35dfd8bf0ca772d83708ba283e1143 (data/olist/subset-v1.3.json): 1 item(s), credit_card 101.14 in 8 instalment(s).
+# Olist order 868b169b8545e9a1f6390f46814c79d1 (data/olist/subset-v1.3.json): 1 item(s), boleto 104.76 in 1 instalment(s).
+# Olist order b6acc7697ffc9caac96d5d86d80ea71d (data/olist/subset-v1.3.json): 1 item(s), credit_card 119.80 in 10 instalment(s).
+id = "D92"
+title = "Three orders: one late, one shipped, one eligible with a discounted item and boletobancario payment"
+split = "development"
+derived_from = "H403"
+category = "eligible"
+template = "three-orders-one-late-one-shipped-one-eligible-with-a"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h403-o1", "h403-o2", "h403-o3"]
+
+[[fixture.customers]]
+id = "h403-larissa"
+name = "Larissa Antunes"
+email = "larissa.antunes@example.test"
+
+[[fixture.staff]]
+id = "h403-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h403-o1"
+customer = "h403-larissa"
+status = "delivered"
+purchased_at = 2026-10-06T17:41:44Z
+delivered_at = 2026-10-12T10:00:00Z  # delivered 35 days before now
+payments = [{ method = "credit_card", amount_minor = 10114, installments = 8 }]  # 8990 + shipping 1124
+olist_order = "3b35dfd8bf0ca772d83708ba283e1143"
+
+[[fixture.orders.units]]
+id = "h403-o1-u1"
+product = "Velvet throw pillow"
+price_minor = 8990
+paid_minor = 8990
+shipping_minor = 1124
+received_back_at = 2026-11-06T10:00:00Z  # received back 10 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "h403-o2"
+customer = "h403-larissa"
+status = "delivered"
+purchased_at = 2026-10-23T01:39:12Z
+delivered_at = 2026-11-04T10:00:00Z  # delivered 12 days before now
+payments = [{ method = "boleto", amount_minor = 10476, installments = 1 }]  # 8690 + shipping 1786
+olist_order = "868b169b8545e9a1f6390f46814c79d1"
+
+[[fixture.orders.units]]
+id = "h403-o2-u2"
+product = "Brass desk lamp"
+price_minor = 10863  # listed 25% above what was paid
+paid_minor = 8690
+shipping_minor = 1786
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "h403-o3"
+customer = "h403-larissa"
+status = "shipped"
+purchased_at = 2026-11-14T10:00:00Z
+# no delivered_at: bought 2 days before now
+payments = [{ method = "credit_card", amount_minor = 11980, installments = 10 }]  # 9862 + shipping 2118
+olist_order = "b6acc7697ffc9caac96d5d86d80ea71d"
+
+[[fixture.orders.units]]
+id = "h403-o3-u3"
+product = "Acrylic monitor stand"
+price_minor = 9862
+paid_minor = 9862
+shipping_minor = 2118
+olist_item = 1
+
+[customer]
+id = "h403-larissa"
+goal = "Ask to refund all three of your orders (the velvet throw pillow, the brass desk lamp, and the acrylic monitor stand), then accept whatever the policy allows and complete the refund for the eligible item."
+opening_message = "Hello, I'd like to get refunds for all three of my orders: the velvet throw pillow, the brass desk lamp, and the acrylic monitor stand. Also, why is the desk lamp refund less than its listed price?"
+facts = []
+behaviour = [
+    "When told that the pillow is too late and the monitor stand is still shipping, accept that and ask to proceed with just the brass desk lamp.",
+    "Decline any offer to speak to a staff member about cancelling the shipped order, and finish once the desk lamp refund receipt is given.",
+]
+confirms = { units = ["h403-o2-u2"], amount_minor = 8690 }  # paid(u2)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h403-o1-u1"]
+decision = "refused"
+reasons = ["window"]
+
+[[policy_checks]]
+units = ["h403-o2-u2"]
+decision = "eligible"
+amount_minor = 8690
+
+[[policy_checks]]
+units = ["h403-o3-u3"]
+decision = "refused"
+reasons = ["eligible-orders", "return"]
+
+[expected]
+refunded_units = ["h403-o2-u2"]
+refund_amount_minor = 8690  # paid(u2)
+last_proposal_status = ["refunded"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/window", "refund-policy/v2/eligible-orders", "refund-policy/v2/amount"]
+quality_cites = []
+communication = ["explains_refusal_reason", "states_correct_amount", "gives_this_receipt"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/window" = "The velvet throw pillow order was delivered more than 30 days ago, so it is past the refund deadline."
+"refund-policy/v2/eligible-orders" = "The acrylic monitor stand order has not been delivered yet, so it cannot be refunded through this process."
+"refund-policy/v2/amount" = "The brass desk lamp is refunded for the amount actually paid after its discount share, not the listed price."

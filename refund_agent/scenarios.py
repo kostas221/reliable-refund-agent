@@ -378,7 +378,8 @@ class Expected(BaseModel):
 class Scenario(BaseModel):
     model_config = _STRICT
 
-    id: str = Field(pattern=r"^([DH][0-9]{2}|[HS][0-9]{3}|S[0-9]{2})$")  # v1.2 numbers its held-out set from H101
+    # v1.2 numbers its held-out set from H101; development passed D99 with the copies of v1.3's set (2026-11-04)
+    id: str = Field(pattern=r"^([DH][0-9]{2}|[DHS][0-9]{3}|S[0-9]{2})$")
     title: Text
     split: Split
     category: Category
@@ -542,11 +543,17 @@ def freeze(directory: Path, header: list[str]) -> Path:
     return path
 
 
+def id_order(scenario_id: str) -> tuple[str, int]:
+    """Scenario IDs in the order of their numbers, D99 before D100, where the names alone would sort D100 before D11."""
+    return scenario_id[0], int(scenario_id[1:])
+
+
 def load_split(split: Split) -> tuple[Scenario, ...]:
     directory = SPLIT_DIRS[split]
     if split in HELD_OUT_SPLITS and (directory / FROZEN).exists():
         check_frozen(directory)
-    scenarios = tuple(load_scenario(path) for path in sorted(directory.glob("*.toml"))) if directory.exists() else ()
+    paths = sorted(directory.glob("*.toml"), key=lambda path: id_order(path.name.split("-", 1)[0]))
+    scenarios = tuple(load_scenario(path) for path in paths) if directory.exists() else ()
     wrong = [s.id for s in scenarios if s.split != split]
     if wrong:
         raise ValueError(f"scenarios in {directory.name}/ declare another split: {wrong}")
@@ -657,6 +664,10 @@ DERIVE_NOTE_V1_1 = (
     "copied on 2026-10-27,\n# after the final evaluation of v1.1 used its held-out set (plan change log, 2026-10-27). "
     "The held-out file\n# stays frozen and unchanged; this copy follows the citation rule of v1.2."
 )
+DERIVE_NOTE_V1_3 = (
+    "copied on 2026-11-04,\n# after the comparison of v1.3 used its set (runs/comparison-v1.3-20261103T155348Z; plan "
+    "change log,\n# 2026-11-04). The source file stays frozen and unchanged."
+)
 
 
 def main() -> None:
@@ -671,6 +682,7 @@ def main() -> None:
             "held_out_v1_1": DERIVE_NOTE_V1_1,
             "held_out_v1_2": DERIVE_NOTE_V1_2,
             "stress_v1_2": DERIVE_NOTE_V1_2,
+            "held_out_v1_3": DERIVE_NOTE_V1_3,
         }
         for held_out_id, new_id in zip(pairs[::2], pairs[1::2], strict=True):
             (source,) = (path for split in notes for path in SPLIT_DIRS[split].glob(f"{held_out_id}-*.toml"))

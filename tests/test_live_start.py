@@ -37,7 +37,7 @@ def test_live_mode_defaults_to_the_products_model(key):
         (["--live", "--budget-usd", "6", "--prices-checked", "2026-11-01"], "at most 5.00"),
         (["--live", "--budget-usd", "1"], "--prices-checked"),
         (["--live", "--budget-usd", "1", "--prices-checked", str(date.today() + timedelta(days=1))], "prices"),
-        (["--scenario", "D99"], "no development scenario"),
+        (["--scenario", "D999"], "no development scenario"),  # D99 exists since 2026-11-04
     ],
 )
 def test_the_server_refuses_to_start_without_what_it_needs(key, argv, reason):

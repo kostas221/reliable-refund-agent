@@ -1,0 +1,97 @@
+# Development copy of H465 (scenarios/held-out-v1.3/H465-customer-keeps-initial-single-unit-proposal-open-cards-other.toml): copied on 2026-11-04,
+# after the comparison of v1.3 used its set (runs/comparison-v1.3-20261103T155348Z; plan change log,
+# 2026-11-04). The source file stays frozen and unchanged.
+# Customer keeps initial single-unit proposal open (cards.other = wait), replaces it with a two-unit proposal, staff rejects, and customer asks for a person.
+# The author's candidate H465 (docs/held-out-v1.3/author-output-2.md, line 272), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order c62b78b3cfa029c72cee31aa8280c9cf (data/olist/subset-v1.3.json): 2 item(s), credit_card 249.84 in 10 instalment(s).
+id = "D123"
+title = "Customer keeps initial single-unit proposal open (cards.other = wait), replaces it with a two-unit proposal, staff rejects, and customer asks for a person"
+split = "development"
+derived_from = "H465"
+category = "clarification_handoff"
+template = "customer-keeps-initial-single-unit-proposal-open-cards-other"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h465-o1"]
+
+[[fixture.customers]]
+id = "h465-fabiana"
+name = "Fabiana Cunha"
+email = "fabiana.cunha@example.test"
+
+[[fixture.staff]]
+id = "h465-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h465-o1"
+customer = "h465-fabiana"
+status = "delivered"
+purchased_at = 2026-10-10T14:10:34Z
+delivered_at = 2026-11-03T10:00:00Z  # delivered 13 days before now
+payments = [{ method = "credit_card", amount_minor = 24984, installments = 10 }]  # 11690 + shipping 1652 + 9990 + shipping 1652
+olist_order = "c62b78b3cfa029c72cee31aa8280c9cf"
+
+[[fixture.orders.units]]
+id = "h465-o1-u1"
+product = "Stoneware dinner plate"
+price_minor = 11690
+paid_minor = 11690
+shipping_minor = 1652
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h465-o1-u2"
+product = "Stoneware salad plate"
+price_minor = 9990
+paid_minor = 9990
+shipping_minor = 1652
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 2
+
+[customer]
+id = "h465-fabiana"
+goal = "Start by asking to refund only the stoneware dinner plate, then once that card appears, ask to change the proposal to include both the dinner plate and the salad plate; after staff rejects the combined proposal, ask for a human agent."
+opening_message = "Please create a refund proposal for my returned stoneware dinner plate."
+facts = [
+    { text = "Once the first proposal card for the dinner plate appears, you want to add the stoneware salad plate so both plates are refunded together, and you want to know what the rule is for changing a proposal.", reveal = "upfront" },
+]
+behaviour = [
+    "Wait for the proposal card for u1, then ask how changing a proposal works and ask to replace it with a proposal for both u1 and u2.",
+    "Confirm the combined proposal for u1 and u2.",
+    "When the agent tells you the staff member rejected the proposal, ask to speak to a human support person, accept the handoff, and end.",
+]
+confirms = { units = ["h465-o1-u1", "h465-o1-u2"], amount_minor = 21680 }  # paid(u1) + paid(u2)
+cards = { other = "wait", after_confirming = "keep" }
+
+[staff]
+decision = "reject"
+note = "Both stoneware plates arrived cracked due to insufficient return packaging."
+
+[[policy_checks]]
+units = ["h465-o1-u1"]
+decision = "eligible"
+amount_minor = 11690
+
+[[policy_checks]]
+units = ["h465-o1-u1", "h465-o1-u2"]
+decision = "eligible"
+amount_minor = 21680
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["rejected"]
+handoff = "required"
+handoff_origins = ["customer"]
+cites = ["refund-policy/v2/approval", "refund-policy/v2/exceptions"]
+quality_cites = []
+communication = ["states_correct_amount", "reports_rejection_truthfully", "announces_handoff"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/approval" = "Changing the items in a proposal requires a new proposal, confirmation, and approval, and when a staff member rejects a proposal, their reason is reported to the customer."
+"refund-policy/v2/exceptions" = "A person takes over the conversation when the customer asks for one."

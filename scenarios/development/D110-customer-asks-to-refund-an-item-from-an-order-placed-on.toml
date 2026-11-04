@@ -1,0 +1,77 @@
+# Development copy of H427 (scenarios/held-out-v1.3/H427-customer-asks-to-refund-an-item-from-an-order-placed-on.toml): copied on 2026-11-04,
+# after the comparison of v1.3 used its set (runs/comparison-v1.3-20261103T155348Z; plan change log,
+# 2026-11-04). The source file stays frozen and unchanged.
+# Customer asks to refund an item from an order placed on another shop's website (out of scope) and a late item from this shop.
+# The author's candidate H427 (docs/held-out-v1.3/author-output.md, line 1746), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 18edd05059b88de37d5667ff54a192bd (data/olist/subset-v1.3.json): 1 item(s), credit_card 77.90 in 5 instalment(s).
+id = "D110"
+title = "Customer asks to refund an item from an order placed on another shop's website (out of scope) and a late item from this shop"
+split = "development"
+derived_from = "H427"
+category = "ineligible"
+template = "customer-asks-to-refund-an-item-from-an-order-placed-on"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h427-o1"]
+
+[[fixture.customers]]
+id = "h427-leandro"
+name = "Leandro Paiva"
+email = "leandro.paiva@example.test"
+
+[[fixture.staff]]
+id = "h427-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h427-o1"
+customer = "h427-leandro"
+status = "delivered"
+purchased_at = 2026-09-30T13:46:18Z
+delivered_at = 2026-10-12T10:00:00Z  # delivered 35 days before now
+payments = [{ method = "credit_card", amount_minor = 7790, installments = 5 }]  # 5990 + shipping 1800
+olist_order = "18edd05059b88de37d5667ff54a192bd"
+
+[[fixture.orders.units]]
+id = "h427-o1-u1"
+product = "Ceramic butter dish"
+price_minor = 5990
+paid_minor = 5990
+shipping_minor = 1800
+received_back_at = 2026-11-06T10:00:00Z  # received back 10 days before now
+olist_item = 1
+
+[customer]
+id = "h427-leandro"
+goal = "Ask the agent to refund both a toaster you bought at a completely different retailer and your ceramic butter dish from this shop delivered 35 days ago, and ask what orders this policy covers."
+opening_message = "Hi, can you refund a stainless toaster I bought on another store's website last week, and also refund my ceramic butter dish from my order here delivered 35 days ago? What does your refund policy cover?"
+facts = []
+behaviour = [
+    "Accept the refusal for both items once the agent explains the scope of the policy and the 30-day deadline, decline any offer of a human agent, and finish.",
+]
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h427-o1-u1"]
+decision = "refused"
+reasons = ["window"]
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["none", "ineligible"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/scope", "refund-policy/v2/window"]
+quality_cites = []
+communication = ["explains_refusal_reason"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/scope" = "This policy covers only items in orders that the signed-in customer placed with the demo shop."
+"refund-policy/v2/window" = "The ceramic butter dish order was delivered more than 30 days ago, so it is past the 30-day refund deadline."

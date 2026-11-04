@@ -182,3 +182,15 @@ def test_each_line_is_shown_as_soon_as_it_is_printed(monkeypatch):
     monkeypatch.setattr(sys, "stdout", pipe)
     assert pilot.main(["--dry-run"]) == 0
     assert pipe.line_buffering is True
+
+
+def test_tries_run_scenario_by_scenario_in_the_order_of_their_numbers():
+    # Past D99 (2026-11-04) the names alone would run D100 before D11.
+    assert pilot.try_order({"D100": 0, "D11": 0, "D99": 0}, 2) == [
+        ("D11", 1),
+        ("D11", 2),
+        ("D99", 1),
+        ("D99", 2),
+        ("D100", 1),
+        ("D100", 2),
+    ]

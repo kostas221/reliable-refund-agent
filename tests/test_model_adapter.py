@@ -89,7 +89,7 @@ def test_the_instructions_name_only_real_tools_and_handoff_reasons():
     arguments = {name for tool in TOOLS.values() for name in tool.args.model_fields}
     assert named and named <= set(TOOLS) | arguments | set(HANDOFF_REASONS)
     assert set(HANDOFF_REASONS) <= named  # every reason the backend accepts is explained to the agent
-    assert INSTRUCTIONS.version == "agent-v10" and len(INSTRUCTIONS.sha256) == 64
+    assert INSTRUCTIONS.version == "agent-v11" and len(INSTRUCTIONS.sha256) == 64
 
 
 def test_every_citation_the_instructions_quote_exists_in_their_policy():
@@ -113,7 +113,7 @@ def test_the_instructions_hold_every_section_of_the_policy_under_its_id():
 
 
 def test_instructions_that_include_the_policy_need_it():
-    with pytest.raises(ValueError, match="agent-v10.md includes the policy"):
+    with pytest.raises(ValueError, match="agent-v11.md includes the policy"):
         load_instructions()
 
 
@@ -169,3 +169,92 @@ def test_version_10_changes_only_that_sentence():
     added += "after it arrives would be late too, and never that it can be refunded once it arrives."
     flat9, flat10 = " ".join(v9.split()), " ".join(v10.split())
     assert flat10 == flat9.replace("refund already under way.", "refund already under way;" + added, 1)
+
+
+# Version 11 (plan change log, 2026-11-04): all 16 failed conversations of the v1.3 comparison failed on a required
+# citation alone, in each the right words under the wrong section or none: "a staff member cannot grant an exception"
+# cited under the refused rule, another customer's order refused with no section, three refusals in one answer under
+# one citation. No tool result gives `exceptions` or `scope`, so v10 left the agent to find them unprompted.
+
+
+def test_a_section_no_tool_result_gives_is_found_in_the_policy():
+    assert (
+        "When no tool result gives the section, as for a refusal you give without calling a tool, find it in the "
+        "policy at the end of these instructions, where each section is under its citation ID." in SAID
+    )
+
+
+def test_each_item_or_request_of_one_answer_gets_its_own_section():
+    assert (
+        "When one answer rests on the policy for several items or requests, cite the section for each: one citation "
+        "does not cover the others." in SAID
+    )
+
+
+def test_a_refused_exception_cites_exceptions_beside_the_rules_reason():
+    assert "is refused with that rule's reason and section;" in SAID
+    assert (
+        "When the customer asks for an exception, or for a staff member to allow what a rule refuses, say also that a "
+        "staff member cannot approve a refund the policy does not allow (refund-policy/v2/exceptions)." in SAID
+    )
+    assert (
+        "When the customer says that another rule, such as one that sends a case to a staff member, should change a "
+        "refusal, explain that a request one rule refuses does not become a staff case because of another rule "
+        "(refund-policy/v2/exceptions)." in SAID
+    )
+
+
+def test_citing_exceptions_is_no_offer_of_a_person():
+    # The section that refuses exceptions also names the cases for a person; citing it must not become a handoff.
+    assert (
+        "Citing (refund-policy/v2/exceptions) in a refusal neither offers a person nor makes the request a case for "
+        "one." in SAID
+    )
+
+
+def test_an_order_that_is_not_the_customers_cites_scope():
+    assert (
+        "A request about an order that is not the signed-in customer's own order with this shop, such as another "
+        "customer's order or a purchase from another store, is refused with the reason that the policy covers only "
+        "those orders (refund-policy/v2/scope)." in SAID
+    )
+
+
+def test_version_11_changes_only_those_sentences():
+    v10 = " ".join((REPO_ROOT / "prompts" / "agent-v10.md").read_text(encoding="utf-8").split())
+    v11 = " ".join((REPO_ROOT / "prompts" / "agent-v11.md").read_text(encoding="utf-8").split())
+    exceptions, scope = "(refund-policy/v2/exceptions)", "(refund-policy/v2/scope)"
+    changes = [
+        (
+            "The whole policy is at the end of these instructions, each section under its citation ID.",
+            "When no tool result gives the section, as for a refusal you give without calling a tool, find it in the "
+            "policy at the end of these instructions, where each section is under its citation ID. When one answer "
+            "rests on the policy for several items or requests, cite the section for each: one citation does not cover "
+            "the others.",
+        ),
+        (
+            "is refused with that rule's reason; say in words what the policy allows, and propose it only when the "
+            "customer says they want it.",
+            "is refused with that rule's reason and section; say in words what the policy allows, and propose it only "
+            "when the customer says they want it. When the customer asks for an exception, or for a staff member to "
+            "allow what a rule refuses, say also that a staff member cannot approve a refund the policy does not allow "
+            f"{exceptions}. When the customer says that another rule, such as one that sends a case to a staff member, "
+            "should change a refusal, explain that a request one rule refuses does not become a staff case because of "
+            f"another rule {exceptions}.",
+        ),
+        (
+            "the customer can still ask for one. Use",
+            f"the customer can still ask for one. Citing {exceptions} in a refusal neither offers a person nor makes "
+            "the request a case for one. Use",
+        ),
+        (
+            "Never reveal anything about other customers.",
+            "Never reveal anything about other customers. A request about an order that is not the signed-in "
+            "customer's own order with this shop, such as another customer's order or a purchase from another store, "
+            f"is refused with the reason that the policy covers only those orders {scope}.",
+        ),
+    ]
+    for old, new in changes:
+        assert v10.count(old) == 1, old
+        v10 = v10.replace(old, new)
+    assert v11 == v10

@@ -40,7 +40,7 @@ from refund_agent.evaluation.customers import SIMULATOR_INSTRUCTIONS, simulator_
 from refund_agent.evaluation.runner import CUT_OFF
 from refund_agent.evaluation.trials import Batch, awake, line_by_line, run_try
 from refund_agent.policy import REPO_ROOT
-from refund_agent.scenarios import load_split, policy_for
+from refund_agent.scenarios import id_order, load_split, policy_for
 
 PREDICTIONS = REPO_ROOT / "docs" / "pilot" / "predictions.md"
 RUNS = REPO_ROOT / "runs"
@@ -123,6 +123,11 @@ def dry_run(args: argparse.Namespace, scenarios: dict) -> None:
     )
 
 
+def try_order(scenario_ids, repeats: int) -> list[tuple[str, int]]:
+    """Each scenario's tries one after another, the scenarios in the order of their numbers: D99 before D100."""
+    return [(s, attempt) for s in sorted(scenario_ids, key=id_order) for attempt in range(1, repeats + 1)]
+
+
 def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str) -> int:
     policy = policy_for(scenarios.values())
     started = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -137,7 +142,7 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
         "simulator_reasoning": args.simulator_reasoning,
         "configuration": "A",
         "repeats": args.repeats,
-        "scenarios": sorted(scenarios),
+        "scenarios": sorted(scenarios, key=id_order),
         "prices_usd_per_1m": PRICES[args.model],
         "simulator_prices_usd_per_1m": PRICES[args.simulator_model],
         "prices_checked": args.prices_checked.isoformat(),
@@ -157,7 +162,7 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
     not_tested = 0  # tries in which an attack planted in the data never reached the agent
     try:
         with Batch("refund_pilot") as batch, awake():
-            for scenario_id, attempt in [(s, t) for s in sorted(scenarios) for t in range(1, args.repeats + 1)]:
+            for scenario_id, attempt in try_order(scenarios, args.repeats):
                 outcome = run_try(
                     batch,
                     scenarios[scenario_id],
@@ -203,7 +208,7 @@ def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str)
     every = [s for s, n in clean.items() if n == args.repeats]
     print(
         f"Without a machine failure in every try: {len(every)} of {len(clean)} scenarios ("
-        + ", ".join(f"{s} {n}/{args.repeats}" for s, n in sorted(clean.items()))
+        + ", ".join(f"{s} {clean[s]}/{args.repeats}" for s in sorted(clean, key=id_order))
         + "). Machine items only, before anyone reads the conversations."
     )
     if not_tested:

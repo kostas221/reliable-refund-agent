@@ -15,6 +15,8 @@ from refund_agent.evaluation import final, manifest
 from refund_agent.policy import REPO_ROOT
 from refund_agent.scenarios import SPLIT_DIRS, FrozenError, load_split
 
+V1_3 = final.SETS["held_out_v1_3"]  # as the runner has it, before a test stands in for it
+
 
 @pytest.fixture(autouse=True)
 def no_openai_client(monkeypatch, tmp_path):
@@ -24,9 +26,10 @@ def no_openai_client(monkeypatch, tmp_path):
     monkeypatch.setattr(openai, "OpenAI", refuse)
     monkeypatch.setattr(anthropic, "Anthropic", refuse)
     monkeypatch.setattr(final, "RUNS", tmp_path)
-    # The set's targets and predictions are written just before the run: any committed file stands in for them here.
+    # A set that may still run, with its targets and predictions written just before the run: no such set exists since
+    # v1.3's was spent (2026-11-04), so v1.3's set stands in for one, unspent, and any committed file for its documents.
     protocol = REPO_ROOT / "docs" / "held-out-v1.3" / "protocol.md"
-    stand_in = replace(final.SETS["held_out_v1_3"], targets=protocol, predictions=protocol)
+    stand_in = replace(V1_3, targets=protocol, predictions=protocol, spent="")
     monkeypatch.setitem(final.SETS, "held_out_v1_3", stand_in)
     monkeypatch.setattr(final, "paid_run", lambda *args: pytest.fail("a paid run started"))
 
@@ -169,6 +172,14 @@ def test_v1_1s_set_is_spent(ready, capsys):
 def test_v1_2s_sets_are_spent(ready, capsys, name, said):
     assert final.main(["--set", name, *READY[2:]]) == 1
     assert said in capsys.readouterr().out
+    assert ready == []
+
+
+def test_v1_3s_comparison_set_is_spent(ready, monkeypatch, capsys):
+    # Its 39 scenarios are development copies now (D90 to D128), run and tuned on: never held out again.
+    monkeypatch.setitem(final.SETS, "held_out_v1_3", V1_3)
+    assert final.main(READY) == 1
+    assert "v1.3's comparison set is spent: it ran on 2026-11-03" in capsys.readouterr().out
     assert ready == []
 
 

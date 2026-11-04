@@ -55,12 +55,14 @@ SETS = {
         spent="v1.2's stress set is spent: it ran on 2026-10-30 (runs/stress-v1.2-20261030T174734Z)",
     ),
     # v1.3: the 39 scenarios that compare the product's model with an Anthropic model (docs/held-out-v1.3/protocol.md),
-    # run by the comparison's two configurations, not the final evaluations' three.
+    # run by the comparison's two configurations, not the final evaluations' three. Spent since its copies D90 to D128
+    # joined development (plan change log, 2026-11-04).
     "held_out_v1_3": HeldOutSet(
         "held_out_v1_3",
         REPO_ROOT / "docs" / "held-out-v1.3" / "quality-targets.md",
         REPO_ROOT / "docs" / "held-out-v1.3" / "predictions.md",
         "comparison-v1.3",
+        spent="v1.3's comparison set is spent: it ran on 2026-11-03 (runs/comparison-v1.3-20261103T155348Z)",
         configurations="comparison",
     ),
 }

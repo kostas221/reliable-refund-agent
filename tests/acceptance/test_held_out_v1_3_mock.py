@@ -539,10 +539,10 @@ CORRECT = {
 def play(db):
     connections = []
 
-    def run(scenario_id: str, mock: MockRun):
+    def run(scenario_id: str, mock: MockRun, scenario=None):
         app = db("app")
         connections.append(database.checkpoint_connection("app", app.url.database))
-        scenario = SET[scenario_id]
+        scenario = scenario or SET[scenario_id]
         return run_scenario(
             scenario,
             ScriptedCustomer(scenario, mock.customer),
@@ -658,3 +658,65 @@ def test_a_handoff_where_the_scenario_forbids_one_fails_h420(play):
     result = play("H420", MockRun(agent=agent, customer=("Then I want to talk to a person.",)))
     assert result.refusals == [], result.refusals
     assert "handoff" in result.verdict.names("failed"), result.verdict.report()
+
+
+# The development copies of the set (D90 to D128, 2026-11-04) are judged as their sources were: the same correct
+# conversations pass on them. Every failure of the comparison was a required `exceptions` or `scope` left out or given
+# under another section, and a copy must fail so too. The evaluator checks only that the section is shown; whether the
+# words beside it tell what the obligation asks is the reader's to judge (the citation rule of v1.2,
+# docs/v1.2/citation-rule.md), so no test here looks for words.
+
+COPIES = {s.derived_from: s for s in load_split("development") if s.derived_from in SET}
+EXCEPTIONS, SCOPE = "refund-policy/v2/exceptions", "refund-policy/v2/scope"
+NEEDS = [(sid, c) for sid, s in SET.items() for c in s.expected.cites if c in (EXCEPTIONS, SCOPE)]
+
+
+def test_every_scenario_of_the_set_has_its_development_copy():
+    assert set(COPIES) == set(SET)
+    assert [copy.id for copy in COPIES.values()] == [f"D{n}" for n in range(90, 129)]
+
+
+def test_the_copies_require_exceptions_and_scope_where_their_sources_do():
+    assert NEEDS == [
+        ("H404", EXCEPTIONS),
+        ("H420", EXCEPTIONS),
+        ("H421", EXCEPTIONS),
+        ("H427", SCOPE),
+        ("H428", EXCEPTIONS),
+        ("H432", SCOPE),
+        ("H441", EXCEPTIONS),
+        ("H465", EXCEPTIONS),
+    ]
+    for sid, section in NEEDS:
+        assert COPIES[sid].expected.obligations[section] == SET[sid].expected.obligations[section]
+
+
+@pytest.mark.parametrize("scenario_id", list(SET))
+def test_a_correct_conversation_passes_on_the_development_copy(play, scenario_id):
+    result = play(scenario_id, CORRECT[scenario_id], scenario=COPIES[scenario_id])
+    assert (result.system_error, result.refusals) == (None, []), result.refusals
+    assert result.verdict.names("failed") == [], result.verdict.report()
+    assert result.verdict.with_audit(lenient_audit(result.verdict)).result == "passed"
+
+
+@pytest.mark.parametrize("instead", ["", "(refund-policy/v2/payout)"], ids=["left out", "under another section"])
+@pytest.mark.parametrize(("scenario_id", "section"), NEEDS)
+def test_a_copy_fails_on_exceptions_or_scope_not_shown(play, scenario_id, section, instead):
+    mock = CORRECT[scenario_id]
+    said = [step for step in mock.agent if isinstance(step, Say) and section in step.text]
+    assert said, scenario_id  # the correct conversation cites it, so the change below is real
+    agent = tuple(
+        Say(step.text.replace(f" ({section})", f" {instead}" if instead else "")) if step in said else step
+        for step in mock.agent
+    )
+    result = play(scenario_id, MockRun(agent=agent, customer=mock.customer), scenario=COPIES[scenario_id])
+    by_fact_line = any(section in m["text"] for m in result.messages if m.get("fact_line"))
+    if scenario_id == "H465":
+        # After a handoff the fact line gives the handoff's sections the announcement left out (agent/facts.py): there
+        # the section is shown by the product, and the reader judges it like any other.
+        assert by_fact_line, result.messages
+        assert result.verdict.item(f"cites:{section}").status == "pending", result.verdict.report()
+        return
+    assert not by_fact_line
+    assert result.verdict.names("failed") == [f"cites:{section}"], result.verdict.report()
+    assert result.verdict.item(f"cites:{section}").evidence == "not shown in any agent message"

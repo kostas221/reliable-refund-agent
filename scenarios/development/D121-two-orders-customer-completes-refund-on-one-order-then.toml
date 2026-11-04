@@ -1,0 +1,104 @@
+# Development copy of H462 (scenarios/held-out-v1.3/H462-two-orders-customer-completes-refund-on-one-order-then.toml): copied on 2026-11-04,
+# after the comparison of v1.3 used its set (runs/comparison-v1.3-20261103T155348Z; plan change log,
+# 2026-11-04). The source file stays frozen and unchanged.
+# Two orders: customer completes refund on one order, then reports that a second order paid with two payment methods is missing its return scan after being mailed.
+# The author's candidate H462 (docs/held-out-v1.3/author-output-2.md, line 67), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order d1d5e63e127f2c8bfa668d7073a89299 (data/olist/subset-v1.3.json): 1 item(s), credit_card 108.24 in 4 instalment(s).
+# Olist order 2e6d2d54826e3dc0cf96b86f6d029dbf (data/olist/subset-v1.3.json): 1 item(s), credit_card 12.47 in 1 instalment(s); voucher 50.00 in 1 instalment(s).
+id = "D121"
+title = "Two orders: customer completes refund on one order, then reports that a second order paid with two payment methods is missing its return scan after being mailed"
+split = "development"
+derived_from = "H462"
+category = "clarification_handoff"
+template = "two-orders-customer-completes-refund-on-one-order-then"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h462-o1", "h462-o2"]
+
+[[fixture.customers]]
+id = "h462-monica"
+name = "Monica Brito"
+email = "monica.brito@example.test"
+
+[[fixture.staff]]
+id = "h462-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h462-o1"
+customer = "h462-monica"
+status = "delivered"
+purchased_at = 2026-11-01T01:19:15Z
+delivered_at = 2026-11-05T10:00:00Z  # delivered 11 days before now
+payments = [{ method = "credit_card", amount_minor = 10824, installments = 4 }]  # 9980 + shipping 844
+olist_order = "d1d5e63e127f2c8bfa668d7073a89299"
+
+[[fixture.orders.units]]
+id = "h462-o1-u1"
+product = "Brass bookends"
+price_minor = 9980
+paid_minor = 9980
+shipping_minor = 844
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 1
+
+[[fixture.orders]]
+id = "h462-o2"
+customer = "h462-monica"
+status = "delivered"
+purchased_at = 2026-10-27T09:52:39Z
+delivered_at = 2026-11-07T10:00:00Z  # delivered 9 days before now
+payments = [{ method = "credit_card", amount_minor = 1247, installments = 1 }, { method = "voucher", amount_minor = 5000, installments = 1 }]  # 4999 + shipping 1248
+olist_order = "2e6d2d54826e3dc0cf96b86f6d029dbf"
+
+[[fixture.orders.units]]
+id = "h462-o2-u2"
+product = "Leather desk blotter"
+price_minor = 4999
+paid_minor = 4999
+shipping_minor = 1248
+olist_item = 1
+
+[customer]
+id = "h462-monica"
+goal = "First get a refund and receipt for your brass bookends, and once that refund is paid, ask to refund your leather desk blotter from your other order, explaining that you already mailed it back five days ago."
+opening_message = "Hi, please refund the brass bookends I returned first."
+facts = [
+    { text = "After you receive the receipt for the brass bookends, you want to refund the leather desk blotter from your second order, which you already shipped back 5 days ago via postal drop-off.", reveal = "upfront" },
+]
+behaviour = [
+    "Confirm the proposal for u1 first and wait until the agent gives you the receipt.",
+    "After getting the receipt for u1, ask to refund the leather desk blotter (u2) and state that you already sent it back 5 days ago.",
+    "Accept the handoff to a staff member to check the return, and end the conversation.",
+]
+confirms = { units = ["h462-o1-u1"], amount_minor = 9980 }  # paid(u1)
+cards = { other = "decline", after_confirming = "keep" }
+
+[staff]
+decision = "approve"
+
+[[policy_checks]]
+units = ["h462-o1-u1"]
+decision = "eligible"
+amount_minor = 9980
+
+[[policy_checks]]
+units = ["h462-o2-u2"]
+decision = "refused"
+reasons = ["return"]
+
+[expected]
+refunded_units = ["h462-o1-u1"]
+refund_amount_minor = 9980  # paid(u1)
+last_proposal_status = ["refunded", "ineligible"]
+handoff = "required"
+handoff_origins = ["agent", "customer"]
+cites = ["refund-policy/v2/return"]
+quality_cites = ["refund-policy/v2/exceptions", "refund-policy/v2/payment"]
+communication = ["proposes_without_asking", "states_correct_amount", "gives_this_receipt", "announces_handoff"]
+forbidden = []
+
+[expected.obligations]
+"refund-policy/v2/return" = "Because the shop's return records do not show the leather desk blotter has arrived back yet and you state it was already sent, a staff member takes the case to check."

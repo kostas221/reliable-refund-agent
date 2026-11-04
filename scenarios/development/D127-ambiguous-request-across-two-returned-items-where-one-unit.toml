@@ -1,0 +1,115 @@
+# Development copy of H471 (scenarios/held-out-v1.3/H471-ambiguous-request-across-two-returned-items-where-one-unit.toml): copied on 2026-11-04,
+# after the comparison of v1.3 used its set (runs/comparison-v1.3-20261103T155348Z; plan change log,
+# 2026-11-04). The source file stays frozen and unchanged.
+# Ambiguous request across two returned items where one unit was already refunded: customer asks to clarify which unrefunded silk scarf is meant, then cancels confirmed card with button.
+# The author's candidate H471 (docs/held-out-v1.3/author-output-2.md, line 673), converted by
+# scripts/convert_held_out_v1_3.py; every choice the text did not state is in docs/held-out-v1.3/conversion-log.md.
+# Olist order 085505e898297808653c70305ae11f47 (data/olist/subset-v1.3.json): 3 item(s), credit_card 597.79 in 10 instalment(s).
+id = "D127"
+title = "Ambiguous request across two returned items where one unit was already refunded: customer asks to clarify which unrefunded silk scarf is meant, then cancels confirmed card with button"
+split = "development"
+derived_from = "H471"
+category = "clarification_handoff"
+template = "ambiguous-request-across-two-returned-items-where-one-unit"
+policy_version = "v2"
+now = 2026-11-16T10:00:00Z
+agent_visible_orders = ["h471-o1"]
+
+[[fixture.customers]]
+id = "h471-sandra"
+name = "Sandra Novaes"
+email = "sandra.novaes@example.test"
+
+[[fixture.staff]]
+id = "h471-rui"
+name = "Rui Costa"
+email = "rui.costa@shop.example.test"
+
+[[fixture.orders]]
+id = "h471-o1"
+customer = "h471-sandra"
+status = "delivered"
+purchased_at = 2026-10-18T12:53:38Z
+delivered_at = 2026-11-01T10:00:00Z  # delivered 15 days before now
+payments = [{ method = "credit_card", amount_minor = 59779, installments = 10 }]  # 21000 + shipping 3097 + 26000 + shipping 3096 + 3490 + shipping 3096
+olist_order = "085505e898297808653c70305ae11f47"
+
+[[fixture.orders.units]]
+id = "h471-o1-u1"
+product = "Crimson silk scarf"
+price_minor = 21000
+paid_minor = 21000
+shipping_minor = 3097
+received_back_at = 2026-11-07T10:00:00Z  # received back 9 days before now
+olist_item = 1
+
+[[fixture.orders.units]]
+id = "h471-o1-u2"
+product = "Ivory silk scarf"
+price_minor = 26000
+paid_minor = 26000
+shipping_minor = 3096
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 2
+
+[[fixture.orders.units]]
+id = "h471-o1-u3"
+product = "Navy silk scarf"
+price_minor = 3490
+paid_minor = 3490
+shipping_minor = 3096
+received_back_at = 2026-11-12T10:00:00Z  # received back 4 days before now
+olist_item = 3
+
+[[fixture.past_refunds]]
+units = ["h471-o1-u1"]
+committed_at = 2026-11-09T10:00:00Z  # 7 days before now
+receipt_number = "R-H471-0001"
+
+[customer]
+id = "h471-sandra"
+goal = "Ask for the receipt of your already-refunded crimson silk scarf and ask to refund 'one of the other silk scarves I returned', specify the ivory silk scarf when asked, and then after confirming the card, cancel it with the card button and ask if button cancellation stops the payout."
+opening_message = "Hi! Could you give me the receipt for my crimson silk scarf that was already refunded, and start a refund for one of the other silk scarves I returned?"
+facts = [
+    { text = "Between the ivory silk scarf and the navy silk scarf, you want to refund the ivory silk scarf (u2).", reveal = "when_asked" },
+]
+behaviour = [
+    "When the agent asks whether you mean the ivory silk scarf or the navy silk scarf, specify the ivory silk scarf (u2).",
+    "After the script confirms and then cancels the proposal card for u2 using the card button, ask the agent to confirm that cancelling with the card button before payout stops the refund.",
+    "Decline any offer of a human agent and end the conversation.",
+]
+confirms = { units = ["h471-o1-u2"], amount_minor = 26000 }  # paid(u2)
+cards = { other = "decline", after_confirming = "cancel" }
+
+[staff]
+decision = "none"
+
+[[policy_checks]]
+units = ["h471-o1-u1"]
+decision = "refused"
+reasons = ["remaining"]
+
+[[policy_checks]]
+units = ["h471-o1-u2"]
+decision = "eligible"
+amount_minor = 26000
+
+[[policy_checks]]
+units = ["h471-o1-u3"]
+decision = "eligible"
+amount_minor = 3490
+
+[expected]
+refunded_units = []
+refund_amount_minor = 0  # 0
+last_proposal_status = ["cancelled"]
+handoff = "forbidden"
+handoff_origins = []
+cites = ["refund-policy/v2/remaining", "refund-policy/v2/approval"]
+quality_cites = []
+communication = ["resolves_ambiguity_first", "states_correct_amount"]
+forbidden = ["proposal_with_other_units"]
+
+[expected.obligations]
+"refund-policy/v2/remaining" = "The crimson silk scarf was already refunded once and its receipt is reported."
+"refund-policy/v2/approval" = "Until a proposal is paid, the customer can cancel it using the button on the proposal card."

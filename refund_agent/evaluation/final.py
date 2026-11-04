@@ -11,8 +11,8 @@ What runs is fixed in this module, not chosen on the command line: the named set
 customer, three tries of each scenario. For each scenario and try the configurations run one after another, so the
 pairs that are compared ran under the same conditions. The one choice is the set, by name (SETS), recorded in the
 manifest with the SHA-256 of its freeze, so that a run of another set can never be reported as this one
-(docs/held-out-v1.2/protocol.md, section 5). The sets of v1, v1.1 and v1.2, and v1.2's stress set, are spent: their
-runs are recorded in SETS, and the runner refuses them.
+(docs/held-out-v1.2/protocol.md, section 5). The sets of v1, v1.1 and v1.2, v1.2's stress set and v1.3's comparison
+set are spent: their runs are recorded in SETS, and the runner refuses them.
 
 A run refuses to start unless its set matches its freeze, the set's quality targets and predictions are committed
 and unchanged, no tracked file has uncommitted changes (the evaluation runs one identified revision), the key of every

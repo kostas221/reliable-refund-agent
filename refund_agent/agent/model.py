@@ -41,9 +41,12 @@ from refund_agent.scenarios import format_brl
 # the shop's records decide (H55); after a refusal, what the policy allows is offered in words before a proposal, and
 # a proposal just turned down is not made again (H60, H61); the customer's decline and cancel buttons are told to it.
 # Version 10 (v1.3 repair 1, plan change log of 2026-10-31): an item the customer will send later is not promised a
-# refund on arrival when its order's refund deadline has passed (H255). Earlier versions stay for the runs made with
-# them.
-INSTRUCTIONS_PATH = REPO_ROOT / "prompts" / "agent-v10.md"
+# refund on arrival when its order's refund deadline has passed (H255). Version 11 (plan change log of 2026-11-04):
+# every failure of the v1.3 comparison was a required citation of a section no tool result gave, `exceptions` for a
+# refused exception and `scope` for another customer's order, so the instructions say to find such a section in the
+# policy, to cite one per item or request, and when those two sections apply. Earlier versions stay for the runs made
+# with them.
+INSTRUCTIONS_PATH = REPO_ROOT / "prompts" / "agent-v11.md"
 
 
 @dataclass(frozen=True)

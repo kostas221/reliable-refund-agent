@@ -337,3 +337,36 @@ def test_under_the_v1_1_citation_rule_every_other_failure_still_fails(tmp_path):
 
     c = report.summarize("A", report.tries(folder), {s.id: s for s in load_split("development")}, folder)
     assert (c["passed"], c["v1_1_rule"]["passed"], c["v1_1_rule"]["pass3"]) == (2, 2, 0)
+
+
+def test_the_citations_the_model_wrote_are_reported_with_their_denominators(tmp_path):
+    # Plan change log, 2026-11-04: the cost of instructions v11's citations, beside success and changing none of it.
+    folder = configuration(tmp_path, "pilot-run", ["D01"])
+    recorded = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    recorded["identity"]["configuration"] = "A"  # as a pilot's manifest says
+    (folder / "manifest.json").write_text(json.dumps(recorded), encoding="utf-8")
+    cited = {"role": "agent", "text": "No exception (refund-policy/v2/exceptions), see (refund-policy/v9/window)."}
+    plain = {"role": "agent", "text": "Hello."}
+    for attempt in (1, 2, 3):
+        save(folder, "D01", attempt, messages=[cited, plain] if attempt == 1 else [plain])
+    audit(folder, report.CLAUDE)
+    built = report.build(folder)
+    assert built["configurations"]["A"]["passed"] == 3  # counted, never judged
+    shown = report.render(built)
+    assert "| Citations the model wrote per agent message with text, fact lines apart | 0.50 (2 in 4) |" in shown
+    assert "| Citations naming no section of the run's policy version | 1: `refund-policy/v9/window` 1 |" in shown
+    unasked = "where the scenario lists it neither as required nor as quality"
+    assert f"| Conversations citing `exceptions` {unasked} | 1 of 3 |" in shown
+    assert f"| Conversations citing `scope` {unasked} | 0 of 3 |" in shown
+
+
+def test_conversations_are_read_in_the_order_of_their_scenarios_numbers(tmp_path):
+    # Past D99 (2026-11-04) the names alone would put D100 before D11 in the report and in the audit file.
+    from refund_agent.evaluation import audit as audit_module
+
+    folder = configuration(tmp_path, "pilot-run", ["D11", "D99", "D100"], repeats=1)
+    for scenario in ("D100", "D11", "D99"):
+        save(folder, scenario, 1)
+    audit(folder, report.CLAUDE)
+    assert [t.scenario for t in report.tries(folder)] == ["D11", "D99", "D100"]
+    assert [c.scenario for c in audit_module.conversations(folder)] == ["D11", "D99", "D100"]

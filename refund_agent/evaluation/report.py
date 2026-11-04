@@ -26,10 +26,10 @@ from pathlib import Path
 
 from refund_agent.evaluation import diagnostics
 from refund_agent.evaluation.audit import AUDIT, CORRECTED, PROCESS, Audited, apply, gaps
-from refund_agent.evaluation.diagnostics import CHECKS_ACTED, PROCESS_SIGNALS, REPEATED_SELECTION
+from refund_agent.evaluation.diagnostics import CHECKS_ACTED, PROCESS_SIGNALS, REPEATED_SELECTION, WATCHED_UNLISTED
 from refund_agent.evaluation.sets import SETS, UNNAMED
 from refund_agent.policy import REPO_ROOT
-from refund_agent.scenarios import SPLIT_DIRS, Scenario, load_split, policy_for
+from refund_agent.scenarios import SPLIT_DIRS, Scenario, id_order, load_split, policy_for
 
 CLAUDE = "audit-claude.toml"
 SEED, DRAWS = 20261019, 10_000
@@ -81,7 +81,7 @@ def tries(folder: Path) -> list[Try]:
     for key, why in gaps(folder, [a.conversation for a in merged]).items():
         scenario, attempt = key.split(".try")
         found.append(Try(scenario, int(attempt), f"missing: {why}", None, "none", {}))
-    return sorted(found, key=lambda t: (t.scenario, t.attempt))
+    return sorted(found, key=lambda t: (id_order(t.scenario), t.attempt))
 
 
 def scores(found: list[Try]) -> dict[str, float]:
@@ -294,6 +294,15 @@ def _pct(value: float) -> str:
     return f"{100 * value:.1f}%"
 
 
+def _per_message(written: dict) -> str:
+    messages, citations = written.get("messages", 0), written.get("citations", 0)
+    return f"{citations / messages:.2f} ({citations} in {messages})" if messages else "-"
+
+
+def _unknown(found: dict) -> str:
+    return f"{sum(found.values())}" + (": " + ", ".join(f"`{i}` {n}" for i, n in found.items()) if found else "")
+
+
 def render(report: dict) -> str:
     """The report in Markdown, for a reader of the project: the verdict on the targets first, then the measures."""
     title = "Final evaluation report" if report.get("kind", "final") == "final" else "Run report"
@@ -419,6 +428,25 @@ def render(report: dict) -> str:
         )
         + " |"
     )
+    lines.append(
+        "| Citations the model wrote per agent message with text, fact lines apart | "
+        + " | ".join(_per_message(c["diagnostics"].get("citations_written", {})) for c in conf.values())
+        + " |"
+    )
+    lines.append(
+        "| Citations naming no section of the run's policy version | "
+        + " | ".join(_unknown(c["diagnostics"].get("unknown_citations", {})) for c in conf.values())
+        + " |"
+    )
+    for section in WATCHED_UNLISTED:
+        lines.append(
+            f"| Conversations citing `{section}` where the scenario lists it neither as required nor as quality | "
+            + " | ".join(
+                f"{c['diagnostics'].get('unlisted_sections', {}).get(section, 0)} of {c['conversations']}"
+                for c in conf.values()
+            )
+            + " |"
+        )
     lines.append(
         "| Simulated customer reminded to answer before ending: answered / ended anyway | "
         + " | ".join(
@@ -562,7 +590,7 @@ def compare_runs(new: Path, bases: list[Path]) -> dict:
         earlier.update(found)
         origin.update(dict.fromkeys(found, base))
     now = scores(tries(new))
-    pairs = {sid: sid if sid in earlier else scenarios[sid].derived_from or sid for sid in sorted(now)}
+    pairs = {sid: sid if sid in earlier else scenarios[sid].derived_from or sid for sid in sorted(now, key=id_order)}
     pairs = {sid: source for sid, source in pairs.items() if source in earlier}
     if not pairs:
         raise ValueError("no scenario of the new run has a counterpart in the bases")

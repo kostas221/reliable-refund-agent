@@ -61,6 +61,7 @@ FINAL_RUN = REPO_ROOT / "runs" / "final-20261019T201207Z" / "manifest.json"
 FINAL_RUN_V1_1 = REPO_ROOT / "runs" / "final-v1.1-20261026T125831Z" / "manifest.json"
 FINAL_RUN_V1_2 = REPO_ROOT / "runs" / "final-v1.2-20261030T170445Z" / "manifest.json"
 STRESS_RUN_V1_2 = REPO_ROOT / "runs" / "stress-v1.2-20261030T174734Z" / "manifest.json"
+COMPARISON_RUN_V1_3 = REPO_ROOT / "runs" / "comparison-v1.3-20261103T155348Z" / "manifest.json"
 SUBSET = json.loads((REPO_ROOT / "data" / "olist" / "subset.json").read_text(encoding="utf-8"))
 # A list price above what was paid is synthetic, and written in the scenario (data/olist/README.md).
 SYNTHETIC_LIST_PRICE = {"H02"}
@@ -81,13 +82,15 @@ def policy_order(scenario: Scenario, unit_id: str) -> eligibility.Order:
 
 
 def test_development_scenarios_numbered_in_order():
-    assert [s.id for s in DEVELOPMENT] == [f"D{n:02d}" for n in range(1, 90)]
+    assert [s.id for s in DEVELOPMENT] == [f"D{n:02d}" for n in range(1, 129)]  # D99, then D100
     assert [s.id for s in ORIGINAL] == [f"D{n:02d}" for n in range(1, 11)]
     # v1's held-out set as D11 to D30 (2026-10-20); v1.1's as D43 to D62, in the order of its IDs (2026-10-27);
-    # v1.2's 19 as D63 to D81 and its 8 stress scenarios as D82 to D89, in the order of their IDs (2026-10-30)
+    # v1.2's 19 as D63 to D81 and its 8 stress scenarios as D82 to D89, in the order of their IDs (2026-10-30);
+    # v1.3's comparison set as D90 to D128, in the order of its IDs (2026-11-04)
     v1_1 = [(f"D{n:02d}", s.id) for n, s in zip(range(43, 63), HELD_OUT_V1_1, strict=True)]
     v1_2 = [(f"D{n:02d}", s.id) for n, s in zip(range(63, 90), HELD_OUT_V1_2 + STRESS_V1_2, strict=True)]
-    expected = [(f"D{n + 10:02d}", f"H{n:02d}") for n in range(1, 21)] + v1_1 + v1_2
+    v1_3 = [(f"D{n}", s.id) for n, s in zip(range(90, 129), HELD_OUT_V1_3, strict=True)]
+    expected = [(f"D{n + 10:02d}", f"H{n:02d}") for n in range(1, 21)] + v1_1 + v1_2 + v1_3
     assert [(s.id, s.derived_from) for s in COPIES] == expected
     assert [s.id for s in CONTRAST] == [f"D{n:02d}" for n in range(31, 43)]
 
@@ -128,6 +131,11 @@ def test_a_customer_who_may_be_offered_a_person_where_a_handoff_is_forbidden_kno
             # The copies of v1.2 (D63 to D89) keep the author's words, which answer the offer with a no in a form
             # of their own; in the final run of 2026-10-30 H245's customer accepted none of its four offers.
             said_no = "if you are offered a staff member" in behaviour and "say no thanks" in behaviour
+            # So do the copies of v1.3 (D90 to D128), each declining any offer of a person in a phrase of its own; in
+            # the comparison run of 2026-11-03 these customers met an offer in 12 of 30 conversations and accepted none.
+            declines = ("decline any offer", "decline the offer", "decline any human handoff")
+            of_v1_3 = s.derived_from in {h.id for h in HELD_OUT_V1_3}
+            said_no = said_no or (of_v1_3 and any(phrase in behaviour for phrase in declines))
             assert said_no or "if offered a person, decline" in behaviour, s.id
 
 
@@ -149,7 +157,7 @@ WIDENED_ORIGINS = {"D49"}
 
 
 def test_a_development_copy_is_its_source_but_for_id_split_and_origin():
-    sources = {s.id: s for s in (*HELD_OUT, *HELD_OUT_V1_1, *HELD_OUT_V1_2, *STRESS_V1_2)}
+    sources = {s.id: s for s in (*HELD_OUT, *HELD_OUT_V1_1, *HELD_OUT_V1_2, *STRESS_V1_2, *HELD_OUT_V1_3)}
     rule = {"cites", "obligations", "quality_cites"}  # the citation rule of v1.2, which development follows
     for copy in COPIES:
         source = sources[copy.derived_from]
@@ -170,7 +178,7 @@ def test_a_development_copy_is_its_source_but_for_id_split_and_origin():
 def test_only_held_out_scenarios_a_final_evaluation_ran_are_copied():
     ran = json.loads(FINAL_RUN.read_text(encoding="utf-8"))["identity"]["scenarios"]
     ran += json.loads(FINAL_RUN_V1_1.read_text(encoding="utf-8"))["identity"]["scenarios"]
-    for run in (FINAL_RUN_V1_2, STRESS_RUN_V1_2):
+    for run in (FINAL_RUN_V1_2, STRESS_RUN_V1_2, COMPARISON_RUN_V1_3):
         ran += json.loads(run.read_text(encoding="utf-8"))["identity"]["scenarios"]
     assert {s.derived_from for s in COPIES} <= set(ran)
 
@@ -186,12 +194,28 @@ def test_a_copy_changes_nothing_but_its_identity(tmp_path, monkeypatch):
         derive(tmp_path / "D99-order-not-delivered.toml", "D98", "a test copy.")
 
 
-@pytest.mark.parametrize(("split", "source_id"), [("held_out_v1_2", "H102"), ("stress_v1_2", "S01")])
-def test_a_scenario_of_the_v1_2_sets_can_be_copied(tmp_path, monkeypatch, split, source_id):
+@pytest.mark.parametrize(
+    ("split", "source_id", "new_id"),
+    [("held_out_v1_2", "H102", "D99"), ("stress_v1_2", "S01", "D99"), ("held_out_v1_3", "H421", "D999")],
+)
+def test_a_scenario_of_the_later_sets_can_be_copied(tmp_path, monkeypatch, split, source_id, new_id):
     monkeypatch.setitem(SPLIT_DIRS, "development", tmp_path)
     (source,) = SPLIT_DIRS[split].glob(f"{source_id}-*.toml")
-    copy = load_scenario(derive(source, "D99", "a test copy."))
-    assert (copy.id, copy.split, copy.derived_from) == ("D99", "development", source_id)
+    copy = load_scenario(derive(source, new_id, "a test copy."))
+    assert (copy.id, copy.split, copy.derived_from) == (new_id, "development", source_id)
+
+
+def test_development_ids_have_two_or_three_digits_and_load_in_the_order_of_their_numbers(tmp_path, monkeypatch):
+    # Past D99 the names alone would sort D100 before D11, and a run would follow that order.
+    data = tomllib.loads(next(SPLIT_DIRS["development"].glob("D01-*.toml")).read_text(encoding="utf-8"))
+    for bad in ("D1", "D1000"):
+        with pytest.raises(ValidationError):
+            Scenario.model_validate({**data, "id": bad})
+    monkeypatch.setitem(SPLIT_DIRS, "development", tmp_path)
+    (source,) = SPLIT_DIRS["held_out_v1_3"].glob("H421-*.toml")
+    for new_id in ("D100", "D11", "D09"):
+        derive(source, new_id, "a test copy.")
+    assert [s.id for s in load_split("development")] == ["D09", "D11", "D100"]
 
 
 def test_a_held_out_scenario_cannot_claim_a_source():
@@ -219,8 +243,8 @@ def test_every_group_is_covered():
 
 
 def test_file_names_are_id_and_template():
-    names = sorted(path.name for path in SPLIT_DIRS["development"].glob("*.toml"))
-    assert names == [f"{s.id}-{s.template}.toml" for s in DEVELOPMENT]
+    names = {path.name for path in SPLIT_DIRS["development"].glob("*.toml")}
+    assert names == {f"{s.id}-{s.template}.toml" for s in DEVELOPMENT}
 
 
 def test_scenarios_use_the_current_policy_version():
