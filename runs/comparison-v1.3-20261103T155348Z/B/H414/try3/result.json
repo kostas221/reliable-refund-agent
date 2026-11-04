@@ -1,0 +1,257 @@
+{
+  "scenario": "H414",
+  "try": 3,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded h414-o1-u1 for 2690, h414-o1-u2 for 7990"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal refunded, acceptable ['refunded']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v2/validity",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: A proposal expires 72 hours after creation if not paid, requiring a new proposal."
+    },
+    {
+      "name": "cites:refund-policy/v2/approval",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: Combining the items after the earlier rejection requires a new proposal, customer confirmation, and staff approval."
+    },
+    {
+      "name": "communication:proposes_without_asking",
+      "status": "pending",
+      "evidence": "pre-check passed: no question that may ask which items was answered before the first proposal"
+    },
+    {
+      "name": "communication:states_correct_amount",
+      "status": "pending",
+      "evidence": "pre-check passed: ['R$ 106,80'] stated"
+    },
+    {
+      "name": "communication:gives_this_receipt",
+      "status": "pending",
+      "evidence": "pre-check passed: the receipt number of this run's refund is given"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "1 refund(s), each confirmed and approved in time"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: ['R-00000001']; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_with_other_units",
+      "status": "passed",
+      "evidence": "every proposal stays within ['h414-o1-u1', 'h414-o1-u2']"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 6,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    9.214,
+    2.431
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.019931300000000096,
+    "simulator": 7.189999999999974e-05
+  },
+  "attempts_sent": 7,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "In my order, I had one proposal for the quartet wine glasses that was rejected by staff, and another proposal for the crystal decanter that expired. Why did the decanter one expire, and can we combine both items into one new proposal right now since I'm still within 30 days?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "toolu_016C9sT9cQxQ1ajeHi3LES14",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": [
+        {
+          "type": "tool_use",
+          "id": "toolu_016C9sT9cQxQ1ajeHi3LES14",
+          "name": "list_my_orders",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "call_id": "toolu_016C9sT9cQxQ1ajeHi3LES14",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h414-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-15T23:50:55+00:00\", \"delivered_at\": \"2026-10-26T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h414-o1-u1\", \"product\": \"Quartet wine glasses\", \"paid_minor\": 2690, \"received_back\": true, \"refunded\": false}, {\"unit_id\": \"h414-o1-u2\", \"product\": \"Crystal decanter\", \"paid_minor\": 7990, \"received_back\": true, \"refunded\": false}], \"requests\": [{\"proposal_id\": \"h414-p1\", \"status\": \"rejected\", \"amount_minor\": 2690, \"unit_ids\": [\"h414-o1-u1\"], \"created_at\": \"2026-11-10T10:00:00+00:00\", \"receipt_number\": null, \"rejection_reason\": null}, {\"proposal_id\": \"h414-p2\", \"status\": \"expired\", \"amount_minor\": 7990, \"unit_ids\": [\"h414-o1-u2\"], \"created_at\": \"2026-11-12T10:00:00+00:00\", \"receipt_number\": null, \"rejection_reason\": null}], \"refund_deadline\": \"2026-11-25T10:00:00+00:00\", \"refund_deadline_passed\": false}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "toolu_01SLnqqtTYR3hzbC93vLAcUA",
+          "name": "assess_refund",
+          "arguments": "{\"order_id\": \"h414-o1\", \"unit_ids\": [\"h414-o1-u1\", \"h414-o1-u2\"]}"
+        }
+      ],
+      "continuation": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01SLnqqtTYR3hzbC93vLAcUA",
+          "name": "assess_refund",
+          "input": {
+            "order_id": "h414-o1",
+            "unit_ids": [
+              "h414-o1-u1",
+              "h414-o1-u2"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "call_id": "toolu_01SLnqqtTYR3hzbC93vLAcUA",
+      "name": "assess_refund",
+      "content": "{\"ok\": true, \"outcome\": \"eligible\", \"policy_citations\": [\"refund-policy/v2/amount\"], \"amount_minor\": 10680, \"currency\": \"BRL\", \"order\": {\"order_id\": \"h414-o1\", \"status\": \"delivered\", \"delivered_at\": \"2026-10-26T10:00:00+00:00\", \"refund_deadline\": \"2026-11-25T10:00:00+00:00\", \"payment_records\": 1, \"one_valid_payment\": true}, \"units\": [{\"unit_id\": \"h414-o1-u1\", \"product\": \"Quartet wine glasses\", \"paid_minor\": 2690, \"received_back\": true, \"refunded\": false, \"receipt_number\": null, \"earlier_on_time_proposal\": false}, {\"unit_id\": \"h414-o1-u2\", \"product\": \"Crystal decanter\", \"paid_minor\": 7990, \"received_back\": true, \"refunded\": false, \"receipt_number\": null, \"earlier_on_time_proposal\": true}], \"next_step\": \"This assessment does not create or change a proposal. If these are exactly the units the customer asked for, call propose_refund with them; if the customer's words could mean other units too, ask which first.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "toolu_01MZac6nS9ZktDEYBBG22F4F",
+          "name": "propose_refund",
+          "arguments": "{\"order_id\": \"h414-o1\", \"unit_ids\": [\"h414-o1-u1\", \"h414-o1-u2\"], \"summary_for_staff\": \"Customer requests combined refund of glasses (earlier proposal h414-p1 rejected) and decanter (h414-p2 expired). Both units received back, within 30 days.\"}"
+        }
+      ],
+      "continuation": [
+        {
+          "type": "thinking",
+          "thinking": "",
+          "signature": "CAQSwgYKEAgTGAI4AUIIdGhpbmtpbmcSDC5zd7ZNK0OQ3QUMSxoMd4cutddxxjnwOpHQIjD2r1djERMiIa9DUEnSgeY5jayapmt8ybpn1JJa6zkl6xxGnQCi0E3BfqBw36GeCH0q3wVmZi2Y5PoBNebyR3qRWEdGcOyMzfNwd+Fj8E75RyR3iRiDUmj0a1N3k2AQmpp8qer8TRkoPo9sMPHofhoY00OoSlq0Z5T6Jzi2rVh8N/LqSrPg1LHiB2KSLC0wOMYrbmASES5AHe09Vx2kGQijWXx7D2txegozR/Lcfys0VaXg74g7vp7pB62R92cULAPN1g+9wHLTMs4Pz/nExUJy2lpVjiPPe9m8p+lVMrWBp24Vl7PTYVRAyaikTvgE87IBXBxJpE3yoID5cZgZ5IQKkZEfW7C9WC1+VLxaR6yRqFSpd7OqI/qdV5t/azCGPXsEmXnVzQa7q+pi69tytFnS6AETS7a5+zOl8xJwG+H0ARcwQRUZvjZgbr2TbPP16gc9tz5t7Fw7L9IIg+E1LGuG7G1FUP5VmAdnkuQEtbE0G8m7L2b3P1Ga1Y6Xs1q4LW3y70IwMrTCfRI2RNT148f+R1qM4OMuCehM3enxq+p72VWGQpGq1MAksewUCjD4h5X7SGjpMmyAboD3Gu9Mngpb2Qx0mK9p7mvsG8SvdzUxzwqBfqtEGkGpelttCvIZOKWJbFytn7diEjcvTrU3n6yxVLKTGZOCfkmmJ9fQWgGDed/TNKQX/rXTjnM3vFj9W85nhBkbpH1wciLnGrkPa9C+tlEZfbT0elUVC7PG9PC6tGTL5MgKjSEWOBZTv2v7rI9JtJmiEHDaolwRb3RJtepmbWzsOsFUQ3A5JGdZ4GFNOElLYg/6EdsdGFXqSrkOeKM6pLRbAVa2YusMQ/mX0d/9uCXQY+tIgZif97oQeGU6QJsNqA4IunEgB6OX6b73U+ruBZXWz0hZTxTeXnZ895Po/Psi8cNUhSucjErBmmQhqREHzWD5KtKEF94CcIe74sw7OKWX2tL2IsnMkKYbaNu0A8yMKU7Wr1N72jR36+E9sUnXXu4pghCFeJ5N7d30JI/3I8u5vq1Gf2Kb7xC7KwkOPBIYAQ=="
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01MZac6nS9ZktDEYBBG22F4F",
+          "name": "propose_refund",
+          "input": {
+            "order_id": "h414-o1",
+            "unit_ids": [
+              "h414-o1-u1",
+              "h414-o1-u2"
+            ],
+            "summary_for_staff": "Customer requests combined refund of glasses (earlier proposal h414-p1 rejected) and decanter (h414-p2 expired). Both units received back, within 30 days."
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "call_id": "toolu_01MZac6nS9ZktDEYBBG22F4F",
+      "name": "propose_refund",
+      "content": "{\"ok\": true, \"proposal_id\": \"prop-a137b46c10b34222\", \"status\": \"awaiting_customer_confirmation\", \"outcome\": \"eligible\", \"amount_minor\": 10680, \"currency\": \"BRL\", \"policy_citations\": [\"refund-policy/v2/amount\", \"refund-policy/v2/validity\", \"refund-policy/v2/approval\"], \"next_step\": \"The proposal is now on the customer's card, waiting for their button. Tell the customer the amount. They confirm with the button on the proposal card; a typed yes is not a confirmation. Tell the customer also, citing each section: An earlier request for the Crystal decanter lapsed before it was paid (h414-p2 expired), so a new proposal was needed (refund-policy/v2/validity). An earlier request for the Quartet wine glasses ended unpaid (h414-p1 was rejected by a staff member), so this new proposal needs the customer's confirmation and a staff member's approval again (refund-policy/v2/approval).\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Yes, we can combine them. I've created one new proposal for both items. The total is 106.80 BRL: 26.90 for the wine glasses and 79.90 for the decanter (refund-policy/v2/amount).\n\n- **Why the decanter proposal expired:** A proposal is valid for 72 hours after it is created. It lapsed before it was paid, so you need a new one (refund-policy/v2/validity).\n- **The wine glasses:** A staff member rejected that proposal, and no reason is recorded on it. The new proposal needs your confirmation and a staff member's approval again (refund-policy/v2/approval).\n- **Time limit:** Your refund deadline is 2026-11-25 10:00 UTC, so you are still within the limit (refund-policy/v2/window).\n\nTo go ahead, press the confirm button on the proposal card. A \"yes\" typed in the chat doesn't confirm it. After you confirm, a staff member reviews the request. Please confirm before the proposal expires, which is 72 hours after it was created.",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "type": "text",
+          "text": "Yes, we can combine them. I've created one new proposal for both items. The total is 106.80 BRL: 26.90 for the wine glasses and 79.90 for the decanter (refund-policy/v2/amount).\n\n- **Why the decanter proposal expired:** A proposal is valid for 72 hours after it is created. It lapsed before it was paid, so you need a new one (refund-policy/v2/validity).\n- **The wine glasses:** A staff member rejected that proposal, and no reason is recorded on it. The new proposal needs your confirmation and a staff member's approval again (refund-policy/v2/approval).\n- **Time limit:** Your refund deadline is 2026-11-25 10:00 UTC, so you are still within the limit (refund-policy/v2/window).\n\nTo go ahead, press the confirm button on the proposal card. A \"yes\" typed in the chat doesn't confirm it. After you confirm, a staff member reviews the request. Please confirm before the proposal expires, which is 72 hours after it was created."
+        }
+      ]
+    },
+    {
+      "role": "event",
+      "text": "The customer confirmed request prop-a137b46c10b34222 and a staff member approved it, so it is ready to be paid.",
+      "notice_id": "notice-dec-4e8f4a892e354ebf"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "toolu_0188pV8YDJYmrA8EnFJLYdpw",
+          "name": "execute_refund",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": [
+        {
+          "type": "tool_use",
+          "id": "toolu_0188pV8YDJYmrA8EnFJLYdpw",
+          "name": "execute_refund",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "call_id": "toolu_0188pV8YDJYmrA8EnFJLYdpw",
+      "name": "execute_refund",
+      "content": "{\"ok\": true, \"receipt\": {\"receipt_number\": \"R-00000001\", \"operation_id\": \"op-f18b543e4cb54153\", \"proposal_id\": \"prop-a137b46c10b34222\", \"amount_minor\": 10680, \"currency\": \"BRL\", \"payment_id\": \"h414-o1-p1\", \"units\": [{\"unit_id\": \"h414-o1-u1\", \"amount_minor\": 2690}, {\"unit_id\": \"h414-o1-u2\", \"amount_minor\": 7990}], \"committed_at\": \"2026-11-16T10:04:00+00:00\"}, \"next_step\": \"The refund is paid and recorded against the order's original payment. Tell the customer the amount and the receipt number. Explain the test ledger (not a bank transfer, no date) only if the customer asks when or how the money arrives.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Your refund has been paid. The receipt number is **R-00000001**. It records 106.80 BRL against the order's original payment: 26.90 for the wine glasses and 79.90 for the decanter.",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "type": "text",
+          "text": "Your refund has been paid. The receipt number is **R-00000001**. It records 106.80 BRL against the order's original payment: 26.90 for the wine glasses and 79.90 for the decanter."
+        }
+      ]
+    }
+  ]
+}

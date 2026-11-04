@@ -388,9 +388,15 @@ decisions as recommended; **the set is frozen** (2026-11-03, `scenarios/held-out
 (plan change log, 2026-11-03): the final runner runs each set by its group (`GROUPS["comparison"]`: A Sol low, B
 Sonnet low, every check, simulator Luna low), v1.2's sets spent; targets and decision rule
 (`docs/held-out-v1.3/quality-targets.md`: Sol stays unless Sonnet is shown better and cheaper at $1 per failure) and
-predictions written; 5 of 5 planted runner bugs (scratchpad `planted_comparison_runner.py`); the whole suite not yet
-rerun after the runner change. Next: the owner commits, runs the full suite, and runs the comparison (budget $6);
-then the handoff checks
+predictions written; 5 of 5 planted runner bugs (scratchpad `planted_comparison_runner.py`). The comparison ran
+(`runs/comparison-v1.3-20261103T155348Z`, commit 4e114c2, $3.07; results in `docs/held-out-v1.3/results.md`):
+Claude read all 234 and changed no machine verdict; Sol 109/117, pass^3 35/39 (both targets met); Sonnet 108/117
+(108/116 valid; H471 try 3 a simulator fault in a loop of re-proposals after button cancellations), 33/39; 0 unsafe;
+B-A -0.9 points (95% -6.8 to +5.1); Sonnet 2.54 times the agent cost; expected cost at $1 per failure $0.076 against
+$0.096. All 16 failures are citations alone (`exceptions` 10, `scope` 5, H464's two 1); 18/18 handoffs and 9/9
+clarifications each; premature cards 10 and 13, unneeded questions 0 and 3. The decision rule, v1.2's rule and the
+$1 criterion all recommend **Sol**; the owner decides. Predictions 8 right, 2 partly, 2 wrong. Next: the owner's
+reading under the recorded rule and the decision; then the handoff checks
 and the five-person trial. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
 development shows only that the cases the rules were built on are solved. The user reads the step-C conversations in
 `runs/pilot-20261027T144002Z-gpt-6-luna-none/user-review/`, 1 conversation of the D28 run and 5 of the confirmation run

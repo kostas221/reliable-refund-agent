@@ -1,0 +1,205 @@
+{
+  "scenario": "H461",
+  "try": 2,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal ineligible, acceptable ['none', 'ineligible']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "handoffs with origin ['agent']; required, origins ['agent']"
+    },
+    {
+      "name": "cites:refund-policy/v2/window",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: Because an earlier proposal for the porcelain gravy boat was created in time and stopped being valid before payment, the late request is not refused for being past 30 days and a staff member takes the case."
+    },
+    {
+      "name": "cites:refund-policy/v2/remaining",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: The ceramic soup tureen was already refunded once and its existing receipt is reported."
+    },
+    {
+      "name": "communication:announces_handoff",
+      "status": "pending",
+      "evidence": "pre-check passed: an agent message follows the handoff"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:refused_as_simply_late",
+      "status": "pending",
+      "evidence": "no machine check; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 4,
+  "refusals": [],
+  "handoff_origins": [
+    "agent"
+  ],
+  "agent_seconds": [
+    8.483
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.013575900000000196,
+    "simulator": 6.93000000000013e-05
+  },
+  "attempts_sent": 5,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hi, I want to refund the porcelain gravy boat from my order delivered 34 days ago—my first proposal for it was made on time 12 days ago before it stopped being valid due to an order update. Could you also give me the receipt number for the ceramic soup tureen that was already refunded?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "toolu_01P2heUkhhNohahNeaUuA8nt",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01P2heUkhhNohahNeaUuA8nt",
+          "name": "list_my_orders",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "call_id": "toolu_01P2heUkhhNohahNeaUuA8nt",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h461-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-09-29T01:21:18+00:00\", \"delivered_at\": \"2026-10-13T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h461-o1-u1\", \"product\": \"Ceramic soup tureen\", \"paid_minor\": 4633, \"received_back\": true, \"refunded\": true}, {\"unit_id\": \"h461-o1-u2\", \"product\": \"Porcelain gravy boat\", \"paid_minor\": 14933, \"received_back\": true, \"refunded\": false}], \"requests\": [{\"proposal_id\": \"h461-r1\", \"status\": \"refunded\", \"amount_minor\": 4633, \"unit_ids\": [\"h461-o1-u1\"], \"created_at\": \"2026-10-31T10:00:00+00:00\", \"receipt_number\": \"R-H461-0001\", \"rejection_reason\": null, \"policy_citation\": \"refund-policy/v2/remaining\"}, {\"proposal_id\": \"h461-p1\", \"status\": \"invalidated\", \"amount_minor\": 14933, \"unit_ids\": [\"h461-o1-u2\"], \"created_at\": \"2026-11-04T10:00:00+00:00\", \"receipt_number\": null, \"rejection_reason\": null}], \"refund_deadline\": \"2026-11-12T10:00:00+00:00\", \"refund_deadline_passed\": true}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "toolu_012bvXqiQe6dC5Bk2CuveNsp",
+          "name": "assess_refund",
+          "arguments": "{\"order_id\": \"h461-o1\", \"unit_ids\": [\"h461-o1-u2\"]}"
+        }
+      ],
+      "continuation": [
+        {
+          "type": "tool_use",
+          "id": "toolu_012bvXqiQe6dC5Bk2CuveNsp",
+          "name": "assess_refund",
+          "input": {
+            "order_id": "h461-o1",
+            "unit_ids": [
+              "h461-o1-u2"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "call_id": "toolu_012bvXqiQe6dC5Bk2CuveNsp",
+      "name": "assess_refund",
+      "content": "{\"ok\": true, \"outcome\": \"needs_person\", \"policy_citations\": [\"refund-policy/v2/window\"], \"amount_minor\": null, \"currency\": \"BRL\", \"order\": {\"order_id\": \"h461-o1\", \"status\": \"delivered\", \"delivered_at\": \"2026-10-13T10:00:00+00:00\", \"refund_deadline\": \"2026-11-12T10:00:00+00:00\", \"payment_records\": 1, \"one_valid_payment\": true}, \"units\": [{\"unit_id\": \"h461-o1-u2\", \"product\": \"Porcelain gravy boat\", \"paid_minor\": 14933, \"received_back\": true, \"refunded\": false, \"receipt_number\": null, \"earlier_on_time_proposal\": true}], \"next_step\": \"A staff member takes the case: hand off with request_handoff, reason_code shop_decided, this order and these units; the backend records the request for the staff member. Tell the customer.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "toolu_01CK5R6gWRtkLuwzNj1CDpDR",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\": \"shop_decided\", \"order_id\": \"h461-o1\", \"unit_ids\": [\"h461-o1-u2\"], \"customer_words\": \"\", \"reason\": \"Earlier on-time proposal for the unit became invalid; deadline has passed, so staff decides.\", \"customer_goal\": \"Refund the porcelain gravy boat\", \"confirmed_facts\": \"Delivered 2026-10-13; deadline 2026-11-12 passed. Unit h461-o1-u2 received back, not refunded. Earlier proposal h461-p1 created 2026-11-04 was invalidated. One valid payment.\", \"decision_needed\": \"Decide whether to refund h461-o1-u2 (14933 minor BRL).\"}"
+        }
+      ],
+      "continuation": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01CK5R6gWRtkLuwzNj1CDpDR",
+          "name": "request_handoff",
+          "input": {
+            "reason_code": "shop_decided",
+            "order_id": "h461-o1",
+            "unit_ids": [
+              "h461-o1-u2"
+            ],
+            "customer_words": "",
+            "reason": "Earlier on-time proposal for the unit became invalid; deadline has passed, so staff decides.",
+            "customer_goal": "Refund the porcelain gravy boat",
+            "confirmed_facts": "Delivered 2026-10-13; deadline 2026-11-12 passed. Unit h461-o1-u2 received back, not refunded. Earlier proposal h461-p1 created 2026-11-04 was invalidated. One valid payment.",
+            "decision_needed": "Decide whether to refund h461-o1-u2 (14933 minor BRL)."
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "call_id": "toolu_01CK5R6gWRtkLuwzNj1CDpDR",
+      "name": "request_handoff",
+      "content": "{\"ok\": true, \"handoff_id\": \"hand-eb28261ee4984926\", \"closed_request\": null, \"reason_code\": \"shop_decided\", \"policy_citations\": [\"refund-policy/v2/window\"], \"next_step\": \"This handoff closed no request: say nothing of closing one. Tell the customer a person will take over, and why, citing (refund-policy/v2/window). A refund already paid stays paid. Make no more changes.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Here's where both items stand.\n\n**Porcelain gravy boat:** The 30-day refund deadline has passed. Your earlier proposal was created in time and then stopped being valid, so the late request isn't refused. A staff member will take the case and decide on it (refund-policy/v2/window). A person will now take over. I can't promise an outcome.\n\n**Ceramic soup tureen:** This unit was already refunded, with receipt number **R-H461-0001** for BRL 46.33. It can't be refunded again (refund-policy/v2/remaining).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "type": "text",
+          "text": "Here's where both items stand.\n\n**Porcelain gravy boat:** The 30-day refund deadline has passed. Your earlier proposal was created in time and then stopped being valid, so the late request isn't refused. A staff member will take the case and decide on it (refund-policy/v2/window). A person will now take over. I can't promise an outcome.\n\n**Ceramic soup tureen:** This unit was already refunded, with receipt number **R-H461-0001** for BRL 46.33. It can't be refunded again (refund-policy/v2/remaining)."
+        }
+      ]
+    }
+  ]
+}

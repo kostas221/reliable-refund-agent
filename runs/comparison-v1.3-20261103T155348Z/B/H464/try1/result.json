@@ -1,0 +1,218 @@
+{
+  "scenario": "H464",
+  "try": 1,
+  "configuration": "A",
+  "result": "failed",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['none', 'ineligible']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "handoffs with origin ['agent']; required, origins ['agent', 'customer']"
+    },
+    {
+      "name": "cites:refund-policy/v2/window",
+      "status": "failed",
+      "evidence": "not shown in any agent message"
+    },
+    {
+      "name": "cites:refund-policy/v2/return",
+      "status": "failed",
+      "evidence": "not shown in any agent message"
+    },
+    {
+      "name": "cites:refund-policy/v2/eligible-orders",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: Because the cedar coat hangers order is recorded as delivered but you state it never arrived, a staff member takes the case."
+    },
+    {
+      "name": "communication:explains_refusal_reason",
+      "status": "pending",
+      "evidence": "pre-check passed: 1 agent messages"
+    },
+    {
+      "name": "communication:announces_handoff",
+      "status": "pending",
+      "evidence": "pre-check passed: an agent message follows the handoff"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 4,
+  "refusals": [],
+  "handoff_origins": [
+    "agent"
+  ],
+  "agent_seconds": [
+    11.229
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.019550499999999804,
+    "simulator": 5.410000000000137e-05
+  },
+  "attempts_sent": 5,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hi! I need help with my three orders: I want a refund for my wicker storage basket, a refund for my linen laundry liner (which I'll mail back next week), and also my cedar coat hangers order says delivered 6 days ago but the package never arrived!"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "toolu_01UavRNceod1oMYq2fCJ5wFH",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01UavRNceod1oMYq2fCJ5wFH",
+          "name": "list_my_orders",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "call_id": "toolu_01UavRNceod1oMYq2fCJ5wFH",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h464-o3\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-25T09:58:27+00:00\", \"delivered_at\": \"2026-11-10T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h464-o3-u3\", \"product\": \"Cedar coat hangers\", \"paid_minor\": 7990, \"received_back\": false, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-12-10T10:00:00+00:00\", \"refund_deadline_passed\": false}, {\"order_id\": \"h464-o2\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-17T07:18:31+00:00\", \"delivered_at\": \"2026-11-05T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h464-o2-u2\", \"product\": \"Linen laundry liner\", \"paid_minor\": 3990, \"received_back\": false, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-12-05T10:00:00+00:00\", \"refund_deadline_passed\": false}, {\"order_id\": \"h464-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-09-29T06:18:25+00:00\", \"delivered_at\": \"2026-10-12T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h464-o1-u1\", \"product\": \"Wicker storage basket\", \"paid_minor\": 5999, \"received_back\": true, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-11-11T10:00:00+00:00\", \"refund_deadline_passed\": true}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "toolu_01TLF7cHKy3oHYHTZycAXnH7",
+          "name": "assess_refund",
+          "arguments": "{\"order_id\": \"h464-o1\", \"unit_ids\": [\"h464-o1-u1\"]}"
+        }
+      ],
+      "continuation": [
+        {
+          "type": "thinking",
+          "thinking": "",
+          "signature": "CAQSrAUKEAgTGAI4AUIIdGhpbmtpbmcSDAf1H+fvpQXhBZSpORoMmNIZaWyEqXviIzdOIjBaePD+HWF5OrUaFBm6Lu4SVq6m9DLsvkA7iTBhw6vWTnCtO8zL6/Ohrk27Ks5HKD0qyQRYue8fre9oOheS/Pv1KLxp1zmRmx/pHyZAYCwHhwUaS7Sf/W1RSF11CFuNQD+hJbXmW4e+xneDuAWT+UHARWdAql9HPwoPHXSGScXXqKgcTXbiI1wXAo61sk/7UsM46ldNMjI9WRvcdbr6o1tLlKk6nQARvmvskS5kmH830sAqLlzW7ymDCvAyI6InxkKolidlRtvmiBC9N0N11VOCVByXXoXO/ED/rSjlvaSjpg6X9hDzEafpy4wsINZTT4Rqk2ilDJDgeqxR9dF8FOUt/d9sSPIQfD+KQLUxXs6Mc8moSP51aS4iE1o3gh/cykH2tL6dLa02uNWYRg9MqG998qhvJhkkNMJHcMCED0Oc42VF0BjdP9885SgZhYlS1lE7WeCd6O3p0pOjLR5pZ5mLasQmuu09K0OL36PTXvWnmgPh3s1RolkjNHSIlnEpy6xx97KErsXMPYMwzzwy8JpDu7crG3IszqK+arunjLzBZZ/iVWLhhS3luqEw0UPDAcQiP/37x92Ljt7CBfBTkrWFbSpta0RtuA0sXwxfh0F4uCo+fVRxkTAXX3rQkFKff9osNjrFCtcVPw9K0bwKaO5t7235r6xCvEPKN2/XO8KCuFWMcLo7S5A9/I797T/E/i3Fuqay4ChVs0/qRPdfr9K27BQ64bjOknkmBNeafnyxZMi9H7ihDj9WBcpFOeJwXGQ1eOmUjTTevWSYFAJ/DfR9KjsPd+QM2uFE6TussTvrtK3wz1uDMADk6KXA0rlOtO0//ejk8q6rkht318kYAQ=="
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01TLF7cHKy3oHYHTZycAXnH7",
+          "name": "assess_refund",
+          "input": {
+            "order_id": "h464-o1",
+            "unit_ids": [
+              "h464-o1-u1"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "call_id": "toolu_01TLF7cHKy3oHYHTZycAXnH7",
+      "name": "assess_refund",
+      "content": "{\"ok\": true, \"outcome\": \"refused\", \"policy_citations\": [\"refund-policy/v2/window\"], \"amount_minor\": null, \"currency\": \"BRL\", \"order\": {\"order_id\": \"h464-o1\", \"status\": \"delivered\", \"delivered_at\": \"2026-10-12T10:00:00+00:00\", \"refund_deadline\": \"2026-11-11T10:00:00+00:00\", \"payment_records\": 1, \"one_valid_payment\": true}, \"units\": [{\"unit_id\": \"h464-o1-u1\", \"product\": \"Wicker storage basket\", \"paid_minor\": 5999, \"received_back\": true, \"refunded\": false, \"receipt_number\": null, \"earlier_on_time_proposal\": false}], \"next_step\": \"Tell the customer why, citing the sections given. Propose nothing for these units.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "toolu_01132HYcBKL4uzodFjT2x4eA",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\": \"delivery_disputed\", \"order_id\": \"h464-o3\", \"unit_ids\": [], \"customer_words\": \"\", \"reason\": \"Customer says order recorded as delivered never arrived.\", \"customer_goal\": \"Refund for cedar coat hangers that the customer says never arrived.\", \"confirmed_facts\": \"Order h464-o3 is delivered at 2026-11-10T10:00:00Z, unit h464-o3-u3 paid 7990 minor BRL, not received back, not refunded. Basket order h464-o1 refused as late; liner not yet received back.\", \"decision_needed\": \"Decide how to handle the claimed non-delivery of order h464-o3.\"}"
+        }
+      ],
+      "continuation": [
+        {
+          "type": "thinking",
+          "thinking": "",
+          "signature": "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"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01132HYcBKL4uzodFjT2x4eA",
+          "name": "request_handoff",
+          "input": {
+            "reason_code": "delivery_disputed",
+            "order_id": "h464-o3",
+            "unit_ids": [],
+            "customer_words": "",
+            "reason": "Customer says order recorded as delivered never arrived.",
+            "customer_goal": "Refund for cedar coat hangers that the customer says never arrived.",
+            "confirmed_facts": "Order h464-o3 is delivered at 2026-11-10T10:00:00Z, unit h464-o3-u3 paid 7990 minor BRL, not received back, not refunded. Basket order h464-o1 refused as late; liner not yet received back.",
+            "decision_needed": "Decide how to handle the claimed non-delivery of order h464-o3."
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "call_id": "toolu_01132HYcBKL4uzodFjT2x4eA",
+      "name": "request_handoff",
+      "content": "{\"ok\": true, \"handoff_id\": \"hand-b3f20e2535c5486a\", \"closed_request\": null, \"reason_code\": \"delivery_disputed\", \"policy_citations\": [\"refund-policy/v2/eligible-orders\"], \"next_step\": \"This handoff closed no request: say nothing of closing one. Tell the customer a person will take over, and why, citing (refund-policy/v2/eligible-orders). A refund already paid stays paid. Make no more changes.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "A staff member will now take over your cedar coat hangers case. Your order is recorded as delivered but you say it never arrived, and that is a case for a person (refund-policy/v2/eligible-orders).\n\nI can't make any more changes in this conversation. The basket refund is refused as late, and the liner has to reach the shop before a refund can be requested.",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "type": "text",
+          "text": "A staff member will now take over your cedar coat hangers case. Your order is recorded as delivered but you say it never arrived, and that is a case for a person (refund-policy/v2/eligible-orders).\n\nI can't make any more changes in this conversation. The basket refund is refused as late, and the liner has to reach the shop before a refund can be requested."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,283 @@
+{
+  "scenario": "H472",
+  "try": 3,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded h472-o1-u1 for 4590, h472-o1-u2 for 3990"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal refunded, acceptable ['refunded']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v2/window",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: A refund request created within 30 days (24-hour periods) of the recorded delivery time is on time."
+    },
+    {
+      "name": "cites:refund-policy/v2/approval",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: Adding the second bowl to the proposal requires creating a new proposal, a new customer confirmation, and a new staff approval."
+    },
+    {
+      "name": "communication:resolves_ambiguity_first",
+      "status": "pending",
+      "evidence": "pre-check passed: the agent asked and the customer answered before the first proposal"
+    },
+    {
+      "name": "communication:states_correct_amount",
+      "status": "pending",
+      "evidence": "pre-check passed: ['R$ 85,80'] stated"
+    },
+    {
+      "name": "communication:gives_this_receipt",
+      "status": "pending",
+      "evidence": "pre-check passed: the receipt number of this run's refund is given"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "1 refund(s), each confirmed and approved in time"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: ['R-00000001']; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 8,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    4.172,
+    4.603,
+    5.181,
+    6.066
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.026779099999999723,
+    "simulator": 0.0003104750000000045
+  },
+  "attempts_sent": 11,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hi, I want to refund the ceramic ramen bowl I returned—and since my order was delivered 29 and a half days ago, is my request still on time?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "toolu_01FbENhm3TMeBC5xNFUkpWBD",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01FbENhm3TMeBC5xNFUkpWBD",
+          "name": "list_my_orders",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "call_id": "toolu_01FbENhm3TMeBC5xNFUkpWBD",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h472-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-09-15T21:03:53+00:00\", \"delivered_at\": \"2026-10-17T22:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h472-o1-u1\", \"product\": \"Blue ceramic ramen bowl\", \"paid_minor\": 4590, \"received_back\": true, \"refunded\": false}, {\"unit_id\": \"h472-o1-u2\", \"product\": \"Green ceramic ramen bowl\", \"paid_minor\": 3990, \"received_back\": true, \"refunded\": false}, {\"unit_id\": \"h472-o1-u3\", \"product\": \"Bamboo chopstick rest\", \"paid_minor\": 3990, \"received_back\": false, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-11-16T22:00:00+00:00\", \"refund_deadline_passed\": false}]}"
+    },
+    {
+      "role": "agent",
+      "text": "Two ceramic ramen bowls in your order were returned, so I need to know which one you want refunded:\n\n- Blue ceramic ramen bowl (BRL 45.90)\n- Green ceramic ramen bowl (BRL 39.90)\n\nOn timing: the order's refund deadline is 2026-11-16 22:00 UTC, and it hasn't passed, so a request is still on time for now (refund-policy/v2/window). Tell me which bowl, or both, and I'll prepare the proposal.",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "type": "text",
+          "text": "Two ceramic ramen bowls in your order were returned, so I need to know which one you want refunded:\n\n- Blue ceramic ramen bowl (BRL 45.90)\n- Green ceramic ramen bowl (BRL 39.90)\n\nOn timing: the order's refund deadline is 2026-11-16 22:00 UTC, and it hasn't passed, so a request is still on time for now (refund-policy/v2/window). Tell me which bowl, or both, and I'll prepare the proposal."
+        }
+      ]
+    },
+    {
+      "role": "customer",
+      "text": "The blue ceramic ramen bowl, please."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "toolu_01Ty41D7nstMvHvhaAJbAnpt",
+          "name": "propose_refund",
+          "arguments": "{\"order_id\": \"h472-o1\", \"unit_ids\": [\"h472-o1-u1\"], \"summary_for_staff\": \"Customer requests refund of returned blue ceramic ramen bowl, within the deadline.\"}"
+        }
+      ],
+      "continuation": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Ty41D7nstMvHvhaAJbAnpt",
+          "name": "propose_refund",
+          "input": {
+            "order_id": "h472-o1",
+            "unit_ids": [
+              "h472-o1-u1"
+            ],
+            "summary_for_staff": "Customer requests refund of returned blue ceramic ramen bowl, within the deadline."
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "call_id": "toolu_01Ty41D7nstMvHvhaAJbAnpt",
+      "name": "propose_refund",
+      "content": "{\"ok\": true, \"proposal_id\": \"prop-a1bf42eaf0b945d1\", \"status\": \"awaiting_customer_confirmation\", \"outcome\": \"eligible\", \"amount_minor\": 4590, \"currency\": \"BRL\", \"policy_citations\": [\"refund-policy/v2/amount\", \"refund-policy/v2/window\"], \"next_step\": \"The proposal is now on the customer's card, waiting for their button. Tell the customer the amount. They confirm with the button on the proposal card; a typed yes is not a confirmation. Tell the customer also, citing each section: The 30-day limit after delivery ends at 2026-11-16 22:00 UTC, and a request counts as made when its proposal is created, so this one is on time (refund-policy/v2/window).\"}"
+    },
+    {
+      "role": "agent",
+      "text": "The refund proposal for the blue ceramic ramen bowl is ready. The amount is BRL 45.90, which is what you paid for that unit (refund-policy/v2/amount).\n\nPlease confirm it with the button on the proposal card. A \"yes\" typed in the chat doesn't count as confirmation. After you confirm, a staff member has to approve it (refund-policy/v2/approval).\n\nThe request is on time. The 30-day limit ends at 2026-11-16 22:00 UTC, and a request counts as made when its proposal is created (refund-policy/v2/window).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "type": "text",
+          "text": "The refund proposal for the blue ceramic ramen bowl is ready. The amount is BRL 45.90, which is what you paid for that unit (refund-policy/v2/amount).\n\nPlease confirm it with the button on the proposal card. A \"yes\" typed in the chat doesn't count as confirmation. After you confirm, a staff member has to approve it (refund-policy/v2/approval).\n\nThe request is on time. The 30-day limit ends at 2026-11-16 22:00 UTC, and a request counts as made when its proposal is created (refund-policy/v2/window)."
+        }
+      ]
+    },
+    {
+      "role": "customer",
+      "text": "Actually, I’d like to include both the blue and green ceramic ramen bowls in one refund proposal. Does changing the items require a new proposal?"
+    },
+    {
+      "role": "agent",
+      "text": "Yes. Changing the items needs a new proposal, a new confirmation and a new approval (refund-policy/v2/approval). I'll create one with both bowls now. It replaces the earlier one if you haven't confirmed that yet.",
+      "tool_calls": [
+        {
+          "call_id": "toolu_01VVTcLLKb6E4uMCJJNhoYca",
+          "name": "propose_refund",
+          "arguments": "{\"order_id\": \"h472-o1\", \"unit_ids\": [\"h472-o1-u1\", \"h472-o1-u2\"], \"summary_for_staff\": \"Customer requests refund of both returned ceramic ramen bowls (blue and green), within the deadline. Replaces earlier blue-only proposal.\"}"
+        }
+      ],
+      "continuation": [
+        {
+          "type": "text",
+          "text": "Yes. Changing the items needs a new proposal, a new confirmation and a new approval (refund-policy/v2/approval). I'll create one with both bowls now. It replaces the earlier one if you haven't confirmed that yet."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01VVTcLLKb6E4uMCJJNhoYca",
+          "name": "propose_refund",
+          "input": {
+            "order_id": "h472-o1",
+            "unit_ids": [
+              "h472-o1-u1",
+              "h472-o1-u2"
+            ],
+            "summary_for_staff": "Customer requests refund of both returned ceramic ramen bowls (blue and green), within the deadline. Replaces earlier blue-only proposal."
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "call_id": "toolu_01VVTcLLKb6E4uMCJJNhoYca",
+      "name": "propose_refund",
+      "content": "{\"ok\": true, \"proposal_id\": \"prop-174f17b8b37a482b\", \"status\": \"awaiting_customer_confirmation\", \"outcome\": \"eligible\", \"amount_minor\": 8580, \"currency\": \"BRL\", \"policy_citations\": [\"refund-policy/v2/amount\", \"refund-policy/v2/window\", \"refund-policy/v2/approval\"], \"next_step\": \"The proposal is now on the customer's card, waiting for their button. Tell the customer the amount. They confirm with the button on the proposal card; a typed yes is not a confirmation. Tell the customer also, citing each section: The 30-day limit after delivery ends at 2026-11-16 22:00 UTC, and a request counts as made when its proposal is created, so this one is on time (refund-policy/v2/window). It replaces the earlier request for the Blue ceramic ramen bowl (prop-a1bf42eaf0b945d1), which closed unpaid when it was changed, so this changed proposal needs the customer's confirmation and a staff member's approval (refund-policy/v2/approval).\"}"
+    },
+    {
+      "role": "agent",
+      "text": "The new proposal covers both bowls and totals BRL 85.80. That is BRL 45.90 for the blue bowl and BRL 39.90 for the green one (refund-policy/v2/amount).\n\nThe earlier blue-only proposal closed unpaid when you changed it. Please confirm the new one with the button on its card, and a staff member then has to approve it (refund-policy/v2/approval).\n\nIt is on time. The 30-day limit ends at 2026-11-16 22:00 UTC, and a request counts as made when its proposal is created (refund-policy/v2/window).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "type": "text",
+          "text": "The new proposal covers both bowls and totals BRL 85.80. That is BRL 45.90 for the blue bowl and BRL 39.90 for the green one (refund-policy/v2/amount).\n\nThe earlier blue-only proposal closed unpaid when you changed it. Please confirm the new one with the button on its card, and a staff member then has to approve it (refund-policy/v2/approval).\n\nIt is on time. The 30-day limit ends at 2026-11-16 22:00 UTC, and a request counts as made when its proposal is created (refund-policy/v2/window)."
+        }
+      ]
+    },
+    {
+      "role": "event",
+      "text": "The customer confirmed request prop-174f17b8b37a482b and a staff member approved it, so it is ready to be paid.",
+      "notice_id": "notice-dec-67368db567d249d3"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "toolu_019abnpK2XWyzXCQqxjyivaE",
+          "name": "execute_refund",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": [
+        {
+          "type": "tool_use",
+          "id": "toolu_019abnpK2XWyzXCQqxjyivaE",
+          "name": "execute_refund",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "call_id": "toolu_019abnpK2XWyzXCQqxjyivaE",
+      "name": "execute_refund",
+      "content": "{\"ok\": true, \"receipt\": {\"receipt_number\": \"R-00000001\", \"operation_id\": \"op-b994c16679af4e4f\", \"proposal_id\": \"prop-174f17b8b37a482b\", \"amount_minor\": 8580, \"currency\": \"BRL\", \"payment_id\": \"h472-o1-p1\", \"units\": [{\"unit_id\": \"h472-o1-u1\", \"amount_minor\": 4590}, {\"unit_id\": \"h472-o1-u2\", \"amount_minor\": 3990}], \"committed_at\": \"2026-11-16T10:06:00+00:00\"}, \"next_step\": \"The refund is paid and recorded against the order's original payment. Tell the customer the amount and the receipt number. Explain the test ledger (not a bank transfer, no date) only if the customer asks when or how the money arrives.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "Your refund has been paid. The receipt number is **R-00000001**.\n\nIt is BRL 85.80 for the blue and green ceramic ramen bowls. The amount is recorded against the order's original payment.",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "type": "text",
+          "text": "Your refund has been paid. The receipt number is **R-00000001**.\n\nIt is BRL 85.80 for the blue and green ceramic ramen bowls. The amount is recorded against the order's original payment."
+        }
+      ]
+    }
+  ]
+}
