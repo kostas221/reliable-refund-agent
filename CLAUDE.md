@@ -422,8 +422,13 @@ right, 1 partly); **instructions v12** (`prompts/agent-v12.md`) drop v11's words
 calling a tool" and nothing else; contract tests fail on v11, 3 of 3 planted errors caught, D109's request read in
 full; 3701 tests and 54 screen tests pass; predictions written ("v1.3, instructions v12"; if D109 fails again, a
 look-up-first sentence next; if v12 regresses, the release falls back to v10). The owner's reading of the
-comparison's 66 is waived (a recorded deviation); the held-out result stays v10's. Next: commit on the owner's word,
-the owner's paid run, Claude reads all 384. Part B, on the owner's later decision: Haiku 5.5 medium with v11 and with Anthropic Citations
+comparison's 66 is waived (a recorded deviation); the held-out result stays v10's. The v12 run (two parts after the
+provider's no-credit stop at D92, joined in `runs/pilot-20261106T194322Z-gpt-6.1-sol-low-joined`, $2.52; results in
+`docs/pilot/results.md`, "v1.3, instructions v12"): 381/384, the other 3 faults of the simulated customer (D23 try 3,
+D85 tries 1 and 3), 0 failures among the valid, pass^3 126/128, D109 3/3, 0 missed citations on D90-D128, 0 unsafe,
+60/60 handoffs, Claude read all 384, 7 of 7 predictions right; paired +1.6 against v10 (-0.5 to +4.2). **v12 is the
+product's instructions for the release** (stopping rule held). Premature cards are now read by their definition
+everywhere (8; D13's pattern was not marked on 2026-11-01). Next: commit on the owner's word, then the release steps. Part B, on the owner's later decision: Haiku 5.5 medium with v11 and with Anthropic Citations
 on D90-D128 against Sol with v11 (the owner reads Haiku's prices; one paid test conversation first); at most a place
 in the next held-out set, never a change of model; it reverses 2026-11-01's "no Haiku trial". Then the handoff checks
 and the five-person trial. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on

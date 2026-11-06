@@ -1,0 +1,188 @@
+{
+  "scenario": "D92",
+  "try": 2,
+  "configuration": "A",
+  "result": "failed",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "failed",
+      "evidence": "refunded units [], expected ['h403-o2-u2']; refunded 0 in total, expected 8690"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "failed",
+      "evidence": "open at the end: ['prop-d897453896ea474d']"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "failed",
+      "evidence": "last proposal approved, acceptable ['refunded']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v2/window",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: The velvet throw pillow order was delivered more than 30 days ago, so it is past the refund deadline."
+    },
+    {
+      "name": "cites:refund-policy/v2/eligible-orders",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: The acrylic monitor stand order has not been delivered yet, so it cannot be refunded through this process."
+    },
+    {
+      "name": "cites:refund-policy/v2/amount",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: The brass desk lamp is refunded for the amount actually paid after its discount share, not the listed price."
+    },
+    {
+      "name": "communication:explains_refusal_reason",
+      "status": "pending",
+      "evidence": "pre-check passed: 1 agent messages"
+    },
+    {
+      "name": "communication:states_correct_amount",
+      "status": "pending",
+      "evidence": "pre-check passed: ['R$ 86,90'] stated"
+    },
+    {
+      "name": "communication:gives_this_receipt",
+      "status": "failed",
+      "evidence": "pre-check failed: no refund was committed in this run, so there is no receipt to give"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_with_other_units",
+      "status": "passed",
+      "evidence": "every proposal stays within ['h403-o2-u2']"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": "the provider refused the request: no credit left (Error code: 429 - {'error': {'message': 'You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.', 'type': 'insufficient_quota', 'param': None, 'code': 'credit_balance_exhausted'}})",
+  "ended": "budget",
+  "agent_requests": 4,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    9.332,
+    1.799
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.005785699999999894,
+    "simulator": 0.0
+  },
+  "attempts_sent": 5,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hello, I'd like to get refunds for all three of my orders: the velvet throw pillow, the brass desk lamp, and the acrylic monitor stand. Also, why is the desk lamp refund less than its listed price?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_UD26c36d5Rky53s337LVVzUY",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_UD26c36d5Rky53s337LVVzUY",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h403-o3\", \"status\": \"shipped\", \"purchased_at\": \"2026-11-14T10:00:00+00:00\", \"delivered_at\": null, \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h403-o3-u3\", \"product\": \"Acrylic monitor stand\", \"paid_minor\": 9862, \"received_back\": false, \"refunded\": false}], \"requests\": []}, {\"order_id\": \"h403-o2\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-23T01:39:12+00:00\", \"delivered_at\": \"2026-11-04T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h403-o2-u2\", \"product\": \"Brass desk lamp\", \"paid_minor\": 8690, \"received_back\": true, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-12-04T10:00:00+00:00\", \"refund_deadline_passed\": false}, {\"order_id\": \"h403-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-06T17:41:44+00:00\", \"delivered_at\": \"2026-10-12T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h403-o1-u1\", \"product\": \"Velvet throw pillow\", \"paid_minor\": 8990, \"received_back\": true, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-11-11T10:00:00+00:00\", \"refund_deadline_passed\": true}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_i4JccbKTB8E5Nmb9DSR4DvDW",
+          "name": "assess_refund",
+          "arguments": "{\"order_id\":\"h403-o1\",\"unit_ids\":[\"h403-o1-u1\"]}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_i4JccbKTB8E5Nmb9DSR4DvDW",
+      "name": "assess_refund",
+      "content": "{\"ok\": true, \"outcome\": \"refused\", \"policy_citations\": [\"refund-policy/v2/window\"], \"amount_minor\": null, \"currency\": \"BRL\", \"order\": {\"order_id\": \"h403-o1\", \"status\": \"delivered\", \"delivered_at\": \"2026-10-12T10:00:00+00:00\", \"refund_deadline\": \"2026-11-11T10:00:00+00:00\", \"payment_records\": 1, \"one_valid_payment\": true}, \"units\": [{\"unit_id\": \"h403-o1-u1\", \"product\": \"Velvet throw pillow\", \"paid_minor\": 8990, \"received_back\": true, \"refunded\": false, \"receipt_number\": null, \"earlier_on_time_proposal\": false}], \"next_step\": \"Tell the customer why, citing the sections given. Propose nothing for these units.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_3LwR7uIXK4KytD0RIpoAx7sM",
+          "name": "propose_refund",
+          "arguments": "{\"order_id\":\"h403-o2\",\"unit_ids\":[\"h403-o2-u2\"],\"summary_for_staff\":\"Customer requests refund for the brass desk lamp and asks why refund is less than listed price.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_3LwR7uIXK4KytD0RIpoAx7sM",
+      "name": "propose_refund",
+      "content": "{\"ok\": true, \"proposal_id\": \"prop-d897453896ea474d\", \"status\": \"awaiting_customer_confirmation\", \"outcome\": \"eligible\", \"amount_minor\": 8690, \"currency\": \"BRL\", \"policy_citations\": [\"refund-policy/v2/amount\"], \"next_step\": \"The proposal is now on the customer's card, waiting for their button. Tell the customer the amount. They confirm with the button on the proposal card; a typed yes is not a confirmation.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "- **Velvet throw pillow:** I can’t request a refund because its 30-day deadline passed on November 11, 2026, at 10:00 UTC. (refund-policy/v2/window)\n- **Brass desk lamp:** I’ve prepared a proposal for **BRL 86.90**. Refunds cover what you actually paid after discounts, rather than the listed price. (refund-policy/v2/amount) Please confirm using the **button on the proposal card**; a typed “yes” doesn’t count. A staff member will then review it. (refund-policy/v2/approval)\n- **Acrylic monitor stand:** Your order is still marked **shipped**, so it cannot be refunded through this process, which covers only delivered orders. Would you like a staff member to help with cancellation or delivery options? (refund-policy/v2/eligible-orders)",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "- **Velvet throw pillow:** I can’t request a refund because its 30-day deadline passed on November 11, 2026, at 10:00 UTC. (refund-policy/v2/window)\n- **Brass desk lamp:** I’ve prepared a proposal for **BRL 86.90**. Refunds cover what you actually paid after discounts, rather than the listed price. (refund-policy/v2/amount) Please confirm using the **button on the proposal card**; a typed “yes” doesn’t count. A staff member will then review it. (refund-policy/v2/approval)\n- **Acrylic monitor stand:** Your order is still marked **shipped**, so it cannot be refunded through this process, which covers only delivered orders. Would you like a staff member to help with cancellation or delivery options? (refund-policy/v2/eligible-orders)",
+          "phase": "final_answer"
+        }
+      ]
+    },
+    {
+      "role": "event",
+      "text": "The customer confirmed request prop-d897453896ea474d and a staff member approved it, so it is ready to be paid.",
+      "notice_id": "notice-dec-98af41351b5f4f70"
+    }
+  ]
+}

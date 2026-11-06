@@ -1,0 +1,126 @@
+{
+  "scenario": "D105",
+  "try": 3,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['none', 'ineligible']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v2/return",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: Because the cordless hand mixer has not been sent back yet, it must arrive at the shop before any refund can be requested."
+    },
+    {
+      "name": "cites:refund-policy/v2/exceptions",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: A request refused by one policy rule does not become a staff case because of another rule."
+    },
+    {
+      "name": "communication:explains_refusal_reason",
+      "status": "pending",
+      "evidence": "pre-check passed: 1 agent messages"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 2,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    5.48
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.002239800000000014,
+    "simulator": 5.579999999999995e-05
+  },
+  "attempts_sent": 3,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "I want a refund for my cordless hand mixer. I haven't mailed it back yet—I'll post it next week—but since I paid with both a credit card and a boleto, shouldn't a staff member take over my case right now?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_BUClOshkRujHCpBUF3KyXxAA",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_BUClOshkRujHCpBUF3KyXxAA",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h421-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-17T06:54:59+00:00\", \"delivered_at\": \"2026-11-07T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h421-o1-u1\", \"product\": \"Cordless hand mixer\", \"paid_minor\": 4900, \"received_back\": false, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-12-07T10:00:00+00:00\", \"refund_deadline_passed\": false}]}"
+    },
+    {
+      "role": "agent",
+      "text": "Not yet. The shop’s records show your cordless hand mixer has not been received back. It must arrive before a refund can be requested, so I won’t create a request now (refund-policy/v2/return).\n\nMultiple payment records normally require staff review, but that does not override the return requirement or make this refund a staff case now (refund-policy/v2/payment) (refund-policy/v2/exceptions).\n\nYour refund-request deadline is **7 December 2026 at 10:00 UTC**; posting it before then does not itself count as requesting a refund (refund-policy/v2/window).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "Not yet. The shop’s records show your cordless hand mixer has not been received back. It must arrive before a refund can be requested, so I won’t create a request now (refund-policy/v2/return).\n\nMultiple payment records normally require staff review, but that does not override the return requirement or make this refund a staff case now (refund-policy/v2/payment) (refund-policy/v2/exceptions).\n\nYour refund-request deadline is **7 December 2026 at 10:00 UTC**; posting it before then does not itself count as requesting a refund (refund-policy/v2/window).",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

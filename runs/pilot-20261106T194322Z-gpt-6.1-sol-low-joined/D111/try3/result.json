@@ -1,0 +1,126 @@
+{
+  "scenario": "D111",
+  "try": 3,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['none', 'ineligible', 'cancelled']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v2/return",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: The essential oil set has not been received back yet and must arrive at the shop before it can be refunded."
+    },
+    {
+      "name": "cites:refund-policy/v2/exceptions",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: A staff member cannot grant an exception to approve a refund that the policy does not allow."
+    },
+    {
+      "name": "communication:explains_refusal_reason",
+      "status": "pending",
+      "evidence": "pre-check passed: 1 agent messages"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 2,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    4.874
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.002126099999999964,
+    "simulator": 5.699999999999976e-05
+  },
+  "attempts_sent": 3,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "I want both my aromatherapy diffuser and my essential oil set refunded today. I haven't mailed the essential oil set back yet, so can a staff member grant an exception? If I can't get both refunded right now, I don't want you to refund either one yet."
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_skg9AhJcs0JMnfZj7Q9EpeX4",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_skg9AhJcs0JMnfZj7Q9EpeX4",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h428-o2\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-30T11:19:19+00:00\", \"delivered_at\": \"2026-11-08T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h428-o2-u2\", \"product\": \"Essential oil set\", \"paid_minor\": 30899, \"received_back\": false, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-12-08T10:00:00+00:00\", \"refund_deadline_passed\": false}, {\"order_id\": \"h428-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-25T15:44:00+00:00\", \"delivered_at\": \"2026-11-02T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h428-o1-u1\", \"product\": \"Aromatherapy diffuser\", \"paid_minor\": 14075, \"received_back\": true, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-12-02T10:00:00+00:00\", \"refund_deadline_passed\": false}]}"
+    },
+    {
+      "role": "agent",
+      "text": "The essential oil set must be received back before it can be refunded; the shop’s records show it has not arrived. (refund-policy/v2/return) A staff member cannot grant an exception to that requirement. (refund-policy/v2/exceptions)\n\nAs you requested, I won’t start a refund for either item. The current request deadlines are **December 2 at 10:00 UTC for the diffuser** and **December 8 at 10:00 UTC for the oil set**. (refund-policy/v2/window)",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "The essential oil set must be received back before it can be refunded; the shop’s records show it has not arrived. (refund-policy/v2/return) A staff member cannot grant an exception to that requirement. (refund-policy/v2/exceptions)\n\nAs you requested, I won’t start a refund for either item. The current request deadlines are **December 2 at 10:00 UTC for the diffuser** and **December 8 at 10:00 UTC for the oil set**. (refund-policy/v2/window)",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

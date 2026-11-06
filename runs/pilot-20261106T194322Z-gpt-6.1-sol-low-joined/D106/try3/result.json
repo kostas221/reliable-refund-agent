@@ -1,0 +1,149 @@
+{
+  "scenario": "D106",
+  "try": 3,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal none, acceptable ['none', 'ineligible']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "no handoff; forbidden, origins []"
+    },
+    {
+      "name": "cites:refund-policy/v2/remaining",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: The bamboo cutting board was already refunded once and cannot be refunded again, and its receipt is provided."
+    },
+    {
+      "name": "cites:refund-policy/v2/window",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: The stoneware baking dish order was delivered more than 30 days ago, so it is past the 30-day time limit."
+    },
+    {
+      "name": "cites:refund-policy/v2/return",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: The silicone oven mitts have not been received back yet and must arrive before a refund can be requested."
+    },
+    {
+      "name": "communication:explains_refusal_reason",
+      "status": "pending",
+      "evidence": "pre-check passed: 1 agent messages"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 3,
+  "refusals": [],
+  "handoff_origins": [],
+  "agent_seconds": [
+    7.752
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.0036723000000000172,
+    "simulator": 8.009999999999962e-05
+  },
+  "attempts_sent": 4,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hi, can you refund my three orders—the bamboo cutting board, the stoneware baking dish, and the silicone oven mitts (which I'm packing to mail tomorrow)? If the cutting board was already paid, what was its receipt?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_yNpxbk8fhdZrufMcYV3NuTgX",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_yNpxbk8fhdZrufMcYV3NuTgX",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h422-o3\", \"status\": \"delivered\", \"purchased_at\": \"2026-11-04T16:50:59+00:00\", \"delivered_at\": \"2026-11-10T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h422-o3-u3\", \"product\": \"Siliconeoven mitts\", \"paid_minor\": 1990, \"received_back\": false, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-12-10T10:00:00+00:00\", \"refund_deadline_passed\": false}, {\"order_id\": \"h422-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-22T01:29:23+00:00\", \"delivered_at\": \"2026-10-29T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h422-o1-u1\", \"product\": \"Bamboo cutting board\", \"paid_minor\": 19350, \"received_back\": true, \"refunded\": true}], \"requests\": [{\"proposal_id\": \"d106-r1\", \"status\": \"refunded\", \"amount_minor\": 19350, \"unit_ids\": [\"h422-o1-u1\"], \"created_at\": \"2026-11-08T10:00:00+00:00\", \"receipt_number\": \"R-H422-0001\", \"rejection_reason\": null, \"policy_citation\": \"refund-policy/v2/remaining\"}], \"refund_deadline\": \"2026-11-28T10:00:00+00:00\", \"refund_deadline_passed\": false}, {\"order_id\": \"h422-o2\", \"status\": \"delivered\", \"purchased_at\": \"2026-10-03T15:48:54+00:00\", \"delivered_at\": \"2026-10-09T10:00:00+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h422-o2-u2\", \"product\": \"Stoneware baking dish\", \"paid_minor\": 24990, \"received_back\": true, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-11-08T10:00:00+00:00\", \"refund_deadline_passed\": true}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_1IQJ4p1SxX8L2y9YvOCrwesM",
+          "name": "assess_refund",
+          "arguments": "{\"order_id\":\"h422-o2\",\"unit_ids\":[\"h422-o2-u2\"]}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_1IQJ4p1SxX8L2y9YvOCrwesM",
+      "name": "assess_refund",
+      "content": "{\"ok\": true, \"outcome\": \"refused\", \"policy_citations\": [\"refund-policy/v2/window\"], \"amount_minor\": null, \"currency\": \"BRL\", \"order\": {\"order_id\": \"h422-o2\", \"status\": \"delivered\", \"delivered_at\": \"2026-10-09T10:00:00+00:00\", \"refund_deadline\": \"2026-11-08T10:00:00+00:00\", \"payment_records\": 1, \"one_valid_payment\": true}, \"units\": [{\"unit_id\": \"h422-o2-u2\", \"product\": \"Stoneware baking dish\", \"paid_minor\": 24990, \"received_back\": true, \"refunded\": false, \"receipt_number\": null, \"earlier_on_time_proposal\": false}], \"next_step\": \"Tell the customer why, citing the sections given. Propose nothing for these units.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "- **Bamboo cutting board:** Already refunded **BRL 193.50** to the order’s original payment. Your receipt is **R-H422-0001**. It cannot be refunded again. (refund-policy/v2/remaining) (refund-policy/v2/payment)\n- **Stoneware baking dish:** I can’t refund it because its 30-day request deadline passed on **November 8, 2026, at 10:00 UTC**, with no earlier on-time proposal. (refund-policy/v2/window)\n- **Silicone oven mitts:** They must reach the shop before a refund can be requested, so I haven’t created a proposal for them. (refund-policy/v2/return) The request must be created by **December 10, 2026, at 10:00 UTC**. (refund-policy/v2/window)",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "- **Bamboo cutting board:** Already refunded **BRL 193.50** to the order’s original payment. Your receipt is **R-H422-0001**. It cannot be refunded again. (refund-policy/v2/remaining) (refund-policy/v2/payment)\n- **Stoneware baking dish:** I can’t refund it because its 30-day request deadline passed on **November 8, 2026, at 10:00 UTC**, with no earlier on-time proposal. (refund-policy/v2/window)\n- **Silicone oven mitts:** They must reach the shop before a refund can be requested, so I haven’t created a proposal for them. (refund-policy/v2/return) The request must be created by **December 10, 2026, at 10:00 UTC**. (refund-policy/v2/window)",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

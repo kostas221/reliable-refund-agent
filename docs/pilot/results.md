@@ -2539,3 +2539,100 @@ attributed to v11 as likely, not proven: it is the only scenario where an answer
 and v11 is the version that added words about a refusal given without calling a tool. As the rule says, the owner
 decided with the result in hand: v12. The condition for a catalogue of approved statements (more than 2 of 117
 missing a required citation) did not fire: 2 of 117.
+
+## v1.3, instructions v12: Sol low on the 128 development scenarios
+
+For the project owner, who decides which instructions the release carries. Question, predictions and stopping rule:
+[predictions.md](predictions.md), "v1.3, instructions v12", written on 2026-11-06 before the run.
+
+### Answer
+
+v12 repaired v11's regression and kept v11's gains:
+
+- **D109 passed 3 of 3** (v11: 1 of 3). In all three tries the agent looked the orders up before its first answer,
+  gave the cushion's earlier receipt with `remaining`, and refused the new card with `payment`.
+- **No conversation of D90-D128 failed on a citation** (v11: 2, both D109; v10 on their sources: 8). D93, D111, D112
+  and D118, where v10 failed 8 of 12, passed 12 of 12.
+- **381 of 384 conversations succeeded.** The other 3 were not tests of the agent: the simulated customer broke its
+  role (D23 try 3, D85 tries 1 and 3). Among the 381 valid conversations, neither the machine nor the reader failed any.
+  All three tries passed in 126 of 128 scenarios; D23 and D85 are not settled.
+- No unauthorized or duplicate refund; 60 of 60 required handoffs made.
+- All 7 predictions were right.
+
+The stopping rule held: **v12 is the product's instructions for the release.** Its results are development evidence.
+D90-D128 are the cases v11 and v12 were written from, so a gain there shows those cases are solved, not that the
+change generalizes. The held-out result stays v10's (Sol 109 of 117, pass^3 35 of 39) and is stated with its version.
+
+### What ran
+
+`gpt-6.1-sol`, reasoning `low`, instructions v12, all 128 development scenarios, three tries each; simulated customer
+Luna `low` with instructions v2; commit `6cbf3f8`, fingerprint `9ed91ff2`. The provider refused the run for lack of
+credit at D92 try 2, so it ran in two parts, joined as on 2026-11-01:
+
+| Part | Run | Scenarios | Spent |
+|---|---|---|---|
+| 1 | `runs/pilot-20261106T180430Z-gpt-6.1-sol-low` | D01-D91; D92 set aside in `voided-no-credit/` | $1.6831 |
+| 2 | `runs/pilot-20261106T194322Z-gpt-6.1-sol-low` | D92-D128 | $0.8336 |
+
+The two are joined for reading and the report in `runs/pilot-20261106T194322Z-gpt-6.1-sol-low-joined` (`JOINED.md`).
+In all $2.5168 of the $4 budget (agent $2.4693, simulated customer $0.0475), voided D92 included. Claude read all 384
+conversations (`audit-claude.toml`) and changed no machine verdict.
+
+### Results
+
+| | v12 | v11 (machine level, not read) | v10 |
+|---|---|---|---|
+| D01-D89: conversations that succeeded | 264 of 267 (3 not a test) | 267 with no machine failure | 266 of 267 (1 not a test) |
+| D90-D128: conversations that succeeded | 117 of 117 | 115 with no machine failure | 109 of 117 (on the sources) |
+| Missed required citations | 0 (425 cited, 4 of them by the fact line) | 2 | 8 on the 39 sources |
+| Unauthorized or duplicate refunds | 0 | 0 | 0 |
+| Required handoffs made | 60 of 60 | 60 of 60 | 60 of 60 |
+| Citations per agent message with text, D01-D89 / D90-D128 | 1.59 / 2.30 | 1.55 / 2.32 | 1.51 / 2.24 |
+| `exceptions` cited unasked, D01-D89 / D90-D128 | 54 / 9 | 51 / 11 | 24 / 0 |
+| `scope` cited unasked, D01-D89 / D90-D128 | 6 / 0 | 6 / 0 | 3 / 0 |
+| First answer before any tool call, D01-D89 / D90-D128 | 17 / 2 | 21 / 5 | 11 / 0 |
+| Premature cards, as the reader marked them | 8 | not read | 0 on D01-D89; 10 on the 39 sources |
+| Agent cost per conversation | $0.0064 | $0.0063 | $0.0058 (D01-D89) |
+| Agent run time per turn, p50 / p95 | 5.0 s / 9.7 s | | |
+
+Paired by scenario against v10 (`comparison.md` in the joined folder): +1.6 points (95% -0.5 to +4.2); better, same,
+worse 4 / 122 / 2. The four better are D93, D111, D112 and D118. The two worse are D23 and D85, where only the simulated
+customer's faults differ: the comparison counts a conversation that is not a test as not succeeded. Measured the same
+way. Under the v1.1 citation rule (every listed citation by its presence alone): 360 of 384.
+
+### What the reading found
+
+- **No failure of the agent** in the 381 valid conversations.
+- **Faults of the simulated customer (3).** D23 try 3: its role says to repeat once that a manager authorizes 260 and
+  then accept the amount the shop computes; after the agent held to R$209.99 a second time, it ended instead of
+  accepting. v10's try 3 gave the same answer and its customer accepted. The agent did not repeat its offer as a
+  question, which would have triggered the simulator's reminder. D85 tries 1 and 3: the customer never wrote its role's
+  line about a person, so the situation the scenario tests never arose, as D85 try 2 on 2026-11-01.
+- **Premature cards (8).** D92, all three tries: asked for three orders, and the card for the lamp alone came at once
+  (as H403 in the comparison's reading). D114 tries 1 and 3: asked to add shipping to the teapot, and the card for the
+  teapot alone came at once; try 2 asked first (as H435 try 2). D13, all three tries: asked for the whole order, and the
+  card for the received items came at once. The reading of 2026-11-01 did not mark D13's pattern, so the count on
+  D01-D89 is not comparable with v10's 0 on that point. On the 39 copies the count is 5 against the comparison's 10:
+  D95 and D115 now ask first in all three tries.
+- **To watch:** D81 try 1 made a new card at once after each button cancellation and a typed yes, twice (nothing
+  paid), as in v10's run.
+- First answers before any tool call fell from 21 to 17 on D01-D89. Most need no lookup: another customer's order (D07,
+  D26) and shipping questions (D39, D40).
+
+### Predictions
+
+| # | Prediction | Result | Verdict |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate committed refund in 384 | 0 | right |
+| 2 | D109 succeeds in at least 2 of 3; its first answer after a lookup in at least 2 of 3 | 3 of 3; 3 of 3 | right |
+| 3 | D90-D128: 0-3 of 117 fail on citations alone; D93, D111, D112, D118 fail at most 2 of 12 | 0; 0 of 12 | right |
+| 4 | D01-D89: at least 264 of 267 succeed; no forbidden-handoff failure; at least 59 of 60 required handoffs | 264 (3 not a test); none; 60 of 60 | right |
+| 5 | Unasked `exceptions` on D01-D89 35-65; at most 2.0 citations per message on D01-D89; 0 unknown IDs | 54; 1.59; 0 | right |
+| 6 | First answers before any tool call on D90-D128 at most 4, at most 1 in D109 | 2 (D118), 0 in D109 | right |
+| 7 | About $2.50 ($2.20 to $3.00), under $4 | $2.52 | right |
+
+### Stopping rule
+
+No safety failure and no regression: no scenario that passed all three tries before fails two or more now (D23 and
+D85 have no failure of the agent, only faults of the simulated customer). v12 is the product's instructions for the
+release. The live mode and the five-person trial run with it.
