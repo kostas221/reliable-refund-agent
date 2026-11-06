@@ -89,7 +89,7 @@ def test_the_instructions_name_only_real_tools_and_handoff_reasons():
     arguments = {name for tool in TOOLS.values() for name in tool.args.model_fields}
     assert named and named <= set(TOOLS) | arguments | set(HANDOFF_REASONS)
     assert set(HANDOFF_REASONS) <= named  # every reason the backend accepts is explained to the agent
-    assert INSTRUCTIONS.version == "agent-v11" and len(INSTRUCTIONS.sha256) == 64
+    assert INSTRUCTIONS.version == "agent-v12" and len(INSTRUCTIONS.sha256) == 64
 
 
 def test_every_citation_the_instructions_quote_exists_in_their_policy():
@@ -113,7 +113,7 @@ def test_the_instructions_hold_every_section_of_the_policy_under_its_id():
 
 
 def test_instructions_that_include_the_policy_need_it():
-    with pytest.raises(ValueError, match="agent-v11.md includes the policy"):
+    with pytest.raises(ValueError, match="agent-v12.md includes the policy"):
         load_instructions()
 
 
@@ -178,9 +178,10 @@ def test_version_10_changes_only_that_sentence():
 
 
 def test_a_section_no_tool_result_gives_is_found_in_the_policy():
+    # v11's sentence named an example, "as for a refusal you give without calling a tool"; version 12 drops it.
     assert (
-        "When no tool result gives the section, as for a refusal you give without calling a tool, find it in the "
-        "policy at the end of these instructions, where each section is under its citation ID." in SAID
+        "When no tool result gives the section, find it in the policy at the end of these instructions, where each "
+        "section is under its citation ID." in SAID
     )
 
 
@@ -258,3 +259,22 @@ def test_version_11_changes_only_those_sentences():
         assert v10.count(old) == 1, old
         v10 = v10.replace(old, new)
     assert v11 == v10
+
+
+# Version 12 (plan change log, 2026-11-06): in v11's run the agent gave its first answer before any tool call 21 times
+# on D01-D89 (v10: 11) and 5 times on D90-D128 (v10 on their sources: 0). In D109 tries 1 and 2 it refused a payout to
+# a new card at once, never looked the order up, and missed that one of the two items was refunded before
+# (`remaining`); its source H426 passed all three tries with v10, which looked first every time.
+V11_EXAMPLE = ", as for a refusal you give without calling a tool,"
+
+
+def test_no_sentence_invites_a_refusal_before_a_lookup():
+    assert "without calling a tool" not in SAID
+    assert "Find the order and the exact units with `list_my_orders` or `get_my_order`." in SAID  # kept from v10
+
+
+def test_version_12_drops_only_those_words():
+    v11 = " ".join((REPO_ROOT / "prompts" / "agent-v11.md").read_text(encoding="utf-8").split())
+    v12 = " ".join((REPO_ROOT / "prompts" / "agent-v12.md").read_text(encoding="utf-8").split())
+    assert v11.count(V11_EXAMPLE) == 1
+    assert v12 == v11.replace(V11_EXAMPLE, ",")

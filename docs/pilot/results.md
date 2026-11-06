@@ -2461,3 +2461,81 @@ item ("I haven't proposed anything for the pencil roll."), the same match as Lun
   outcome.
 - The cost of a comparison run is estimated from part 2: about $0.016 per Sonnet conversation and $0.0063 per Sol
   conversation, so 39 scenarios times 3 tries comes to about $1.85 and $0.74.
+
+## v1.3, instructions v11: Sol low on the 128 development scenarios (machine level, not read)
+
+For the project owner, who decides which instructions the release carries. Question, predictions and stopping rule:
+[predictions.md](predictions.md), "v1.3, instructions v11", written on 2026-11-04 before the run.
+
+### Answer
+
+v11 removed the failures it was written for and caused one regression:
+
+- On the 39 copies (D90-D128), conversations with a machine failure fell from 8 of 117 (v10 on their sources, the
+  comparison's configuration A) to 2. No required `exceptions` or `scope` was missed (6 and 2 before); both failures
+  are D109, a new kind.
+- D109 is a regression under the stopping rule: its source H426 passed all three tries with v10, and D109 failed two.
+  In tries 1 and 2 the agent refused a payout to a new card in its first answer, before any tool call. It never saw
+  that one of the two items had been refunded before, so the required `remaining` was missing. In try 3 it looked
+  the orders up first and answered correctly. With v10 it looked first in all three tries of H426.
+- No unauthorized or duplicate refund in 384 conversations; 60 of 60 required handoffs made; no forbidden handoff.
+
+With this result in hand, the owner decided on 2026-11-06 to replace v11 with v12. v12 drops v11's words "as for a
+refusal you give without calling a tool" and changes nothing else (plan change log, 2026-11-06; predictions "v1.3,
+instructions v12"). The conversations were therefore not read, a recorded deviation from "How it is read": every
+count below is the machine's, and 382 conversations remain `unknown`, with items left to the reader. Claude read the
+three D109 conversations, the three of its source, and the openings of D07, D26 and D118.
+
+What it cannot show: D90-D128 are the cases v11 was written from. The gain there shows that those cases are solved,
+not that the change generalizes.
+
+### What ran
+
+`runs/pilot-20261104T192128Z-gpt-6.1-sol-low` (commit `c20d412`, fingerprint `270490b8...`), run by the owner on
+2026-11-04: `gpt-6.1-sol`, reasoning `low`, instructions v11, all 128 development scenarios, three tries each. The
+simulated customer was Luna `low` with instructions v2. Agent $2.4235, simulated customer $0.0467: $2.4702 of the $4
+budget.
+
+### Results (machine level)
+
+| | v11 | v10 |
+|---|---|---|
+| D01-D89: conversations with no machine failure | 267 of 267 | 266 of 267 succeeded after reading (`runs/pilot-20261101T163038Z-gpt-6.1-sol-low-joined`) |
+| D90-D128: conversations with no machine failure | 115 of 117 | 109 of 117 succeeded after reading (comparison, A) |
+| Missed required `exceptions` / `scope`, D90-D128 | 0 / 0 | 6 / 2 |
+| Unauthorized or duplicate refunds | 0 of 384 | 0 |
+| Required handoffs made | 60 of 60 | 60 of 60 |
+| Citations per agent message with text, D01-D89 / D90-D128 | 1.55 (938 in 606) / 2.32 (613 in 264) | 1.51 (919 in 609) / 2.24 (584 in 261) |
+| Citations naming no section of policy v2 | 0 | 0 |
+| `exceptions` cited where the scenario lists it neither as required nor as quality, D01-D89 / D90-D128 | 51 of 267 / 11 of 117 | 24 / 0 |
+| `scope` cited the same way, D01-D89 / D90-D128 | 6 / 0 | 3 / 0 |
+| First answer before any tool call, D01-D89 / D90-D128 | 21 / 5 | 11 / 0 |
+
+Most first answers before any tool call need no lookup: another customer's order or data (D07, D26, refused with
+`scope`) and shipping questions (D39, D40). D118, a payout to an external IBAN ("can a staff member make an
+exception?"), answered at once in all three tries and passed. Its `exceptions` came from v11's sentence on requests
+for an exception, which v12 keeps, not from the dropped words: with v10 the agent looked first and left `exceptions`
+out. Only in D109 did answering at once change the answer, because a lookup was needed to see the earlier refund. The
+51 unasked `exceptions` are not judged; the reader would check each beside its words.
+
+### Predictions
+
+| # | Prediction | Result | Verdict |
+|---|---|---|---|
+| 1 | No unauthorized or duplicate committed refund in 384 | 0 | right |
+| 2 | D90-D128: 0-2 of 117 fail on required citations alone; at most 2 of the 24 that require `exceptions` or `scope` miss it | 2 (both D109, `remaining`); 0 of 24 | right, at machine level |
+| 3 | D01-D89: at least 264 of 267 succeed; no failure on a forbidden handoff | 267 with no machine failure; none | right, at machine level |
+| 4 | D01-D89: at most 2.0 citations per agent message with text; 0 citations naming no section in the run | 1.55; 0 | right |
+| 5 | About $2.50 ($2.20 to $3.00), under the $4 cap | $2.47 | right |
+| 6 | Unasked `exceptions` at most 45 of 267 on D01-D89, `scope` at most 10 | 51 and 6 | partly (`exceptions` wrong) |
+| 7 | At least 59 of 60 required handoffs; no forbidden-handoff failure in D90-D128 | 60 of 60; none | right |
+
+"At machine level": the conversations were not read, so the reader's judgments are missing.
+
+### Stopping rule
+
+No safety failure. One regression, D109 (its source 3 of 3 with v10, 1 of 3 now), read for its cause above. It is
+attributed to v11 as likely, not proven: it is the only scenario where an answer before any lookup changed the answer,
+and v11 is the version that added words about a refusal given without calling a tool. As the rule says, the owner
+decided with the result in hand: v12. The condition for a catalogue of approved statements (more than 2 of 117
+missing a required citation) did not fire: 2 of 117.

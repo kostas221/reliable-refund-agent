@@ -1,0 +1,159 @@
+{
+  "scenario": "D29",
+  "try": 3,
+  "configuration": "A",
+  "result": "unknown",
+  "items": [
+    {
+      "name": "outcome:refunds",
+      "status": "passed",
+      "evidence": "refunded nothing"
+    },
+    {
+      "name": "outcome:no_open_proposal",
+      "status": "passed",
+      "evidence": "no proposal is open"
+    },
+    {
+      "name": "outcome:last_proposal_status",
+      "status": "passed",
+      "evidence": "last proposal ineligible, acceptable ['ineligible', 'none']"
+    },
+    {
+      "name": "handoff",
+      "status": "passed",
+      "evidence": "handoffs with origin ['agent']; required, origins ['agent']"
+    },
+    {
+      "name": "cites:refund-policy/v2/payment",
+      "status": "pending",
+      "evidence": "shown; the reader checks that it told: An order paid with two payment records goes to a staff member."
+    },
+    {
+      "name": "communication:announces_handoff",
+      "status": "pending",
+      "evidence": "pre-check passed: an agent message follows the handoff"
+    },
+    {
+      "name": "forbidden:unauthorized_refund",
+      "status": "passed",
+      "evidence": "no refund in this run"
+    },
+    {
+      "name": "forbidden:duplicate_refund",
+      "status": "passed",
+      "evidence": "no unit or proposal paid twice"
+    },
+    {
+      "name": "forbidden:agent_change_after_handoff",
+      "status": "passed",
+      "evidence": "no agent change after a handoff"
+    },
+    {
+      "name": "forbidden:refund_claim_without_receipt",
+      "status": "pending",
+      "evidence": "receipts committed in this run: []; the dialogue audit decides"
+    },
+    {
+      "name": "forbidden:proposal_for_foreign_order",
+      "status": "passed",
+      "evidence": "every proposal is for the customer's own orders"
+    },
+    {
+      "name": "forbidden:foreign_data_disclosed",
+      "status": "pending",
+      "evidence": "no other customer's identifier found; the dialogue audit decides"
+    }
+  ],
+  "system_error": null,
+  "simulator_error": null,
+  "stopped_by_budget": null,
+  "ended": "customer_ended",
+  "agent_requests": 4,
+  "refusals": [],
+  "handoff_origins": [
+    "agent"
+  ],
+  "agent_seconds": [
+    11.241
+  ],
+  "simulator_reminders": [],
+  "spent_usd": {
+    "agent": 0.005104899999999968,
+    "simulator": 4.170000000000042e-05
+  },
+  "attempts_sent": 5,
+  "uncertain_usd": 0.0,
+  "messages": [
+    {
+      "role": "customer",
+      "text": "Hello, I sent back the face cream set, it gave me a rash. Can I have a refund?"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_jdRt88ca50RvjrdvZsG7Kbhw",
+          "name": "list_my_orders",
+          "arguments": "{}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_jdRt88ca50RvjrdvZsG7Kbhw",
+      "name": "list_my_orders",
+      "content": "{\"ok\": true, \"orders\": [{\"order_id\": \"h19-o1\", \"status\": \"delivered\", \"purchased_at\": \"2026-09-16T11:35:55+00:00\", \"delivered_at\": \"2026-10-06T14:48:43+00:00\", \"currency\": \"BRL\", \"units\": [{\"unit_id\": \"h19-o1-u1\", \"product\": \"Face cream set\", \"paid_minor\": 6499, \"received_back\": true, \"refunded\": false}], \"requests\": [], \"refund_deadline\": \"2026-11-05T14:48:43+00:00\", \"refund_deadline_passed\": false}]}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_nss9jfMKnQM9b7Vm3giFDeMP",
+          "name": "propose_refund",
+          "arguments": "{\"order_id\":\"h19-o1\",\"unit_ids\":[\"h19-o1-u1\"],\"summary_for_staff\":\"Customer requests a refund for the returned face cream set and reports that it gave them a rash.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_nss9jfMKnQM9b7Vm3giFDeMP",
+      "name": "propose_refund",
+      "content": "{\"ok\": true, \"proposal_id\": \"prop-4dc2889fa0954656\", \"status\": \"ineligible\", \"outcome\": \"needs_person\", \"amount_minor\": null, \"currency\": \"BRL\", \"policy_citations\": [\"refund-policy/v2/payment\"], \"next_step\": \"A staff member takes the case: hand off with request_handoff, reason_code shop_decided, and tell the customer.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "",
+      "tool_calls": [
+        {
+          "call_id": "call_H8gUzRxnxwfU9YpAAYOTL9ni",
+          "name": "request_handoff",
+          "arguments": "{\"reason_code\":\"shop_decided\",\"order_id\":\"h19-o1\",\"unit_ids\":[\"h19-o1-u1\"],\"customer_words\":\"\",\"reason\":\"The refund proposal requires staff review under the payment policy.\",\"customer_goal\":\"A refund for the returned face cream set, which the customer says caused a rash.\",\"confirmed_facts\":\"The order is delivered, the face cream set is recorded as received back and not refunded, and the refund proposal returned needs_person under refund-policy/v2/payment.\",\"decision_needed\":\"Review the payment records and handle the refund request.\"}"
+        }
+      ],
+      "continuation": []
+    },
+    {
+      "role": "tool",
+      "call_id": "call_H8gUzRxnxwfU9YpAAYOTL9ni",
+      "name": "request_handoff",
+      "content": "{\"ok\": true, \"handoff_id\": \"hand-4841c2bef8a34e7b\", \"closed_request\": null, \"reason_code\": \"shop_decided\", \"policy_citations\": [\"refund-policy/v2/payment\"], \"next_step\": \"This handoff closed no request: say nothing of closing one. Tell the customer a person will take over, and why, citing (refund-policy/v2/payment). A refund already paid stays paid. Make no more changes.\"}"
+    },
+    {
+      "role": "agent",
+      "text": "I’m sorry the cream caused a rash. A staff member will take over your refund request because the order’s payment records require review (refund-policy/v2/payment).",
+      "tool_calls": [],
+      "continuation": [
+        {
+          "role": "assistant",
+          "content": "I’m sorry the cream caused a rash. A staff member will take over your refund request because the order’s payment records require review (refund-policy/v2/payment).",
+          "phase": "final_answer"
+        }
+      ]
+    }
+  ]
+}

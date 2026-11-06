@@ -44,9 +44,11 @@ from refund_agent.scenarios import format_brl
 # refund on arrival when its order's refund deadline has passed (H255). Version 11 (plan change log of 2026-11-04):
 # every failure of the v1.3 comparison was a required citation of a section no tool result gave, `exceptions` for a
 # refused exception and `scope` for another customer's order, so the instructions say to find such a section in the
-# policy, to cite one per item or request, and when those two sections apply. Earlier versions stay for the runs made
-# with them.
-INSTRUCTIONS_PATH = REPO_ROOT / "prompts" / "agent-v11.md"
+# policy, to cite one per item or request, and when those two sections apply. Version 12 (plan change log of
+# 2026-11-06): v11's run answered more often before any tool call (21 first answers against v10's 11 on D01-D89) and
+# D109 refused before looking the order up, so missed its earlier refund; v12 drops v11's words "as for a refusal you
+# give without calling a tool" and changes nothing else. Earlier versions stay for the runs made with them.
+INSTRUCTIONS_PATH = REPO_ROOT / "prompts" / "agent-v12.md"
 
 
 @dataclass(frozen=True)

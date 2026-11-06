@@ -1459,3 +1459,73 @@ The owner's five, then two of Claude's:
   searching words, nor a list of every section.
 - **What it cannot show.** D90 to D128 are the cases v11 was written from. A gain there shows that those cases are
   solved, not that the change generalizes; that needs the next independent held-out set.
+
+## v1.3, instructions v12: Sol low on the 128 development scenarios (written on 2026-11-06, before the run)
+
+For the project owner, who runs it, and for anyone checking that the question and the predictions came before the
+result.
+
+### The question
+
+Does dropping v11's words "as for a refusal you give without calling a tool" stop a refusal given before a lookup
+that would have changed it (D109), while keeping what v11 gained on `exceptions` and `scope`?
+
+Why only these words. In v11's run (results.md, "v1.3, instructions v11"), D109 failed two tries: the agent refused at
+once, never looked the order up, and so missed the earlier refund (`remaining`). Its source passed all three tries
+with v10, which looked first every time. These words are the only change v11 made to when the agent answers. v11's
+sentence on requests for an exception stays: D118's gain came from it. One change, so that the run can show whether
+it was the cause.
+
+### What runs
+
+- **Scenarios:** all 128 development scenarios, 3 tries each (384 conversations).
+- **Agent:** `gpt-6.1-sol`, reasoning `low`, instructions v12. Tools, backend and policy v2 as in v11's run
+  (`c20d412`): only the instructions differ, by those words.
+- **Simulated customer:** Luna `low` with instructions v2.
+- **Budget and code:** a budget of $4, from the commit that holds this page.
+
+Before the run:
+
+- 4 of the 23 contract tests fail on v11 and all pass on v12;
+- 3 of 3 planted errors are caught (another sentence dropped, the words kept, the product pointed at v10);
+- the 229 acceptance tests with scripted conversations pass, D109 among the 39 copies;
+- the first request for D109 was written by `--dry-run` and read in full.
+
+### What it is compared with
+
+- **With v10:** `uv run python -m refund_agent.evaluation.report compare <new run>
+  runs/pilot-20261101T163038Z-gpt-6.1-sol-low-joined runs/comparison-v1.3-20261103T155348Z/A`, paired by scenario:
+  D01 to D89 against Sol `low` with v10 (266 of 267), D90 to D128 against their sources (109 of 117).
+- **With v11:** at machine level only, scenario by scenario, because v11's run was not read.
+
+### Predictions
+
+1. No unauthorized or duplicate committed refund in the 384 conversations.
+2. D109 succeeds in at least 2 of 3 tries (v11: 1 of 3; its source with v10: 3 of 3), and in at least 2 of 3 its
+   first answer comes after a lookup (v11: 1 of 3).
+3. D90 to D128: 0 to 3 of 117 fail on required citations alone (v11: 2; v10: 8). D93, D111, D112 and D118, where v10
+   failed 8 of 12, fail at most 2 of 12 together (v11: 0).
+4. D01 to D89: at least 264 of 267 succeed (v10: 266 after reading; v11: 267 at machine level), and no conversation
+   fails on a forbidden handoff. At least 59 of the 60 required handoffs are made (v11: 60).
+5. What v12 does not touch stays: unasked `exceptions` on D01 to D89 between 35 and 65 of 267 (v11: 51; v10: 24); at
+   most 2.0 citations per agent message with text on D01 to D89 (v11: 1.55); 0 citations naming no section of policy
+   v2.
+6. First answers before any tool call on D90 to D128: at most 4, at most 1 of them in D109 (v11: 5, D109 twice and
+   D118 three times). No prediction for D01 to D89, where most such answers need no lookup (D07, D26, D39, D40).
+7. The run costs about $2.50 ($2.20 to $3.00, agent and simulated customer), under the $4 cap (v11: $2.47).
+
+### How it is read
+
+- **Reading.** Claude reads all 384 conversations and settles each pending item with the definitions of 2026-10-29
+  and the citation rule of v1.2, as for v11. The owner reads those Claude or the machine fails or notes.
+- **Stopping rule.** With no safety failure and no regression v12 caused, v12 is the product's instructions for the
+  release. A regression is a scenario that passed all three tries in the run it is compared with (v10's, or v11's at
+  machine level) and fails two or more now, read for its cause; the owner decides with the result in hand. Each
+  prediction is reported right, partly right or wrong, with its count.
+- **If D109 fails two or more tries again,** the dropped words were not the cause. The next step, written now and not
+  built: a sentence asking the agent to look up the order a request names before answering it, where a question about
+  the policy in general needs no lookup; one more run, on the owner's decision. If v12 brings a regression it caused,
+  the release falls back to v10, the version the held-out comparison measured.
+- **What it cannot show.** D90 to D128 are the cases v11 and v12 were written from: a gain there is not
+  generalization. The held-out result stays v10's (Sol 109 of 117, pass^3 35 of 39) and is stated with its version;
+  v12's results are development evidence.

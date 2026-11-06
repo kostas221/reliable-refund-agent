@@ -410,7 +410,20 @@ and 3 of 267; on the 39: 2.24). Mock run, the v11 request read in full (`--dry-r
 `planted_v11.py`), 3699 tests and 54 screen tests pass. Predictions written (`docs/pilot/predictions.md`, "v1.3, instructions v11"); the paid
 run (Sol low, 128 scenarios x 3, budget $4) is the owner's, after the commit. Recorded, not built: if more than 2 of
 the 117 conversations of D90-D128 miss a required citation, a catalogue of approved statements bound to sections is
-examined (scope rule, §15). Part B, after that run is read: Haiku 5.5 medium with v11 and with Anthropic Citations
+examined (scope rule, §15). The v11 run is done and not read (`runs/pilot-20261104T192128Z-gpt-6.1-sol-low`, $2.47,
+not committed): machine 382/384; D109 tries 1-2 fail `remaining` (the agent refused before any lookup, so never saw
+the cushion's earlier refund; its source H426 passed 3/3 with v10, always looking first), a likely v11 side effect of
+"as for a refusal you give without calling a tool": first answers before any tool call 11 to 21 on D01-D89 and 0 to 5
+on D90-D128; unasked `exceptions` 24 to 51 of 267 (prediction 6 wrong, as in D109 "A staff member cannot override"),
+1.55 citations per message, 0 unknown IDs (quick check: scratchpad `v11_quick.py`). Decided on 2026-11-06 (plan
+change log), after an outside LinkedIn-readiness review checked with free probes: v11's machine results are reported
+unread (`docs/pilot/results.md`, "v1.3, instructions v11": on the 39 copies 8 failures to 2, both D109; predictions 6
+right, 1 partly); **instructions v12** (`prompts/agent-v12.md`) drop v11's words "as for a refusal you give without
+calling a tool" and nothing else; contract tests fail on v11, 3 of 3 planted errors caught, D109's request read in
+full; 3701 tests and 54 screen tests pass; predictions written ("v1.3, instructions v12"; if D109 fails again, a
+look-up-first sentence next; if v12 regresses, the release falls back to v10). The owner's reading of the
+comparison's 66 is waived (a recorded deviation); the held-out result stays v10's. Next: commit on the owner's word,
+the owner's paid run, Claude reads all 384. Part B, on the owner's later decision: Haiku 5.5 medium with v11 and with Anthropic Citations
 on D90-D128 against Sol with v11 (the owner reads Haiku's prices; one paid test conversation first); at most a place
 in the next held-out set, never a change of model; it reverses 2026-11-01's "no Haiku trial". Then the handoff checks
 and the five-person trial. Then Phase 7 (README, video, CI, licence) and a light test with 5 real users. 186/186 on
