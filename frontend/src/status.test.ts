@@ -1,8 +1,8 @@
 import { describe, expect, test } from "vitest";
 
-import { canCancel, canConfirm, cardStatus, formatMoney, requestLabel } from "./status";
+import { canCancel, canConfirm, cardStatus, formatMoney, handoffNotice, requestLabel } from "./status";
 import { RECEIPT, card } from "./testCards";
-import type { ProposalStatus, RequestSummary } from "./types";
+import type { Conversation, ProposalStatus, RequestSummary } from "./types";
 
 const ALL: ProposalStatus[] = [
   "awaiting_customer_confirmation",
@@ -101,5 +101,49 @@ describe("money is written as the backend writes it", () => {
     [100000000, "R$ 1.000.000,00"],
   ])("%i centavos is %s", (minor, written) => {
     expect(formatMoney(minor, "BRL")).toBe(written);
+  });
+});
+
+describe("what a customer reads while a person has the conversation (release brief, section 4)", () => {
+  const handoff = (status: "open" | "taken", created_at = "2026-09-12T10:10:00Z") => ({
+    id: `h-${created_at}`,
+    origin: "customer",
+    status,
+    created_at,
+  });
+  const human = (...handoffs: Conversation["handoffs"]) => handoffNotice("human_controlled", handoffs);
+
+  test("no notice while the assistant has the conversation", () => {
+    expect(handoffNotice("agent", [])).toBeNull();
+  });
+
+  test("an open case says it waits for a staff member, not that one is handling it", () => {
+    const shown = human(handoff("open"));
+    expect(shown?.label).toBe("Waiting for a staff member");
+    expect(shown?.detail).not.toMatch(/handling|has taken/i);
+  });
+
+  test("a taken case says a staff member has it", () => {
+    expect(human(handoff("taken"))?.label).toBe("A staff member has taken your case");
+  });
+
+  test("the latest handoff decides, and none at all is not read as taken", () => {
+    expect(human(handoff("taken", "2026-09-12T10:10:00Z"), handoff("open", "2026-09-12T11:00:00Z"))?.label).toBe(
+      "Waiting for a staff member",
+    );
+    expect(human()?.label).toBe("Waiting for a staff member");
+  });
+
+  test.each(["open", "taken"] as const)("a %s case says how the reply comes and what the chat still does", (status) => {
+    const detail = human(handoff(status))?.detail ?? "";
+    expect(detail).toContain("by email, at the address of your account");
+    expect(detail).toContain("their replies do not come through this chat");
+    expect(detail).toContain("The assistant makes no more changes here");
+    expect(detail).toContain("your messages are kept for the staff member");
+  });
+
+  test.each(["open", "taken"] as const)("a %s case is never presented as resolved or paid", (status) => {
+    const shown = human(handoff(status));
+    expect(`${shown?.label} ${shown?.detail}`).not.toMatch(/resolved|refunded|will be paid|sorted|done/i);
   });
 });

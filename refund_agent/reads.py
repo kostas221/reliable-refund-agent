@@ -201,9 +201,15 @@ def conversation(conn: Connection, conversation_id: str, now: datetime, policy: 
     }
 
 
+def customer_contact(conn: Connection, customer_id: str) -> dict:
+    """The customer's name and email from the shop's own records, for staff: an approval names whose money it is, and
+    a case handed to a person is continued by email outside the application (docs/handoff.md)."""
+    return dict(_one(conn, "SELECT id, display_name, email FROM users WHERE id = :u", u=customer_id))
+
+
 def staff_proposal(conn: Connection, proposal: RowMapping, now: datetime, policy: Policy) -> dict:
     """The approval screen: the backend's fields apart from text nobody verified (plan section 7)."""
-    customer = _one(conn, "SELECT id, display_name, email FROM users WHERE id = :u", u=proposal["customer_id"])
+    customer = customer_contact(conn, proposal["customer_id"])
     order = _one(conn, "SELECT seller_message_untrusted FROM orders WHERE id = :o", o=proposal["order_id"])
     confirmation = _one(
         conn, "SELECT decision, decided_at FROM customer_confirmations WHERE proposal_id = :p", p=proposal["id"]
@@ -211,7 +217,7 @@ def staff_proposal(conn: Connection, proposal: RowMapping, now: datetime, policy
     return {
         "trusted": {
             **proposal_card(conn, proposal, now, policy),
-            "customer": dict(customer),
+            "customer": customer,
             "customer_confirmed_at": confirmation["decided_at"] if confirmation else None,
         },
         "untrusted": {

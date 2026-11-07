@@ -223,6 +223,21 @@ def test_a_customer_can_cancel_and_ask_for_a_person(db):
     assert rows(shop.engine, "SELECT status, taken_by FROM handoffs") == [("taken", "d01-rui")]
 
 
+def test_staff_have_the_contact_of_a_customer_a_person_now_serves(db):
+    """A staff member continues a handed-off case outside the application, by email (docs/handoff.md). The
+    conversation gives them the customer's name and email from the backend's own records, before the case is taken and
+    after, when it is no longer in the queue (release brief, section 4)."""
+    shop = Shop(db, "D01")
+    ana, rui = shop.browser("d01-ana"), shop.browser("d01-rui")
+    conversation, _ = proposed(shop.engine, "d01-ana", "d01-o1", ["d01-o1-u1"], "propose-1", shop.scenario.now)
+    handoff = ana.post(f"/api/conversations/{conversation}/handoff").json()["handoff_id"]
+    contact = {"id": "d01-ana", "display_name": "Ana Lima", "email": "ana.lima@example.test"}
+    assert rui.get(f"/api/staff/conversations/{conversation}").json()["customer"] == contact
+    rui.post(f"/api/staff/handoffs/{handoff}/take")
+    assert rui.get("/api/staff/queue").json()["open_handoffs"] == []
+    assert rui.get(f"/api/staff/conversations/{conversation}").json()["customer"] == contact
+
+
 def test_an_expired_proposal_is_shown_as_expired_and_cannot_be_confirmed(db):
     shop = Shop(db, "D01")
     ana = shop.browser("d01-ana")

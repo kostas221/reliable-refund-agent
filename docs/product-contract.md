@@ -46,7 +46,8 @@ request to refund shipping). The agent names one of these reasons; the backend c
 conversation's latest decision, the disputed units, the order's status) and that a customer's request rests on
 words the customer wrote. The agent records the reason and origin, the customer's goal, confirmed facts, any pending
 proposal, past actions and the decision needed. The conversation becomes `human_controlled` at once, its open
-proposals are invalidated, and the agent makes no further changes. Staff see and take the case in the console; there is no live staff-to-customer chat in v1.
+proposals are invalidated, and the agent makes no further changes. Staff see and take the case in the console and continue with the customer by email, outside the application
+([handoff.md](handoff.md)); there is no live staff-to-customer chat in v1.
 
 ## 3. v1 limits
 

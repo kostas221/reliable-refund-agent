@@ -167,6 +167,7 @@ export interface HistoryEvent {
 }
 
 export interface StaffConversation extends Conversation {
+  customer: { id: string; display_name: string; email: string }; // from the shop's records, to continue by email
   history: HistoryEvent[];
 }
 

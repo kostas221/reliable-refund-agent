@@ -144,6 +144,71 @@ def test_a_restart_with_a_pending_approval_leaves_both_screens_right(serve, brow
     assert errors == []
 
 
+def messages(server: Server) -> list[tuple[str, str]]:
+    """Every stored message of the conversation, in order: who wrote it and what."""
+    owner = database.engine("owner", server.name)
+    try:
+        with owner.connect() as conn:
+            found = conn.execute(text("SELECT author, content_untrusted FROM messages ORDER BY created_at, id")).all()
+    finally:
+        owner.dispose()
+    return [tuple(row) for row in found]
+
+
+def test_a_case_handed_to_a_person_through_both_screens_and_a_restart(serve, browser):
+    """Release brief, section 4: the customer asks for a person; each screen says what waits, also after a restart;
+    the staff member identifies the customer and takes the case; the assistant answers and changes nothing after."""
+    server = serve("D01")
+    customer, staff, errors = two_people(browser)
+    ana_asks_for_the_mug(customer, server)
+    customer.get_by_role("button", name="Talk to a person").click()
+    choice = customer.get_by_role("group", name="Talk to a person")
+    expect(choice).to_contain_text("writes to you by email, at the address of your account")
+    choice.get_by_role("button", name="Yes, talk to a person").click()
+
+    # The customer reads what waits and how the reply comes; the open request is closed, not confirmable.
+    waiting = customer.get_by_role("status").filter(has_text="Waiting for a staff member")
+    expect(waiting).to_contain_text("by email, at the address of your account")
+    card = customer.get_by_role("article", name=re.compile(r"^Refund request "))
+    expect(card.get_by_text("Handed to a person", exact=True)).to_be_visible()
+    expect(customer.get_by_role("button", name=re.compile(r"^Confirm refund"))).to_have_count(0)
+
+    # The staff member finds the case in the queue and the customer's contact in the backend's own record.
+    sign_in(staff, server.url, "rui.costa@shop.example.test")
+    expect(staff.get_by_role("heading", name="Handed to a person (1)")).to_be_visible()
+    case = staff.get_by_role("button", name=re.compile(r"^The customer asked for a person · d01-ana"))
+    case.click()
+    contact = staff.get_by_text("Ana Lima (ana.lima@example.test, d01-ana)")
+    expect(contact).to_be_visible()
+
+    server.stop()
+    server.start()
+    for page in (customer, staff):
+        expect(page.get_by_text(NO_ANSWER)).to_have_count(0, timeout=10_000)
+    customer.reload()  # what the database holds, not what the page remembered
+    expect(waiting).to_be_visible()
+    staff.reload()
+    case.click()
+    expect(contact).to_be_visible()
+
+    staff.get_by_role("button", name="Take this case").click()
+    expect(staff.get_by_role("heading", name="Handed to a person (0)")).to_be_visible()
+    expect(contact).to_be_visible()  # the case left the queue; its contact stays on the open conversation
+    taken = customer.get_by_role("status").filter(has_text="A staff member has taken your case")
+    expect(taken).to_be_visible(timeout=AGENT_TIME_MS)
+
+    # A message after the takeover is kept for the staff member, and nothing answers it.
+    before = messages(server)
+    message = customer.get_by_label("Message")
+    message.press_sequentially("Hello, is anyone there?")
+    message.press("Enter")
+    stored = customer.get_by_role("log", name="Conversation").locator("li.message.customer:not(.sending)")
+    expect(stored.filter(has_text="Hello, is anyone there?")).to_be_visible(timeout=AGENT_TIME_MS)  # read back
+    assert messages(server) == [*before, ("customer", "Hello, is anyone there?")]
+    assert refunds(server) == []
+    assert errors == []
+
+
 def test_a_confirmation_whose_answer_is_lost_counts_once(serve, browser):
     """An uncertain HTTP result (product contract section 5): the confirmation reaches the server and is stored, and
     its answer never reaches the page. A second tab, still showing the old card, presses Confirm again."""

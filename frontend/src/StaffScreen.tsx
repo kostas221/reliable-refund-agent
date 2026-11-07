@@ -303,7 +303,8 @@ function ConversationDetail({ conversationId, handoff, onOpenProposal, onChange 
       <h2>Conversation {data.conversation_id}</h2>
       {found.problem && <p className="notice warn">{found.problem}</p>}
       <p className="trusted inline">
-        <span className="trusted-label">Checked by the backend</span> Customer {data.customer_id} ·{" "}
+        <span className="trusted-label">Checked by the backend</span> Customer {data.customer.display_name} (
+        {data.customer.email}, {data.customer.id}) ·{" "}
         {human ? "handled by a person: the assistant makes no more changes" : "handled by the assistant"}
       </p>
       {handoff && <HandoffDetail handoff={handoff} history={data.history} acting={acting} onTake={act} />}

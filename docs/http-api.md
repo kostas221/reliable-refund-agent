@@ -39,7 +39,7 @@ The backend takes the actor from the session and from the door, never from a req
 | `POST /api/conversations/{id}/handoff` | customer who owns it | - | "Talk to a person": the conversation becomes human_controlled |
 | `POST /api/conversations/{id}/messages` | customer who owns it | `text`, 1 to 2000 characters | The chat: the agent answers. 409 while it still answers an earlier message, 503 if the model fails (the message is kept), 503 `agent_paused` in live mode when the session's budget or the provider's credit stopped the call (the message is kept and answered after the owner resumes). After a handoff the message is recorded for the person and the model is not asked. |
 | `GET /api/staff/queue` | staff | - | Proposals awaiting approval and open handoffs |
-| `GET /api/staff/proposals/{id}`, `GET /api/staff/conversations/{id}` | staff | - | One proposal, or one conversation with its history: the audit events of the conversation and its proposals |
+| `GET /api/staff/proposals/{id}`, `GET /api/staff/conversations/{id}` | staff | - | One proposal, or one conversation with the customer's name and email and its history: the audit events of the conversation and its proposals |
 | `POST /api/staff/proposals/{id}/decision` | staff | `decision`: approved or rejected; `reason`: required to reject, refused with an approval (422 `valid_values`) | Approve or reject; the policy still applies. After the answer is sent, the agent is told, and pays (if approved) or tells the customer, with the reason |
 | `POST /api/staff/handoffs/{id}/take`, `POST /api/staff/conversations/{id}/takeover` | staff | - | Take a handoff, or take over a conversation |
 | `GET /api/health` | anyone | - | The database answers |

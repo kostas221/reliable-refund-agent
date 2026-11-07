@@ -1,7 +1,7 @@
 // What the screens say about a request, in words (plan section 8): a state never rests on colour alone, and nothing
 // says money was refunded before a committed receipt exists (INV-10). Pure functions, tested in status.test.ts.
 
-import type { ProposalCard, ProposalStatus, RequestSummary } from "./types";
+import type { Conversation, ProposalCard, ProposalStatus, RequestSummary } from "./types";
 
 export type Tone = "waiting" | "done" | "stopped";
 
@@ -109,6 +109,26 @@ export function cardStatus(card: ProposalCard, viewer: Viewer = "customer"): Sta
         tone: "stopped",
       };
   }
+}
+
+// How a case handed to a person goes on: by email to the account's address (docs/handoff.md). It is said, not
+// promised as a result: taking a case is not resolving it (release brief, section 4).
+const BY_EMAIL =
+  "by email, at the address of your account; their replies do not come through this chat. The assistant makes no " +
+  "more changes here. You can still write: your messages are kept for the staff member.";
+
+/** What the customer reads while a person has the conversation: whether the case waits or was taken (the latest
+ * handoff decides), and how the reply comes. Nothing while the assistant has it. */
+export function handoffNotice(control: Conversation["control"], handoffs: Conversation["handoffs"]): StatusText | null {
+  if (control !== "human_controlled") return null;
+  if (handoffs.at(-1)?.status === "taken") {
+    return { label: "A staff member has taken your case", detail: `They will write to you ${BY_EMAIL}`, tone: "waiting" };
+  }
+  return {
+    label: "Waiting for a staff member",
+    detail: `A staff member will write to you ${BY_EMAIL}`,
+    tone: "waiting",
+  };
 }
 
 /** A short label for a request in the list of an order's requests. */

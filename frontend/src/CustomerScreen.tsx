@@ -8,7 +8,7 @@ import { type FormEvent, type RefObject, useEffect, useRef, useState } from "rea
 import { ApiError, api, describe } from "./api";
 import { usePolling } from "./polling";
 import { ProposalCardView } from "./ProposalCard";
-import { canCancel, canConfirm, formatDay, formatMoney, formatTime, requestLabel } from "./status";
+import { canCancel, canConfirm, formatDay, formatMoney, formatTime, handoffNotice, requestLabel } from "./status";
 import { timeline } from "./timeline";
 import type { Conversation, Order, Unit } from "./types";
 
@@ -216,6 +216,7 @@ function Chat({ conversationId, onOpened, onStartOver, draft, setDraft, draftBox
   }
 
   const human = data?.control === "human_controlled";
+  const withPerson = data ? handoffNotice(data.control, data.handoffs) : null;
   return (
     <div className="stack">
       <div className="chat-head">
@@ -228,10 +229,9 @@ function Chat({ conversationId, onOpened, onStartOver, draft, setDraft, draftBox
       </div>
       {!conversationId && <p className="muted">Choose items on the left, or write to the assistant below.</p>}
       {conversation.problem && <p className="notice warn">{conversation.problem}</p>}
-      {human && (
+      {withPerson && (
         <p className="notice info" role="status">
-          A staff member is handling this conversation. The assistant makes no more changes; you can still write, and
-          your messages are kept for the staff member.
+          <strong>{withPerson.label}.</strong> {withPerson.detail}
         </p>
       )}
       {data && (
@@ -329,8 +329,8 @@ function Chat({ conversationId, onOpened, onStartOver, draft, setDraft, draftBox
       {askingForPerson && conversationId && !human && (
         <div className="notice info stack" role="group" aria-label="Talk to a person">
           <p>
-            A staff member takes over this conversation. Any request still open here is closed, and nothing is paid
-            for it; the staff member decides what happens next.
+            A staff member takes over this conversation and writes to you by email, at the address of your account. Any
+            request still open here is closed, and nothing is paid for it; the staff member decides what happens next.
           </p>
           <div className="actions">
             <button

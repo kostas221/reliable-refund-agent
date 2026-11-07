@@ -340,7 +340,11 @@ def create_app(
             found = reads.conversation(conn, conversation_id, clock(), policy)
             if found is None:
                 raise _not_found()
-            return {**found, "history": reads.history(conn, conversation_id)}
+            return {
+                **found,
+                "customer": reads.customer_contact(conn, found["customer_id"]),
+                "history": reads.history(conn, conversation_id),
+            }
 
     @app.post("/api/staff/proposals/{proposal_id}/decision")
     def decide_proposal(proposal_id: str, body: DecisionBody, user: Changing, background: BackgroundTasks) -> dict:

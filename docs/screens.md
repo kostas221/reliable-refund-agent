@@ -34,8 +34,9 @@ browser holds one session: to see both screens at once, use a second browser or 
 - **The card**: the units and amounts the backend computed (none for a request the policy refused), the state in
   words, the policy citations behind a refusal, the validity, and the receipt once paid. Confirm and Decline appear
   while the backend waits for the customer and the validity has not passed; Cancel once confirmed, until paid.
-- **Talk to a person**, after a second press. Once a person handles the conversation, the screen says so, and
-  messages are still recorded for them.
+- **Talk to a person**, after a second press. Once the conversation is handed to a person, the screen says whether
+  the case waits for a staff member or one has taken it, that the reply comes by email to the account's address and
+  not through the chat, and that messages are still recorded for them ([handoff.md](handoff.md)).
 
 ## The staff console
 
@@ -43,8 +44,9 @@ browser holds one session: to see both screens at once, use a second browser or 
 - **A request**: "Checked by the backend" (customer, order, units, amounts, state, when the customer confirmed, policy
   version) in one box, and "Not verified" text in another, dashed and labelled with its writer: the assistant's
   summary and the seller's message, as plain text. The approve button names the amount the backend computed.
-- **A conversation**: its messages (not verified), its cards, and its history (the audit events: who did what, done
-  or refused and why, with only values the backend set). Take over, after a second press.
+- **A conversation**: the customer's name and email, checked by the backend, to continue a handed-off case by email;
+  its messages (not verified), its cards, and its history (the audit events: who did what, done or refused and why,
+  with only values the backend set). Take over, after a second press.
 - **A case handed to a person**: the origin, marked "according to the assistant" when the assistant recorded that the
   customer asked; the request it closed; the earlier actions; the model's texts, not verified; Take this case.
 
