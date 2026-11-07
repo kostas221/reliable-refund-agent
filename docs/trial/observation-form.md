@@ -30,6 +30,7 @@ Time from first message to the end:
 
 Asked as written, after the task, before the next card. Write the answer, not a summary.
 
+- **Task 1, after the assistant's answer about the controller:** "What did the shop tell you about the controller?"
 - **Task 1, after Confirm, before the staff decision:** "What happens now? Has any money been sent?"
 - **Task 1, after the receipt:** "Where is the money going, and when will you have it?"
 - **Task 2:** "Is the request what you wanted? Was anything unclear about which item it is for?"

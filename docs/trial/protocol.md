@@ -10,11 +10,13 @@ five, never percentages.
 
 ## The questions
 
-The six questions of the release brief, each with what the observer looks at:
+The six questions of the release brief, and one of the owner's (the second row), each with what the observer
+looks at:
 
 | Question | Seen in |
 |---|---|
 | Where do people need help or repeat information? | Every task: the hints given, and anything the participant had to say twice |
+| Does the assistant answer questions in the chat, not only requests? | Task 1: the question about the controller and whether the hair dryer has arrived; task 3: any follow-up question, such as the deadline |
 | Do they understand the customer's confirmation and the staff approval? | Task 1: the participant's answer to "What happens now? Has any money been sent?" after Confirm |
 | Are refusals and next steps clear? | Task 3: "Can you get your money back? What would you do next?" |
 | Are ambiguous selections resolved naturally? | Task 2: whether the assistant asked which scarf, or the participant named it or used the order list |
@@ -28,22 +30,24 @@ Written so that what the trial shows can be told apart from what was assumed. Ea
 1. At least one participant types "yes" in the chat instead of pressing Confirm (the card says typing does not
    confirm).
 2. At least one participant thinks the money was sent after Confirm, before the staff approval.
-3. In task 2 most participants name the scarf's colour in their first message, so the assistant's question is seen
+3. In task 1 the assistant answers about the controller from the order's status (on its way) and about the hair dryer
+   from the records (received), with no false date; it may offer a staff member for the controller.
+4. In task 2 most participants name the scarf's colour in their first message, so the assistant's question is seen
    rarely; the order list's item choice may be used instead.
-4. In task 3 every participant can say what to do next (send the shoes back, then ask again before the deadline).
-5. In task 4 at least one participant expects the reply in the chat, despite the waiting notice.
-6. The staff participant asks for something the console does not show in task 4 (the parcel's tracking).
+5. In task 3 every participant can say what to do next (send the shoes back, then ask again before the deadline).
+6. In task 4 at least one participant expects the reply in the chat, despite the waiting notice.
+7. The staff participant asks for something the console does not show in task 4 (the parcel's tracking).
 
 ## Roles and people
 
 - **Customers:** four or five people who use their own English. Each does tasks 1 to 4 ([task-cards.md](task-cards.md)).
 - **Staff:** one participant, a person with customer-support experience if one can be found, plays the staff member
   in a session of their own. The owner then plays the customer from the same task cards. If nobody with support
-  experience takes part, the report says so and the sixth question stays unanswered.
+  experience takes part, the report says so and the last question stays unanswered.
 - **The owner** observes every session. In the customer sessions they also act as the staff member, by a fixed rule:
   approve a card when its items and amount are what the customer asked for in the chat; otherwise reject it with a
   reason that names the difference, and record that as a finding. For task 4 they take the case and write the email
-  shown in the task cards' appendix.
+  below ("The staff member's email in task 4").
 
 Five sessions in all, for example four customers and one staff member. The participants are not told the
 expected answers, and the observer gives no help unless a participant asks or is stuck for two minutes; then the
@@ -53,8 +57,8 @@ smallest hint, recorded word for word.
 
 The checks that cost nothing come first.
 
-1. `docker compose up -d`, then each task's scenario in mock mode (D01, D31, D06; D22 has no mock script), both
-   screens opened, to see that the scenario loads and the screens show its orders.
+1. The test suite passes; it plays D31 and D06 end to end in mock mode. D15 and D22 have no mock script, so the
+   owner's rehearsal is their first run.
 2. The owner checks the model's prices on the provider's page and notes the date (`--prices-checked`).
 3. A paid rehearsal: the owner does the four tasks once, as a customer, with the commands below (about $0.05).
    Claude reads the four request logs (free) and reports before any participant comes: the conversation, every
@@ -78,10 +82,10 @@ The screens, in a second terminal, left running:
 cd frontend && npm run dev
 ```
 
-Each task's server, stopped with Ctrl+C before the next task (D01 shown; then D31, D06, D22):
+Each task's server, stopped with Ctrl+C before the next task (D15 shown; then D31, D06, D22):
 
 ```bash
-uv run --env-file .env python -m refund_agent.api --live --budget-usd 0.25 --prices-checked YYYY-MM-DD --scenario D01
+uv run --env-file .env python -m refund_agent.api --live --budget-usd 0.25 --prices-checked YYYY-MM-DD --scenario D15
 ```
 
 The server prints the scenario's customer and staff emails; the password is in `refund_agent/api/__main__.py`. Each
@@ -99,6 +103,22 @@ The order of a customer session:
 
 The staff session follows the same tasks with the owner as the customer; the participant works the staff console and
 answers the staff questions on the form after each case.
+
+### The staff member's email in task 4
+
+Kept here, not on the task cards, so that participants never see it in advance.
+
+In the customer sessions the owner, as the staff member, takes the case in the console and writes this email on the
+form. It is given to the participant after they have answered "What happens now? How will you hear back?":
+
+> Hello Renato,
+>
+> I am Rui from the shop, and I have taken your case about the duvet set. We have not received the parcel yet, so I
+> have asked the carrier to trace it with your tracking number. I will write to you again within two working days.
+>
+> Rui Costa
+
+In the staff session the participant writes their own email instead.
 
 ## Stopping a session
 

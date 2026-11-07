@@ -1,17 +1,20 @@
 # Task cards
 
-For the participants: one card per task, shown on paper or on screen. The observer signs in to the shop as the
-customer named on the card before handing it over. Each card is a situation, not a script: write to the shop as you
-would yourself.
+For the participants. The file holds nothing else, so it can be printed or shown whole. One card per task, shown on
+paper or on screen; the observer signs in to the shop as the customer named on the card before handing it over. Each
+card is a situation, not a script: write to the shop in the chat as you would to a real one, in your own words.
 
 The shop is fictional, the orders are made up and no real money moves. Do not type any real personal details.
 
 ---
 
-## Task 1: a chipped mug
+## Task 1: a parcel on its way, and a hair dryer sent back
 
-You are **Ana Lima**. You ordered a blue ceramic mug from this shop. It arrived chipped, so you posted it back on
-12 September. You want your money back.
+You are **Julia Pereira**. Five days ago you ordered a wireless game controller from this shop, and it has not
+arrived yet. You want to know where it is.
+
+You also posted back a 2000 W hair dryer from an earlier order a few days ago. You do not know whether the shop has
+it yet, and you want your money back for it.
 
 ---
 
@@ -37,19 +40,3 @@ them back yet; you plan to post them next Monday. You want to know if you can ge
 You are **Renato Vieira**. You posted the king-size duvet set back to the shop eight days ago, with tracking. The
 tracking page only says the parcel was handed to the carrier. You have not received your refund and want to know
 why.
-
----
-
-## Appendix, for the observer only: the staff member's email in task 4
-
-In the customer sessions the owner, as the staff member, takes the case in the console and writes this email on the
-form. It is handed to the participant after they have answered "What happens now? How will you hear back?":
-
-> Hello Renato,
->
-> I am Rui from the shop, and I have taken your case about the duvet set. We have not received the parcel yet, so I
-> have asked the carrier to trace it with your tracking number. I will write to you again within two working days.
->
-> Rui Costa
-
-In the staff session the participant writes their own email instead.
