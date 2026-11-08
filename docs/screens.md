@@ -38,8 +38,12 @@ browser holds one session: to see both screens at once, use a second browser or 
   section's title, "Policy: Items must be returned first", with the ID on hover. The titles come from the policy the
   server enforces (`GET /api/policy`); an ID it does not hold stays as written. Nothing in the agent's text is read as
   markup, and the stored text, which the evaluation reads, is unchanged (`frontend/src/messageText.ts`).
-- **The card**: the units and amounts the backend computed (none for a request the policy refused), the state in
-  words, the policy citations behind a refusal, the validity, and the receipt once paid. Confirm and Decline appear
+- **The card**: the units and amounts the backend computed (none for a request the policy refused), how many of the
+  order's items it covers when it is not all of them ("This request covers 1 of the 2 items in order h01-o1; the
+  others are not part of it"), the state in words with who acts next (once confirmed: "A staff member approves or
+  rejects it next. Nothing is paid until a staff member approves it."), the policy citations behind a refusal, the
+  validity, and the receipt once paid, for the items listed above it. The count of the order's items is read by the
+  screens only (`reads.screen_card`); the agent's tools read the card as it was evaluated. Confirm and Decline appear
   while the backend waits for the customer and the validity has not passed; Cancel once confirmed, until paid.
 - **Talk to a person**, after a second press. Once the conversation is handed to a person, the screen says whether
   the case waits for a staff member or one has taken it, that the reply comes by email to the account's address and

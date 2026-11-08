@@ -173,6 +173,14 @@ def proposal_card(conn: Connection, proposal: RowMapping, now: datetime, policy:
     }
 
 
+def screen_card(conn: Connection, proposal: RowMapping, now: datetime, policy: Policy) -> dict:
+    """The card as the screens show it: proposal_card, which the agent's tools read too, and the number of items in
+    its order, so that a request for part of an order says so (docs/screens.md). The agent's card stays as it was
+    evaluated."""
+    count = _one(conn, "SELECT count(*) AS n FROM order_units WHERE order_id = :o", o=proposal["order_id"])
+    return {**proposal_card(conn, proposal, now, policy), "order_unit_count": count["n"]}
+
+
 def conversation(conn: Connection, conversation_id: str, now: datetime, policy: Policy) -> dict | None:
     found = _one(conn, "SELECT * FROM conversations WHERE id = :c", c=conversation_id)
     if found is None:
@@ -192,7 +200,7 @@ def conversation(conn: Connection, conversation_id: str, now: datetime, policy: 
         "conversation_id": found["id"],
         "customer_id": found["customer_id"],
         "control": found["control"],
-        "proposals": [proposal_card(conn, p, now, policy) for p in proposals],
+        "proposals": [screen_card(conn, p, now, policy) for p in proposals],
         "handoffs": [dict(h) for h in handoffs],
         "messages": [
             {"author": m["author"], "content_untrusted": m["content_untrusted"], "at": m["created_at"]}
@@ -216,7 +224,7 @@ def staff_proposal(conn: Connection, proposal: RowMapping, now: datetime, policy
     )
     return {
         "trusted": {
-            **proposal_card(conn, proposal, now, policy),
+            **screen_card(conn, proposal, now, policy),
             "customer": customer,
             "customer_confirmed_at": confirmation["decided_at"] if confirmation else None,
         },

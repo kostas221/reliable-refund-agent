@@ -12,8 +12,8 @@ service.
 > **Status, 2026-11-07.** Across every evaluation run so far, no refund was paid without authorization or twice. On
 > its latest unseen scenarios (39, three tries each), the agent with GPT-6.1 Sol succeeded in 109 of 117
 > conversations (95% interval 85.5% to 99.1%); every failure was a missing policy citation. The release carries
-> instructions repaired for those citations on development copies, not yet measured on unseen scenarios. A trial
-> with five people is being prepared. Evidence by version is [below](#evidence-by-version).
+> instructions repaired for those citations on development copies, not yet measured on unseen scenarios. No one
+> outside the project has used it yet. Evidence by version is [below](#evidence-by-version).
 
 ![The customer's chat with a refund proposal waiting for confirmation](docs/images/customer-proposal.png)
 
@@ -34,7 +34,7 @@ no further changes; the staff member continues by email ([docs/handoff.md](docs/
 
 ![The staff console: the backend's figures, checked, apart from the assistant's unverified summary](docs/images/staff-approval.png)
 
-## Why it can be trusted with money
+## How refund execution is controlled
 
 The model proposes; the backend decides. The design rests on a few rules, each enforced in code and tested:
 
@@ -75,15 +75,16 @@ development copies. Development results show only that the cases the rules were 
 | v1.2, 2026-10-30 | Fixes by category of failure, instructions v9; 19 new scenarios and 8 stress scenarios | Luna 50 of 57 (87.7%), 16 of 19: **both targets met**. Sol: 54 of 57; no difference shown (+7.0 points, 95% +0.0 to +19.3). Stress set: 23 of 24 each | [docs/held-out-v1.2/results.md](docs/held-out-v1.2/results.md) |
 | v1.3, 2026-11-03 | Deadlines from the backend, a wider item-selection check, instructions v10; Sol chosen as the product's model; 39 new scenarios | Sol 109 of 117 (93.2%), 35 of 39: **both targets met**. Claude Sonnet 5.5: 108 of 117; no difference shown (−0.9 points, 95% −6.8 to +5.1) at 2.54 times the agent cost. All 16 failures across both were missing citations | [docs/held-out-v1.3/results.md](docs/held-out-v1.3/results.md) |
 | Release, 2026-11-06 | Instructions v12, for the citations v1.3 missed | Development only: 381 of 384 conversations on 128 scenarios; the other 3 were faults of the simulated customer | [docs/pilot/results.md](docs/pilot/results.md), "instructions v12" |
+| Release, 2026-11-08 | Screen wording (who acts next, part of an order, the receipt's items) and one backend check: a return dispute needs the customer's words that the items were sent | Tests and a replay of the recorded handoffs only: 0 of 63 accepted return disputes would be refused. No model run | `docs/plan.md`, change log of 2026-11-08 |
 
 No refund was paid without authorization, or twice, in any of these runs: 180, 180, 243 and 234 conversations on the
 held-out sets, and every development run. Zero observed violations do not prove zero risk; the tests below check the
 same property by attacking it directly.
 
-**A trial with people** ([docs/trial/](docs/trial/protocol.md)): five participants, each doing four tasks with the
-live model, observed for where they need help and what they misread. The owner's rehearsal before it found eight
-problems, none a safety problem ([docs/trial/rehearsal-2026-11-07.md](docs/trial/rehearsal-2026-11-07.md)). Its
-report will give counts out of five, not a success rate.
+**No trial with outside users.** A trial with five people was prepared ([docs/trial/](docs/trial/protocol.md)) but
+not run: no participants could be found for this release. The owner's own rehearsal with the live model found eight
+problems, none a safety problem ([docs/trial/rehearsal-2026-11-07.md](docs/trial/rehearsal-2026-11-07.md)); it is
+the view of the person who built the system, not evidence of how customers understand it.
 
 ## How it is tested
 
@@ -179,7 +180,7 @@ npm test --prefix frontend
 | `refund_agent/evaluation/` | Runner, evaluator, dialogue audit, final evaluation and its report |
 | `scenarios/` | The development scenarios and the held-out sets |
 | `prompts/` | The agent's instructions (the release uses `agent-v12.md`) and the simulated customer's |
-| `docs/` | Product contract, policy, schema, state machine, plan, results and the trial |
+| `docs/` | Product contract, policy, schema, state machine, plan, results, and the kit of a trial not yet run |
 | `Dockerfile`, `docker-compose.yml` | The demo application and the database |
 
 ## Limits
@@ -189,13 +190,16 @@ npm test --prefix frontend
   the common practice of counting the sending.
 - Local only. There is no public deployment. After a handoff the staff member continues by email; there is no reply
   in the chat and no list of taken cases.
+- No one outside the project has used it. Whether customers and staff understand the confirmation, the approval,
+  a refusal and a handoff has not been tested with people; the planned trial was not run.
 - Small held-out sets (19 to 39 scenarios): the intervals are several points wide, and a result holds for these
   scenarios, not for every shop.
 - The simulated customer is a language model; some conversations failed because it broke its role, and are reported
   as such. Claude read every conversation; the owner read a share of v1's, and later readings were waived or are
   still pending, as each report records.
-- Some checks of the customer's words (which item among look-alikes, a request for a person) are bounded word rules:
-  they fail safe, by asking again or refusing, and a typo can make them ask twice.
+- Some checks of the customer's words (which item among look-alikes, a request for a person, a claim that returned
+  items were sent) are bounded word rules: they fail safe, by asking again or refusing, and a typo or an unusual
+  phrasing can make them ask twice.
 - Language models are not deterministic: a new run with the same settings can answer differently. The reports are
   reproducible from the saved results.
 

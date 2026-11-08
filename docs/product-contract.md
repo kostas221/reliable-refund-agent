@@ -43,8 +43,8 @@ diagram, with the actor and checks of every transition, is in [state-machine.md]
 **Handoff.** A person takes over when the customer asks for one, when the shop's decision is that a staff member
 takes the case, or in a case the policy names (units sent but not received, a delivered order that never arrived, a
 request to refund shipping). The agent names one of these reasons; the backend checks those its data can show (the
-conversation's latest decision, the disputed units, the order's status) and that a customer's request rests on
-words the customer wrote. The agent records the reason and origin, the customer's goal, confirmed facts, any pending
+conversation's latest decision, the disputed units, the order's status) and that a customer's request, or a claim
+that returned units were sent, rests on words the customer wrote. The agent records the reason and origin, the customer's goal, confirmed facts, any pending
 proposal, past actions and the decision needed. The conversation becomes `human_controlled` at once, its open
 proposals are invalidated, and the agent makes no further changes. Staff see and take the case in the console and continue with the customer by email, outside the application
 ([handoff.md](handoff.md)); there is no live staff-to-customer chat in v1.

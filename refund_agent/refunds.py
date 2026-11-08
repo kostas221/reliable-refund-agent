@@ -1384,6 +1384,93 @@ def request_for_person(messages: Sequence[tuple[str, str, str]], words: str) -> 
     )
 
 
+# What a claim that units were already sent back looks like in words (the owner's rehearsal, 2026-11-07, finding 5). A
+# return_disputed handoff rested on the agent's reading of "i send them back", after the customer had written "If I send
+# them next Monday", and the conversation left the assistant for good. The check refuses words that plainly claim no
+# sending; whether a claim is true stays the staff member's to check (tests/test_claim_of_sending.py, known limits).
+_SENT = re.compile(
+    r"\b(sent|posted|mailed|shipped|returned|dropped (?:\w+ )?off|handed (?:\w+ )?(?:in|over)|"
+    r"on (?:its|their) way back)\b"
+)
+# A condition or a plan before the verb: "If I returned them today", "Once I've sent them", "I will post them".
+_NOT_YET = re.compile(r"\b(if|once|will|shall|going to|gonna|plan|planning|about to)\b|'ll\b")
+# The agent's question whether the units were already sent: "Have you already sent the shoes back?"
+_ASKS_IF_SENT = re.compile(
+    r"\b(?:have|did|had) you (?:already )?(?:sent|send|posted|post|mailed|mail|shipped|ship|returned|return|dropped)\b"
+)
+
+
+# Who sent: the nearest pronoun before the verb ("I think you sent the wrong size" is the shop's shipping), a passive
+# statement ("The shoes were sent back"), or no subject at all in a statement ("Already sent them back"). The first
+# rule, of 2026-11-08, read the verb alone, so "Can the shoes be returned next week?" and "You sent the wrong shoes"
+# claimed a sending (review of 2026-11-08).
+_PRONOUNS = {
+    **dict.fromkeys(("i", "i've", "i'd", "i'm"), "i"),
+    **dict.fromkeys(("we", "we've", "we'd", "we're"), "we"),
+    **dict.fromkeys(("you", "you've", "you'd", "you're"), "you"),
+    **dict.fromkeys(("they", "they've", "they're", "he", "she", "it", "it's"), "other"),
+}
+_PASSIVE = re.compile(r"\b(?:was|were|has been|have been|had been|got) (?:\w+ )?$")
+_TO_CUSTOMER = re.compile(r"\bto (?:me|us)\b")
+_NO_SUBJECT = frozenset(
+    ("already", "just", "yes", "yeah", "yep", "hi", "hello", "hey", "ok", "okay", "so", "and", "also", "actually")
+)
+
+
+def _claims_sent(text_: str) -> bool:
+    """A statement that the customer sent the units back: in a clause with no negation and no condition or plan before
+    the verb, the nearest subject before it is "I" or "we" ("Have you received the shoes I sent?" claims, even as a
+    question), or a clause that is no question states it in the passive or with no subject ("The shoes were sent back
+    last week", "Already sent them back"). "Can the shoes be returned next week?", "You sent the wrong shoes", "The
+    wrong shoes were sent to me" and "I haven't sent them yet" claim nothing."""
+    for sentence in re.split(r"(?<=[.!?])\s+", _plain(text_)):
+        clauses = re.split(r"[.,;:!?]|\bbut\b", sentence)
+        filled = [i for i, clause in enumerate(clauses) if clause.strip()]
+        asked = sentence.rstrip().endswith("?") and filled
+        for i, clause in enumerate(clauses):
+            if _NEGATION.search(clause):
+                continue
+            question = bool(asked) and i == filled[-1]  # the clause the question mark ends
+            for found in _SENT.finditer(clause):
+                before = clause[: found.start()]
+                if _NOT_YET.search(before):
+                    continue
+                words = re.findall(r"[a-z']+", before)
+                subject = next((_PRONOUNS[word] for word in reversed(words) if word in _PRONOUNS), None)
+                if found.group(0).startswith("on "):  # "on its way back": the units themselves
+                    if not question and subject != "you":
+                        return True
+                elif subject in ("i", "we"):
+                    return True
+                elif not question and _PASSIVE.search(before) and not _TO_CUSTOMER.search(clause[found.end() :]):
+                    return True
+                elif not question and subject is None and all(word in _NO_SUBJECT for word in words):
+                    return True
+    return False
+
+
+def claim_of_sending(messages: Sequence[tuple[str, str, str]]) -> PersonRequest:
+    """The customer message a return_disputed handoff rests on, and what it rests on, or why there is none.
+
+    messages: the conversation's (id, author, text), customer and agent only, in order. A customer message claims, in
+    its own words, that units were already sent (_claims_sent), or the customer's latest message says yes to the
+    agent's question, in the message just before it, whether they were (_accepts, _ASKS_IF_SENT)."""
+    customer = [i for i, (_, author, _) in enumerate(messages) if author == "customer"]
+    for i in reversed(customer):
+        if _claims_sent(messages[i][2]):
+            return PersonRequest(messages[i][0], "claims_sent", "")
+    if customer and _accepts(messages[customer[-1]][2]):
+        latest = customer[-1]
+        before = messages[latest - 1] if latest > 0 else None
+        if before is not None and before[1] == "agent" and _ASKS_IF_SENT.search(_plain(before[2])):
+            return PersonRequest(messages[latest][0], "answers_question", "")
+    return PersonRequest(
+        None,
+        "",
+        "no message of the customer says, in words this check can read, that those units were already sent",
+    )
+
+
 def _written(conn: Connection, conversation_id: str) -> list[tuple[str, str, str]]:
     """What the customer and the agent wrote in this conversation, as (id, author, text), in order. Fact lines are left
     out: said by the graph from the records, they are not the offer a customer's yes answers (review of 2026-10-28)."""
@@ -1485,6 +1572,16 @@ def check_handoff_reason(
                         "A unit received back is requested with propose_refund; a refunded unit is reported with its "
                         f"receipt ({policy.citation('remaining')})."
                     )
+                    if holds:
+                        claim = claim_of_sending(_written(conn, conversation_id))
+                        holds, unmet = claim.message_id is not None, claim.unmet
+                        evidence["customer_message"], evidence["basis"] = claim.message_id, claim.basis
+                        then = (
+                            "Ask the customer whether they have already sent them, and hand off with return_disputed "
+                            "only once they say so. If they will send them later, tell them the units must arrive "
+                            f"first and the request must be made by the deadline ({policy.citation('return')}, "
+                            f"{policy.citation('window')}); nothing is requested for them now."
+                        )
             elif reason == "shipping_refund":
                 request = request_for_shipping_refund(_written(conn, conversation_id), customer_words)
                 holds, unmet = request.message_id is not None, request.unmet

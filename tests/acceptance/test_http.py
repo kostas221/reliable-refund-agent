@@ -392,3 +392,22 @@ def test_the_policy_door_gives_each_cited_section_its_title_to_signed_in_people_
     assert len(policy["sections"]) == 12
     assert shop.browser("d01-rui").get("/api/policy").json() == policy
     assert shop.browser().get("/api/policy").status_code == 401
+
+
+def test_a_card_on_the_screens_says_how_many_of_its_orders_items_it_covers(db):
+    """A request for part of an order shows that it is part (docs/screens.md): D11's card for the towel set alone, in
+    an order of two items. Only the screens read the count; the agent's tools read the card as it was evaluated."""
+    from sqlalchemy import text
+
+    from refund_agent import reads
+
+    shop = Shop(db, "D11")
+    conversation, proposal = proposed(shop.engine, "h01-bruna", "h01-o1", ["h01-o1-u1"], "propose-1", shop.scenario.now)
+    bruna, rui = shop.browser("h01-bruna"), shop.browser("h01-rui")
+    card = bruna.get(f"/api/conversations/{conversation}").json()["proposals"][0]
+    assert (len(card["units"]), card["order_unit_count"]) == (1, 2)
+    assert rui.get(f"/api/staff/proposals/{proposal.id}").json()["trusted"]["order_unit_count"] == 2
+    assert rui.get(f"/api/staff/conversations/{conversation}").json()["proposals"][0]["order_unit_count"] == 2
+    with shop.engine.connect() as conn:
+        row = conn.execute(text("SELECT * FROM proposals WHERE id = :id"), {"id": proposal.id}).mappings().one()
+        assert "order_unit_count" not in reads.proposal_card(conn, row, shop.scenario.now, POLICY)

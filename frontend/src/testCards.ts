@@ -23,6 +23,7 @@ export function card(status: ProposalStatus, extra: Partial<ProposalCard> = {}):
     status_reason: null,
     policy_reasons: [],
     policy_citations: [],
+    order_unit_count: 1,
     policy_version: "v1",
     amount_minor: 4990,
     currency: "BRL",

@@ -3,6 +3,10 @@
 For the owner, who runs each session as the observer. Section 5 of the release brief
 ([release-brief-2026-10-31.md](../release-brief-2026-10-31.md)) asks for it; this is how it is run and reported.
 
+> **Status: not run for this release.** No participants could be found (plan change log, 2026-11-08). The kit is
+> kept for a later version; the owner's rehearsal ([rehearsal-2026-11-07.md](rehearsal-2026-11-07.md)) does not
+> replace it.
+
 Five people use the application with the live model, each for about 45 minutes, while the owner watches and takes
 notes. The trial shows where people need help, what they misread and what staff lack. It cannot show a success
 rate: five people chosen for convenience say nothing about customers in general, and the report gives counts out of

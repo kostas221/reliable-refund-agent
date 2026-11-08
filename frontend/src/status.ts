@@ -56,7 +56,7 @@ export function cardStatus(card: ProposalCard, viewer: Viewer = "customer"): Sta
     const to = staff ? "the customer's original payment" : "your original payment";
     return {
       label: "Refunded",
-      detail: `Receipt ${card.receipt.receipt_number}: ${money} sent back to ${to} on ${formatTime(card.receipt.committed_at)}.`,
+      detail: `Receipt ${card.receipt.receipt_number}: ${money} for the items above, sent back to ${to} on ${formatTime(card.receipt.committed_at)}.`,
       tone: "done",
     };
   }
@@ -74,7 +74,7 @@ export function cardStatus(card: ProposalCard, viewer: Viewer = "customer"): Sta
         label: "Waiting for staff approval",
         detail: staff
           ? "The customer confirmed it. Approve or reject it below."
-          : "You confirmed this request. A staff member reviews it next.",
+          : "You confirmed this request. A staff member approves or rejects it next. Nothing is paid until a staff member approves it.",
         tone: "waiting",
       };
     case "approved":
@@ -129,6 +129,13 @@ export function handoffNotice(control: Conversation["control"], handoffs: Conver
     detail: `A staff member will write to you ${BY_EMAIL}`,
     tone: "waiting",
   };
+}
+
+/** Whether a request covers only part of its order, in words; null when it covers every item. A customer who asked
+ * for the whole order sees at once that some items are not in it (D13, D92 and D114 in the v12 run). */
+export function partOfOrder(card: ProposalCard): string | null {
+  if (card.order_unit_count <= card.units.length) return null;
+  return `This request covers ${card.units.length} of the ${card.order_unit_count} items in order ${card.order_id}; the others are not part of it.`;
 }
 
 /** A short label for a request in the list of an order's requests. */

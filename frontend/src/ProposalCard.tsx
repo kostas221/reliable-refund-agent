@@ -4,7 +4,7 @@
 
 import type { ReactNode } from "react";
 
-import { type Viewer, cardStatus, formatMoney, formatTime, isOpen } from "./status";
+import { type Viewer, cardStatus, formatMoney, formatTime, isOpen, partOfOrder } from "./status";
 import type { ProposalCard } from "./types";
 
 interface Props {
@@ -17,6 +17,7 @@ export function ProposalCardView({ card, viewer = "customer", children }: Props)
   const status = cardStatus(card, viewer);
   // A request the policy refused promises nothing, so it shows no amounts (as the agent's tool does).
   const promised = card.status !== "ineligible";
+  const part = partOfOrder(card);
   return (
     <article className={`card ${status.tone}`} aria-label={`Refund request ${card.proposal_id}`}>
       <header className="card-head">
@@ -35,6 +36,7 @@ export function ProposalCardView({ card, viewer = "customer", children }: Props)
           </li>
         ))}
       </ul>
+      {part && <p className="muted">{part}</p>}
       {promised && (
         <p className="total">
           Total <strong>{formatMoney(card.amount_minor, card.currency)}</strong>

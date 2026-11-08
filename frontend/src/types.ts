@@ -76,6 +76,7 @@ export interface ProposalCard {
   status_reason: string | null;
   policy_reasons: string[];
   policy_citations: Citation[];
+  order_unit_count: number; // the items in the card's order, read by the screens only
   policy_version: string;
   amount_minor: number;
   currency: string;

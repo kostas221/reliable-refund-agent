@@ -67,7 +67,9 @@ def rui_opens_the_request(staff: Page) -> Locator:
 
 def the_receipt(card: Locator) -> str:
     """Waits for the receipt on Ana's card, at the screen's next read; returns its number."""
-    receipt = card.get_by_text(re.compile(r"Receipt R-\d{8}: R\$ 49,90 sent back to your original payment"))
+    receipt = card.get_by_text(
+        re.compile(r"Receipt R-\d{8}: R\$ 49,90 for the items above, sent back to your original payment")
+    )
     expect(receipt).to_be_visible(timeout=AGENT_TIME_MS)
     return re.search(r"R-\d{8}", receipt.inner_text()).group()
 

@@ -13,6 +13,8 @@ decides, never what the model would have said after a different tool result; onl
   charge since 2026-10-29): every recorded shipping_refund attempt, against what the backend answered at the time.
 - Fact line (refund_agent/agent/facts.py, review of the model comparison): every agent answer with text and no calls,
   and the line the graph would now say after it.
+- Return dispute (refunds.claim_of_sending, the owner's rehearsal of 2026-11-07): every recorded return_disputed attempt
+  the backend accepted, and whether the customer's words before it claim the units were sent.
 
 Run: uv run python -m refund_agent.evaluation.replay runs/pilot-20261022T165428Z-gpt-6-luna-none [more runs]
 """
@@ -26,7 +28,7 @@ from pathlib import Path
 
 from refund_agent.agent.facts import fact_line
 from refund_agent.policy import Policy
-from refund_agent.refunds import request_for_person, request_for_shipping_refund
+from refund_agent.refunds import claim_of_sending, request_for_person, request_for_shipping_refund
 from refund_agent.scenarios import Scenario, load_split, policy_for
 from refund_agent.selection import Kind, asks_customer, look_alikes_unnamed
 
@@ -43,6 +45,8 @@ class Replayed:
     shipping: int = 0
     shipping_changed: list[str] = field(default_factory=list)  # shipping_refund attempts now decided differently
     fact_lines: list[str] = field(default_factory=list)  # "<where>: <line>" for each answer that would get one
+    disputes: int = 0  # return_disputed attempts the backend accepted when they ran
+    disputes_refused: list[str] = field(default_factory=list)  # of those, the ones claim_of_sending would refuse
 
 
 def kinds_of(scenario: Scenario, paid: set[str]) -> list[Kind]:
@@ -118,6 +122,13 @@ def replay_try(saved: dict, scenario: Scenario, where: str, into: Replayed, poli
                     recorded = _recorded_answer(saved, call["call_id"])
                     if recorded is not None and now != recorded:
                         into.shipping_changed.append(f"{where}: {'accepted' if now else 'refused'} {words!r}")
+                elif call["name"] == "request_handoff" and arguments.get("reason_code") == "return_disputed":
+                    if _recorded_answer(saved, call["call_id"]):
+                        into.disputes += 1
+                        numbered = [(f"m{n}", author, text) for n, (author, text) in enumerate(said)]
+                        if claim_of_sending(numbered).message_id is None:
+                            customer = [text for author, text in said if author == "customer"]
+                            into.disputes_refused.append(f"{where}: {customer[-1] if customer else ''!r}")
         elif role == "customer" and message.get("text"):
             said.append(("customer", message["text"]))
 
@@ -164,6 +175,10 @@ def main(argv: list[str] | None = None) -> int:
         "decided differently"
     )
     for line in found.shipping_changed:
+        print(f"  {line}")
+    refused, accepted = len(found.disputes_refused), found.disputes
+    print(f"Return dispute: {refused} of {accepted} accepted return_disputed attempts refused")
+    for line in found.disputes_refused:
         print(f"  {line}")
     print(f"Fact line: {len(found.fact_lines)} answers would get one")
     for line in found.fact_lines:

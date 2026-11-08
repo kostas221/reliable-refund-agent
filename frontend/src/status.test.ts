@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { canCancel, canConfirm, cardStatus, formatMoney, handoffNotice, requestLabel } from "./status";
+import { canCancel, canConfirm, cardStatus, formatMoney, handoffNotice, partOfOrder, requestLabel } from "./status";
 import { RECEIPT, card } from "./testCards";
 import type { Conversation, ProposalStatus, RequestSummary } from "./types";
 
@@ -21,7 +21,7 @@ describe("nothing reads as refunded without a receipt", () => {
     const paid = cardStatus(card("refunded", { receipt: RECEIPT }));
     expect(paid.label).toBe("Refunded");
     expect(paid.detail).toContain("R-00000001");
-    expect(paid.detail).toContain("R$ 49,90");
+    expect(paid.detail).toContain("R$ 49,90 for the items above");
   });
 
   test.each(ALL.flatMap((status) => [[status, "customer"] as const, [status, "staff"] as const]))(
@@ -40,6 +40,13 @@ describe("nothing reads as refunded without a receipt", () => {
     expect(cardStatus(card("refunded", { receipt: RECEIPT }), "staff").detail).toContain(
       "the customer's original payment",
     );
+  });
+
+  test("a confirmed request says who acts next and that nothing is paid before then", () => {
+    // The trial protocol's expectation 2: a customer may take Confirm for the payment itself.
+    const shown = cardStatus(card("awaiting_staff_approval"));
+    expect(shown.detail).toContain("A staff member approves or rejects it next");
+    expect(shown.detail).toContain("Nothing is paid until a staff member approves it");
   });
 
   test("an approved request says it is not paid yet", () => {
@@ -145,5 +152,17 @@ describe("what a customer reads while a person has the conversation (release bri
   test.each(["open", "taken"] as const)("a %s case is never presented as resolved or paid", (status) => {
     const shown = human(handoff(status));
     expect(`${shown?.label} ${shown?.detail}`).not.toMatch(/resolved|refunded|will be paid|sorted|done/i);
+  });
+});
+
+describe("a request for part of an order says so", () => {
+  test("a card covering some of its order's items names how many of how many", () => {
+    expect(partOfOrder(card("awaiting_customer_confirmation", { order_unit_count: 3 }))).toBe(
+      "This request covers 1 of the 3 items in order d01-o1; the others are not part of it.",
+    );
+  });
+
+  test("a card covering every item of its order adds nothing", () => {
+    expect(partOfOrder(card("awaiting_customer_confirmation", { order_unit_count: 1 }))).toBeNull();
   });
 });

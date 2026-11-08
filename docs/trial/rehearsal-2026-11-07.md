@@ -36,3 +36,17 @@ stated matched the order's records.
 
 None is a safety or correctness defect under the stop rules of [protocol.md](protocol.md), so nothing in the agent is
 changed before the first participant. The trial's own report says which of these the participants met.
+
+## What changed after
+
+The trial was not run (plan change log, 2026-11-08). Two findings were repaired from this rehearsal's evidence alone,
+each with tests that fail without the change (plan change log, 2026-11-07 and 2026-11-08):
+
+- Finding 2, in part: the screens show bold marks as bold text and citations as section titles. Internal IDs and
+  "BRL" in the model's own words remain.
+- Finding 5: a `return_disputed` handoff needs a customer message that says the units were already sent, or a yes to
+  the agent's question whether they were (`refunds.claim_of_sending`). The rehearsal's conversation is now refused
+  and the assistant keeps it; replayed on the saved development runs, the check refuses none of the 63 return disputes
+  the backend accepted there.
+
+The others remain as recorded.

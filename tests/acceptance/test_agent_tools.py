@@ -495,7 +495,10 @@ def test_a_handoff_for_staff_names_the_customers_order_and_its_units(db):
     ],
 )
 def test_a_handoff_result_gives_the_section_it_rests_on(db, scenario_id, code, order_id, units, section):
-    answer = handoff(agent_for(db, scenario_id), code, order_id, units=units)
+    ctx = agent_for(db, scenario_id)
+    if code == "return_disputed":
+        said(ctx, "I sent the duvet set back over a week ago.")  # the claim the handoff rests on
+    answer = handoff(ctx, code, order_id, units=units)
     citation = f"refund-policy/v2/{section}"
     assert (answer["reason_code"], answer["policy_citations"]) == (code, [citation])
     assert f"and why, citing ({citation})" in answer["next_step"]
@@ -671,6 +674,7 @@ def test_a_refused_handoff_keeps_the_refund_under_way_and_says_what_to_do_instea
 
 def test_a_return_dispute_needs_named_units_the_records_do_not_show_received(db):
     ctx = agent_for(db, "D22")  # h12-o1: the duvet set has not arrived back
+    said(ctx, "Hi, I sent the duvet set back over a week ago. Why haven't I got my refund yet?")
     assert handoff(ctx, "return_disputed", "h12-o1", units=["h12-o1-u1"])["ok"] is True
 
 
@@ -682,7 +686,44 @@ def test_a_return_dispute_is_about_the_named_units_not_others_of_the_order(db):
     assert f"the records show {bowl} received back or already refunded" in refused["explanation"]
     assert "A unit received back is requested with propose_refund" in refused["explanation"]
     assert handoff(ctx, "return_disputed", "d02-o1", "hand-2", units=[napkins, bowl])["refused"] == "handoff_reason"
+    said(ctx, "I posted the napkins back with the bowl and the plate.")
     assert handoff(ctx, "return_disputed", "d02-o1", "hand-3", units=[napkins])["ok"] is True
+
+
+# The owner's rehearsal of 2026-11-07, finding 5: a return dispute rested on the agent's reading of "i send them back",
+# after the customer had written "If I send them next Monday", and handed the conversation to a person.
+REHEARSAL_QUESTION = (
+    "Do you mean you’ve already sent the trail running shoes back, or that you want a refund once they arrive? The "
+    "shop’s records currently don’t show them as received, and they must arrive before a refund can be requested "
+    "(refund-policy/v2/return)."
+)
+
+
+def test_a_return_dispute_rests_on_the_customers_words_that_the_units_were_sent(db):
+    ctx = agent_for(db, "D06")  # d06-o1: the shoes have not arrived back, and the customer has not sent them
+    said(ctx, "f I send them next Monday, can I still get a refund?")
+    said(ctx, REHEARSAL_QUESTION, author="agent")
+    said(ctx, "i send them back")
+    refused = handoff(ctx, "return_disputed", "d06-o1", units=["d06-o1-u1"])
+    assert refused["refused"] == "handoff_reason"
+    assert "no message of the customer says, in words this check can read" in refused["explanation"]
+    assert "Ask the customer whether they have already sent" in refused["explanation"]
+    assert control(ctx) == [("agent",)]  # the assistant keeps the conversation
+    said(ctx, "Sorry, I mean I posted them yesterday.")
+    assert handoff(ctx, "return_disputed", "d06-o1", "hand-2", units=["d06-o1-u1"])["ok"] is True
+
+
+@pytest.mark.parametrize(
+    "words",
+    ["Can the shoes be returned next week?", "You sent the wrong shoes."],  # the review of 2026-11-08, its probes
+)
+def test_a_question_or_the_shops_own_shipping_is_no_claim_that_the_units_were_sent(db, words):
+    ctx = agent_for(db, "D06")
+    said(ctx, words)
+    refused = handoff(ctx, "return_disputed", "d06-o1", units=["d06-o1-u1"])
+    assert refused["refused"] == "handoff_reason"
+    assert control(ctx) == [("agent",)]
+    assert rows(ctx.engine, "SELECT count(*) FROM handoffs") == [(0,)]
 
 
 def test_a_return_dispute_names_the_customers_order_and_its_units(db):
