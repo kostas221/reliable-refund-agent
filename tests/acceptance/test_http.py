@@ -375,3 +375,20 @@ def test_the_staff_history_shows_who_did_what_and_no_free_text(db):
     assert history[-1]["details"] == {"handoff_id": handoff, "origin": "agent"}
     assert "IGNORE" not in str(history)  # the model's words are shown apart, as untrusted
     assert "history" not in ana.get(f"/api/conversations/{conversation}").json()  # the audit log is for staff
+
+
+def test_the_policy_door_gives_each_cited_section_its_title_to_signed_in_people_only(db):
+    """The chat shows a cited section by its title, not its ID (docs/screens.md). The titles come from the policy the
+    server enforces, never from the screens, and in its order."""
+    shop = Shop(db, "D01")
+    policy = shop.browser("d01-ana").get("/api/policy").json()
+    assert policy["version"] == "v2"
+    assert [section["citation"] for section in policy["sections"]][:3] == [
+        "refund-policy/v2/scope",
+        "refund-policy/v2/eligible-orders",
+        "refund-policy/v2/window",
+    ]
+    assert {"citation": "refund-policy/v2/return", "title": "Items must be returned first"} in policy["sections"]
+    assert len(policy["sections"]) == 12
+    assert shop.browser("d01-rui").get("/api/policy").json() == policy
+    assert shop.browser().get("/api/policy").status_code == 401

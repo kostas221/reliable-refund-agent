@@ -11,7 +11,7 @@ services:
       TZ: UTC
     # Reachable from this computer only: the passwords are known test values (review of 2026-10-19, R11).
     ports:
-      - "127.0.0.1:5433:5432"
+      - "127.0.0.1:${DB_PORT:-5433}:5432"
     volumes:
       - ./docker/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
@@ -19,3 +19,20 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
+
+  # The demo application: the screens and the API on http://localhost:8000, in mock mode (no API key, no cost).
+  # Started only with its profile, so `docker compose up -d` (tests, CI) still starts the database alone:
+  #   docker compose --profile app up --build
+  # Another development scenario: docker compose --profile app run --rm --service-ports app --scenario D05
+  app:
+    profiles: ["app"]
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      REFUND_DB_HOST: db
+      REFUND_DB_PORT: "5432"
+    # Reachable from this computer only, like the database: the demo users share a known password.
+    ports:
+      - "127.0.0.1:${APP_PORT:-8000}:8000"

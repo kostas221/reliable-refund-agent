@@ -171,6 +171,12 @@ export interface StaffConversation extends Conversation {
   history: HistoryEvent[];
 }
 
+/** GET /api/policy: each section of the policy the server enforces, as a citation names it, with its title. */
+export interface PolicySections {
+  version: string;
+  sections: { citation: string; title: string }[];
+}
+
 /** GET /api/mode: what drives the agent and what a payment is, shown on every screen. */
 export interface Mode {
   agent: "scripted" | "model" | null; // null: no agent behind the chat

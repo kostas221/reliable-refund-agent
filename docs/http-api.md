@@ -43,6 +43,7 @@ The backend takes the actor from the session and from the door, never from a req
 | `POST /api/staff/proposals/{id}/decision` | staff | `decision`: approved or rejected; `reason`: required to reject, refused with an approval (422 `valid_values`) | Approve or reject; the policy still applies. After the answer is sent, the agent is told, and pays (if approved) or tells the customer, with the reason |
 | `POST /api/staff/handoffs/{id}/take`, `POST /api/staff/conversations/{id}/takeover` | staff | - | Take a handoff, or take over a conversation |
 | `GET /api/health` | anyone | - | The database answers |
+| `GET /api/policy` | any signed-in user | - | The policy the server enforces: its `version`, and each section's `citation` ID and `title`, so the screens show a cited section by its title |
 | `GET /api/mode` | anyone | - | What answers in the chat (`agent`: `scripted` in mock mode, `model` in live mode, with `model` named), that `payments` are `simulated`, and in live mode the session's `budget` (limit, spent, left), why the agent is `paused` (or null) and how many staff `decisions_waiting` for it. Every screen shows it in a banner. |
 
 **What is missing on purpose:** no door proposes or executes a refund. Those are tools of the agent, which runs

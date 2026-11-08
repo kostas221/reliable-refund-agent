@@ -6,6 +6,9 @@ read from the backend, and read again every few seconds.
 
 ## Run them in mock mode, without an API key
 
+With Docker only, the screens and the API on http://localhost:8000: `docker compose --profile app up --build`
+(README, "Run it"). For development, with hot reload:
+
 ```bash
 docker compose up -d
 uv run python -m refund_agent.api
@@ -30,7 +33,11 @@ browser holds one session: to see both screens at once, use a second browser or 
 - **Choosing units** fills the chat with a first message that names them, which the customer can change. There is no
   other way to the agent: the choice becomes text through the chat door.
 - **The chat**, with each proposal card placed after the agent's message of the turn that made it. While the agent
-  answers, the customer's own text shows as "sending"; nothing else is shown before the backend has it.
+  answers, the customer's own text shows as "sending"; nothing else is shown before the backend has it. The agent's
+  bold marks (`**like this**`) show as bold text, and a policy citation such as `(refund-policy/v2/return)` as its
+  section's title, "Policy: Items must be returned first", with the ID on hover. The titles come from the policy the
+  server enforces (`GET /api/policy`); an ID it does not hold stays as written. Nothing in the agent's text is read as
+  markup, and the stored text, which the evaluation reads, is unchanged (`frontend/src/messageText.ts`).
 - **The card**: the units and amounts the backend computed (none for a request the policy refused), the state in
   words, the policy citations behind a refusal, the validity, and the receipt once paid. Confirm and Decline appear
   while the backend waits for the customer and the validity has not passed; Cancel once confirmed, until paid.
@@ -45,8 +52,9 @@ browser holds one session: to see both screens at once, use a second browser or 
   version) in one box, and "Not verified" text in another, dashed and labelled with its writer: the assistant's
   summary and the seller's message, as plain text. The approve button names the amount the backend computed.
 - **A conversation**: the customer's name and email, checked by the backend, to continue a handed-off case by email;
-  its messages (not verified), its cards, and its history (the audit events: who did what, done or refused and why,
-  with only values the backend set). Take over, after a second press.
+  its messages (not verified; a citation shows its title and its ID, to trace a statement to its section), its cards,
+  and its history (the audit events: who did what, done or refused and why, with only values the backend set). Take
+  over, after a second press.
 - **A case handed to a person**: the origin, marked "according to the assistant" when the assistant recorded that the
   customer asked; the request it closed; the earlier actions; the model's texts, not verified; Take this case.
 

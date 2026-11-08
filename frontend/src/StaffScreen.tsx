@@ -6,6 +6,7 @@
 import { type ReactNode, useEffect, useState } from "react";
 
 import { ApiError, api, describe } from "./api";
+import { ChatText, usePolicyTitles } from "./ChatText";
 import { usePolling } from "./polling";
 import { ProposalCardView } from "./ProposalCard";
 import { formatMoney, formatTime } from "./status";
@@ -277,6 +278,7 @@ function ConversationDetail({ conversationId, handoff, onOpenProposal, onChange 
   const [acting, setActing] = useState(false);
   const [notice, setNotice] = useState("");
   const [askingTakeover, setAskingTakeover] = useState(false);
+  const titles = usePolicyTitles();
 
   async function act(action: () => Promise<unknown>) {
     setActing(true);
@@ -353,7 +355,13 @@ function ConversationDetail({ conversationId, handoff, onOpenProposal, onChange 
               <span className="author">
                 {message.author === "customer" ? "Customer" : "Assistant"} · {formatTime(message.at)}
               </span>
-              <p className="text">{message.content_untrusted}</p>
+              <p className="text">
+                {message.author === "customer" ? (
+                  message.content_untrusted
+                ) : (
+                  <ChatText text={message.content_untrusted} titles={titles} viewer="staff" />
+                )}
+              </p>
             </li>
           ))}
         </ol>

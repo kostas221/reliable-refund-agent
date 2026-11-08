@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import sys
 from datetime import UTC, date, datetime
+from pathlib import Path
 
 import uvicorn
 from langgraph.checkpoint.postgres import PostgresSaver
@@ -37,7 +38,7 @@ from refund_agent.agent.costs import PRICES
 from refund_agent.agent.graph import Agent
 from refund_agent.agent.model import ModelAdapter, RecordingAdapter, ScriptedModel
 from refund_agent.api import live
-from refund_agent.api.app import create_app
+from refund_agent.api.app import create_app, with_screens
 from refund_agent.api.auth import set_password
 from refund_agent.evaluation.mock_scripts import MOCK
 from refund_agent.fixtures import seed
@@ -60,6 +61,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--prices-checked", type=date.fromisoformat, help="live mode: the date the prices were checked, YYYY-MM-DD"
     )
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="the address to listen on; 0.0.0.0 only inside a container whose port is published to this computer alone",
+    )
+    parser.add_argument(
+        "--screens", type=Path, help="serve the built screens from this folder, on the API's own origin (Docker)"
+    )
     return parser.parse_args(argv)
 
 
@@ -69,6 +78,8 @@ def not_ready(args: argparse.Namespace) -> str | None:
     scenarios = {s.id for s in load_split("development")}
     if args.scenario not in scenarios:
         return f"no development scenario {args.scenario}"
+    if args.screens is not None and not (args.screens / "index.html").is_file():
+        return f"no built screens in {args.screens}: run npm run build --prefix frontend"
     if not args.live:
         if args.scenario not in MOCK:
             return f"mock mode has no script for {args.scenario}; choose one of {', '.join(sorted(MOCK))}"
@@ -140,13 +151,12 @@ def main(argv: list[str] | None = None) -> None:
         print(f"{retried} staff decision(s) whose delivery to the agent had failed three times get new attempts.")
     print("Payments are simulated in the shop's test ledger; no money moves.")
     print("API documentation: http://localhost:8000/docs")
+    if args.screens is not None:
+        print("Screens: http://localhost:8000")
     try:
         # Plain HTTP on this machine only, so the cookie cannot be marked Secure here; behind HTTPS it must be.
-        uvicorn.run(
-            create_app(app_engine, policy, clock, secure_cookies=False, agent=agent, deliver_every_s=5, budget=budget),
-            host="127.0.0.1",
-            port=8000,
-        )
+        app = create_app(app_engine, policy, clock, secure_cookies=False, agent=agent, deliver_every_s=5, budget=budget)
+        uvicorn.run(app if args.screens is None else with_screens(app, args.screens), host=args.host, port=8000)
     finally:
         pool.close()
 

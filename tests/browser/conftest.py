@@ -24,14 +24,13 @@ from datetime import UTC, datetime
 
 import pytest
 import uvicorn
-from fastapi.staticfiles import StaticFiles
 from langgraph.checkpoint.postgres import PostgresSaver
 from playwright.sync_api import Browser, Error, sync_playwright
 
 from refund_agent import db as database
 from refund_agent.agent.graph import Agent
 from refund_agent.agent.model import ScriptedModel
-from refund_agent.api.app import create_app
+from refund_agent.api.app import create_app, with_screens
 from refund_agent.api.auth import set_password
 from refund_agent.evaluation.mock_scripts import MOCK
 from refund_agent.fixtures import seed
@@ -116,8 +115,7 @@ class Server:
         agent = Agent(self.engine, POLICY, model, PostgresSaver(self.pool), self.clock)
         # Notices are also delivered at start and every second, as the demo server does every five.
         app = create_app(self.engine, POLICY, self.clock, secure_cookies=False, agent=agent, deliver_every_s=1)
-        app.mount("/", StaticFiles(directory=SCREENS, html=True), name="screens")
-        config = uvicorn.Config(app, host="127.0.0.1", port=self.port, log_level="warning")
+        config = uvicorn.Config(with_screens(app, SCREENS), host="127.0.0.1", port=self.port, log_level="warning")
         self.uvicorn = uvicorn.Server(config)
         self.thread = threading.Thread(target=self.uvicorn.run, daemon=True)
         self.thread.start()

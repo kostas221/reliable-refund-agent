@@ -26,10 +26,12 @@ import threading
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Engine, text
 
@@ -78,6 +80,14 @@ def _real_time() -> datetime:
 
 def _not_found() -> HTTPException:
     return HTTPException(404, "not_found")
+
+
+def with_screens(app: FastAPI, directory: Path) -> FastAPI:
+    """Serves the built screens (`npm run build --prefix frontend`) from the API's own origin, as Vite's proxy does in
+    development, so the session cookie stays on one origin. Mounted after every door, so each /api path keeps its own
+    answer; the screens answer only paths the API does not hold."""
+    app.mount("/", StaticFiles(directory=directory, html=True), name="screens")
+    return app
 
 
 def create_app(
@@ -236,6 +246,15 @@ def create_app(
         auth.sign_out(engine, request.cookies[auth.SESSION_COOKIE], wall_clock())
         response.delete_cookie(auth.SESSION_COOKIE, httponly=True, secure=secure_cookies, samesite="strict")
         return {"signed_out": True}
+
+    @app.get("/api/policy")
+    def policy_sections(user: Reading) -> dict:
+        """The sections of the policy this server enforces: the ID a citation carries and the section's title, so the
+        screens show a cited section by its title (docs/screens.md). The same for every signed-in person."""
+        return {
+            "version": policy.version,
+            "sections": [{"citation": policy.citation(s.id), "title": s.title} for s in policy.sections],
+        }
 
     # The customer's doors
 

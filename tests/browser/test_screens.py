@@ -209,6 +209,36 @@ def test_a_case_handed_to_a_person_through_both_screens_and_a_restart(serve, bro
     assert errors == []
 
 
+def test_a_cited_policy_section_reads_as_its_title_in_both_screens(serve, browser):
+    """docs/screens.md: the model's citation IDs show as the section's title, from the policy the server enforces; the
+    staff member also sees the ID, so a statement can be traced to its section. The stored text is unchanged."""
+    server = serve("D05")
+    customer, staff, errors = two_people(browser)
+    sign_in(customer, server.url, "elisa.prado@example.test")
+    expect(customer.get_by_role("heading", name="Your orders")).to_be_visible()
+    message = customer.get_by_label("Message")
+    message.press_sequentially("Hello, I sent back the brass desk lamp from my July order. Can I get a refund?")
+    message.press("Enter")
+    refusal = customer.locator("li.message.agent").filter(has_text="that period ended on 24 August")
+    expect(refusal).to_be_visible(timeout=AGENT_TIME_MS)
+    expect(refusal).to_contain_text("(Policy: Time limit), and that period ended")
+    expect(refusal).not_to_contain_text("refund-policy/v2/window")
+    expect(refusal.get_by_title("refund-policy/v2/window")).to_have_text("Policy: Time limit")
+
+    message.press_sequentially("That's not fair. I want to talk to a person.")
+    message.press("Enter")
+    waiting = customer.get_by_role("status").filter(has_text="Waiting for a staff member")
+    expect(waiting).to_be_visible(timeout=AGENT_TIME_MS)
+
+    sign_in(staff, server.url, "rui.costa@shop.example.test")
+    staff.get_by_role("button", name=re.compile(r"^The customer asked for a person")).click()
+    transcript = staff.locator("ol.transcript li").filter(has_text="that period ended on 24 August")
+    expect(transcript).to_contain_text("(Policy: Time limit refund-policy/v2/window), and that period ended")
+    stored = [text for author, text in messages(server) if author == "agent"]
+    assert any("(refund-policy/v2/window), and that period ended" in text for text in stored)
+    assert errors == []
+
+
 def test_a_confirmation_whose_answer_is_lost_counts_once(serve, browser):
     """An uncertain HTTP result (product contract section 5): the confirmation reaches the server and is stored, and
     its answer never reaches the page. A second tab, still showing the old card, presses Confirm again."""

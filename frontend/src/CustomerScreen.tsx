@@ -6,6 +6,7 @@
 import { type FormEvent, type RefObject, useEffect, useRef, useState } from "react";
 
 import { ApiError, api, describe } from "./api";
+import { ChatText, usePolicyTitles } from "./ChatText";
 import { usePolling } from "./polling";
 import { ProposalCardView } from "./ProposalCard";
 import { canCancel, canConfirm, formatDay, formatMoney, formatTime, handoffNotice, requestLabel } from "./status";
@@ -216,6 +217,7 @@ function Chat({ conversationId, onOpened, onStartOver, draft, setDraft, draftBox
   }
 
   const human = data?.control === "human_controlled";
+  const titles = usePolicyTitles();
   const withPerson = data ? handoffNotice(data.control, data.handoffs) : null;
   return (
     <div className="stack">
@@ -240,7 +242,13 @@ function Chat({ conversationId, onOpened, onStartOver, draft, setDraft, draftBox
             entry.kind === "message" ? (
               <li key={entry.key} className={`message ${entry.message.author}`}>
                 <span className="author">{entry.message.author === "customer" ? "You" : "Assistant"}</span>
-                <p className="text">{entry.message.content_untrusted}</p>
+                <p className="text">
+                  {entry.message.author === "customer" ? (
+                    entry.message.content_untrusted
+                  ) : (
+                    <ChatText text={entry.message.content_untrusted} titles={titles} viewer="customer" />
+                  )}
+                </p>
               </li>
             ) : (
               <li key={entry.key}>

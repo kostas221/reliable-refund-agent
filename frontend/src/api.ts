@@ -8,6 +8,7 @@ import type {
   ConversationListItem,
   Mode,
   Order,
+  PolicySections,
   ProposalStatus,
   Session,
   StaffConversation,
@@ -142,6 +143,7 @@ type Decided = { proposal_id: string; status: ProposalStatus };
 
 export const api = {
   mode: () => call<Mode>("GET", "/api/mode"),
+  policy: () => call<PolicySections>("GET", "/api/policy"),
   session: () => call<Session>("GET", "/api/session").then(remember),
   signIn: (email: string, password: string) =>
     call<Session>("POST", "/api/session", { email, password }).then(remember),
