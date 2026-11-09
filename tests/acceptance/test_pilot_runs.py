@@ -7,7 +7,7 @@ import argparse
 import json
 import sys
 from contextlib import contextmanager
-from datetime import date
+from datetime import date, datetime
 
 import pytest
 from sqlalchemy import text
@@ -198,16 +198,30 @@ def test_a_paid_run_keeps_the_computer_awake_and_names_the_simulated_customers_m
     assert (identity["model"], identity["simulator_model"]) == ("gpt-6-luna", "gpt-6-luna")
 
 
-def test_two_pilots_never_share_a_database(recorded, monkeypatch):
+class _OneSecond(datetime):
+    """Every call of now() in the same second: two runs started back to back on a fast computer (the first CI run on
+    GitHub, 2026-11-08, gave both pilots one folder name, and the second stopped)."""
+
+    @classmethod
+    def now(cls, tz=None):
+        return datetime(2026, 11, 8, 17, 8, 57, tzinfo=tz)
+
+
+def test_two_pilots_never_share_a_database_or_a_folder(recorded, monkeypatch, tmp_path):
     monkeypatch.setattr(
         trials,
         "run_scenario",
         lambda scenario, *_, **__: RunResult(scenario.id, "A", Verdict(scenario.id, ()), [], 0, None),
     )
+    monkeypatch.setattr(pilot, "datetime", _OneSecond)
     pilot.paid_run(ARGS, {"D01": DEVELOPMENT["D01"]}, "abc123")
     pilot.paid_run(ARGS, {"D01": DEVELOPMENT["D01"]}, "abc123")
     first, second = recorded[:4], recorded[4:]  # each: its template and its try, created and dropped
     assert {name for _, name in first}.isdisjoint({name for _, name in second})
+    assert sorted(run.name for run in tmp_path.glob("pilot-*")) == [
+        "pilot-20261108T170857Z-gpt-6-luna-none",
+        "pilot-20261108T170857Z-gpt-6-luna-none-2",
+    ]
 
 
 def test_two_mock_runs_never_share_a_database(recorded, monkeypatch):

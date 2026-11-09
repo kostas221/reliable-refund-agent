@@ -38,7 +38,7 @@ from refund_agent.agent.tools import tool_definitions
 from refund_agent.evaluation import manifest
 from refund_agent.evaluation.customers import SIMULATOR_INSTRUCTIONS, simulator_instructions
 from refund_agent.evaluation.runner import CUT_OFF
-from refund_agent.evaluation.trials import Batch, awake, line_by_line, run_try
+from refund_agent.evaluation.trials import Batch, awake, line_by_line, new_run_folder, run_try
 from refund_agent.policy import REPO_ROOT
 from refund_agent.scenarios import id_order, load_split, policy_for
 
@@ -131,8 +131,7 @@ def try_order(scenario_ids, repeats: int) -> list[tuple[str, int]]:
 def paid_run(args: argparse.Namespace, scenarios: dict, predictions_commit: str) -> int:
     policy = policy_for(scenarios.values())
     started = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    out = RUNS / f"pilot-{started}-{args.model}-{args.reasoning}"
-    out.mkdir(parents=True)
+    out = new_run_folder(RUNS, f"pilot-{started}-{args.model}-{args.reasoning}")
     budget = Budget(args.budget_usd)
     identity = {
         "kind": "pilot",

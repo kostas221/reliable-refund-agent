@@ -66,6 +66,21 @@ def line_by_line() -> None:
         reconfigure(line_buffering=True)
 
 
+def new_run_folder(parent: Path, name: str) -> Path:
+    """A new, empty folder for a run: parent/name, or name-2, name-3 and so on when a run started in the same second
+    holds the name (the first CI run on GitHub, 2026-11-08). Each name is created or refused in one step, so two runs
+    never write into one folder."""
+    parent.mkdir(parents=True, exist_ok=True)
+    for number in range(1, 1000):
+        folder = parent / (name if number == 1 else f"{name}-{number}")
+        try:
+            folder.mkdir()
+        except FileExistsError:
+            continue
+        return folder
+    raise FileExistsError(f"{parent / name} and 998 numbered folders after it exist")
+
+
 def write_json(path: Path, record: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(record, indent=2, ensure_ascii=False, default=str), encoding="utf-8", newline="\n")

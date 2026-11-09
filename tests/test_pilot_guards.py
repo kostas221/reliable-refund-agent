@@ -194,3 +194,17 @@ def test_tries_run_scenario_by_scenario_in_the_order_of_their_numbers():
         ("D100", 1),
         ("D100", 2),
     ]
+
+
+def test_a_run_started_in_the_same_second_gets_a_folder_of_its_own(tmp_path):
+    from refund_agent.evaluation.trials import new_run_folder
+
+    first = new_run_folder(tmp_path / "runs", "pilot-20261108T170857Z-gpt-6-luna-none")
+    second = new_run_folder(tmp_path / "runs", "pilot-20261108T170857Z-gpt-6-luna-none")
+    third = new_run_folder(tmp_path / "runs", "pilot-20261108T170857Z-gpt-6-luna-none")
+    assert [folder.name for folder in (first, second, third)] == [
+        "pilot-20261108T170857Z-gpt-6-luna-none",
+        "pilot-20261108T170857Z-gpt-6-luna-none-2",
+        "pilot-20261108T170857Z-gpt-6-luna-none-3",
+    ]
+    assert all(folder.is_dir() and not any(folder.iterdir()) for folder in (first, second, third))

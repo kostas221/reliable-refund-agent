@@ -48,7 +48,7 @@ from refund_agent.evaluation import manifest
 from refund_agent.evaluation.customers import SIMULATOR_INSTRUCTIONS, simulator_instructions
 from refund_agent.evaluation.runner import CUT_OFF
 from refund_agent.evaluation.sets import SETS
-from refund_agent.evaluation.trials import Batch, awake, line_by_line, run_try, write_json
+from refund_agent.evaluation.trials import Batch, awake, line_by_line, new_run_folder, run_try, write_json
 from refund_agent.policy import REPO_ROOT
 from refund_agent.refunds import Configuration
 from refund_agent.scenarios import (
@@ -226,8 +226,7 @@ def _open(args: argparse.Namespace, scenarios: dict, commits: dict) -> Path:
         if _comparable(saved) != _comparable(record):
             raise NotReady(f"{_shown(out)} ran other code or settings; it can be resumed only by the same revision")
     else:
-        out = RUNS / f"{SETS[args.set].prefix}-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}"
-        out.mkdir(parents=True)
+        out = new_run_folder(RUNS, f"{SETS[args.set].prefix}-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}")
         write_json(out / "manifest.json", record)
         for name in configurations_of(args.set):
             write_json(out / name / "manifest.json", _configuration_manifest(record, name))
